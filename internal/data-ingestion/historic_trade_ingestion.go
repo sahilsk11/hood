@@ -1,10 +1,11 @@
 package data_ingestion
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
-	"hood/internal/trading"
+	"hood/internal/util"
 
 	"log"
 	"os"
@@ -86,7 +87,7 @@ func ParseEntriesFromOutfile() ([]*model.Trade, []*model.AssetSplit, error) {
 				Symbol:    ticker,
 				Ratio:     int32(ratio),
 				Date:      t,
-				CreatedAt: TimePtr(time.Now().UTC()),
+				CreatedAt: util.TimePtr(time.Now().UTC()),
 			}
 			splits = append(splits, &split)
 		}
@@ -130,7 +131,7 @@ type ProcessTradesOutput struct {
 	AppliedAssetSplitsMap map[int32]model.AppliedAssetSplit
 }
 
-func ProcessTrades(trades []model.Trade, splits []model.AssetSplit) (*ProcessTradesOutput, error) {
+func ProcessHistoricTrades(trades []model.Trade, splits []model.AssetSplit) (*ProcessTradesOutput, error) {
 	openLotsMap := make(map[string][]*model.OpenLot)
 	deletedOpenLots := []*model.OpenLot{}
 	closedLots := []*model.ClosedLot{}
@@ -172,8 +173,8 @@ func ProcessTrades(trades []model.Trade, splits []model.AssetSplit) (*ProcessTra
 				TradeID:    t.TradeID,
 				CostBasis:  t.CostBasis,
 				Quantity:   t.Quantity,
-				CreatedAt:  TimePtr(time.Now().UTC()),
-				ModifiedAt: TimePtr(time.Now().UTC()),
+				CreatedAt:  util.TimePtr(time.Now().UTC()),
+				ModifiedAt: util.TimePtr(time.Now().UTC()),
 			}
 			if _, ok := openLotsMap[t.Symbol]; !ok {
 				openLotsMap[t.Symbol] = []*model.OpenLot{}
@@ -196,7 +197,7 @@ func ProcessTrades(trades []model.Trade, splits []model.AssetSplit) (*ProcessTra
 		} else {
 			// openLotsMap should be updated within the trading function
 			// so we don't need to update open lots
-			sellResult, err := trading.ProcessSellOrder(t, openLotsMap[t.Symbol])
+			sellResult, err := ProcessSellOrder(t, openLotsMap[t.Symbol])
 			if err != nil {
 				return nil, err
 			}
@@ -228,32 +229,28 @@ func ProcessTrades(trades []model.Trade, splits []model.AssetSplit) (*ProcessTra
 	}, nil
 }
 
-func TimePtr(t time.Time) *time.Time {
-	return &t
-}
-
-func (d Deps) ProcessOutfile() error {
+func ProcessOutfile(ctx context.Context) error {
 	trades, splits, err := ParseEntriesFromOutfile()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	insertedTrades, err := d.AddTradesToDb(trades)
+	insertedTrades, err := AddTradesToDb(ctx, trades)
 	if err != nil {
 		return err
 	}
 
-	insertedSplits, err := d.AddAssetsSplitsToDb(splits)
+	insertedSplits, err := AddAssetsSplitsToDb(ctx, splits)
 	if err != nil {
 		return err
 	}
 
-	processTradesResponse, err := ProcessTrades(insertedTrades, insertedSplits)
+	processTradesResponse, err := ProcessHistoricTrades(insertedTrades, insertedSplits)
 	if err != nil {
 		return err
 	}
 
-	insertedLots, err := d.AddOpenLotsToDb(processTradesResponse.OpenLots)
+	insertedLots, err := AddOpenLotsToDb(ctx, processTradesResponse.OpenLots)
 	if err != nil {
 		return fmt.Errorf("could not add open lots to db: %w", err)
 	}
@@ -266,12 +263,12 @@ func (d Deps) ProcessOutfile() error {
 		}
 	}
 
-	_, err = d.AddAppliedAssetSplitsToDb(appliedAssetSplits)
+	_, err = AddAppliedAssetSplitsToDb(ctx, appliedAssetSplits)
 	if err != nil {
 		return fmt.Errorf("could not add applied asset splits to db: %w", err)
 	}
 
-	_, err = d.AddClosedLotsToDb(processTradesResponse.ClosedLots)
+	_, err = AddClosedLotsToDb(ctx, processTradesResponse.ClosedLots)
 	if err != nil {
 		return fmt.Errorf("could not add closed lots to db: %w", err)
 	}

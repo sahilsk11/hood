@@ -1,19 +1,21 @@
 package data_ingestion
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
+	db_utils "hood/internal/db/utils"
 
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-type Deps struct {
-	Db *sql.DB
-}
+func AddTradesToDb(ctx context.Context, trades []*model.Trade) ([]model.Trade, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-func (m Deps) AddTradesToDb(trades []*model.Trade) ([]model.Trade, error) {
 	stmt := table.Trade.INSERT(table.Trade.MutableColumns).
 		MODELS(trades).
 		ON_CONFLICT(
@@ -30,7 +32,7 @@ func (m Deps) AddTradesToDb(trades []*model.Trade) ([]model.Trade, error) {
 		RETURNING(table.Trade.AllColumns)
 
 	result := []model.Trade{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +40,12 @@ func (m Deps) AddTradesToDb(trades []*model.Trade) ([]model.Trade, error) {
 	return result, nil
 }
 
-func (m Deps) AddOpenLotsToDb(openLots []*model.OpenLot) ([]model.OpenLot, error) {
+func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLot, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	t := table.OpenLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(openLots).
@@ -48,7 +55,7 @@ func (m Deps) AddOpenLotsToDb(openLots []*model.OpenLot) ([]model.OpenLot, error
 		RETURNING(t.AllColumns)
 
 	result := []model.OpenLot{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +63,12 @@ func (m Deps) AddOpenLotsToDb(openLots []*model.OpenLot) ([]model.OpenLot, error
 	return result, nil
 }
 
-func (m Deps) AddAssetsSplitsToDb(splits []*model.AssetSplit) ([]model.AssetSplit, error) {
+func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	t := table.AssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(splits).
@@ -66,7 +78,7 @@ func (m Deps) AddAssetsSplitsToDb(splits []*model.AssetSplit) ([]model.AssetSpli
 		RETURNING(t.AllColumns)
 
 	result := []model.AssetSplit{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to asset asset splits: %w", err)
 	}
@@ -74,7 +86,12 @@ func (m Deps) AddAssetsSplitsToDb(splits []*model.AssetSplit) ([]model.AssetSpli
 	return result, nil
 }
 
-func (m Deps) AddAppliedAssetSplitsToDb(appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
+func AddAppliedAssetSplitsToDb(ctx context.Context, appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	t := table.AppliedAssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(appliedAssetSplits).
@@ -86,7 +103,7 @@ func (m Deps) AddAppliedAssetSplitsToDb(appliedAssetSplits []model.AppliedAssetS
 		RETURNING(t.AllColumns)
 
 	result := []model.AppliedAssetSplit{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert applied asset splits: %w", err)
 	}
@@ -94,14 +111,19 @@ func (m Deps) AddAppliedAssetSplitsToDb(appliedAssetSplits []model.AppliedAssetS
 	return result, nil
 }
 
-func (m Deps) AddPricesToDb(prices []model.Price) ([]model.Price, error) {
+func AddPricesToDb(ctx context.Context, prices []model.Price) ([]model.Price, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	t := table.Price
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(prices).
 		RETURNING(t.AllColumns)
 
 	result := []model.Price{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert prices: %w", err)
 	}
@@ -109,7 +131,12 @@ func (m Deps) AddPricesToDb(prices []model.Price) ([]model.Price, error) {
 	return result, nil
 }
 
-func (m Deps) AddClosedLotsToDb(lots []*model.ClosedLot) ([]model.ClosedLot, error) {
+func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]model.ClosedLot, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	t := table.ClosedLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(lots).
@@ -122,7 +149,7 @@ func (m Deps) AddClosedLotsToDb(lots []*model.ClosedLot) ([]model.ClosedLot, err
 		RETURNING(t.AllColumns)
 
 	result := []model.ClosedLot{}
-	err := stmt.Query(m.Db, &result)
+	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert closed lots: %w", err)
 	}

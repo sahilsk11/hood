@@ -1,6 +1,7 @@
 package data_ingestion
 
 import (
+	"context"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"regexp"
@@ -177,12 +178,12 @@ func parseRhPrices(textExport string) ([]model.Price, error) {
 	return pricesToUpdate, nil
 }
 
-func (m Deps) UpdatePrices() error {
+func UpdatePrices(ctx context.Context) error {
 	prices, err := parseRhPrices(fileContents)
 	if err != nil {
 		return fmt.Errorf("failed to parse prices file: %w", err)
 	}
-	_, err = m.AddPricesToDb(prices)
+	_, err = AddPricesToDb(ctx, prices)
 	if err != nil {
 		return err
 	}

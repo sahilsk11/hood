@@ -1,15 +1,73 @@
-package trading
+package data_ingestion
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/util"
 	"math"
 	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
+
+func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
+	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(insertedTrades) == 0 {
+		return nil, nil, errors.New("no inserted trades")
+	}
+	insertedTrade := insertedTrades[0]
+	newLot := model.OpenLot{
+		CostBasis:  insertedTrade.CostBasis,
+		Quantity:   insertedTrade.Quantity,
+		TradeID:    insertedTrade.TradeID,
+		CreatedAt:  util.TimePtr(time.Now().UTC()),
+		ModifiedAt: util.TimePtr(time.Now().UTC()),
+	}
+	insertedLots, err := AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(insertedTrades) == 0 {
+		return nil, nil, errors.New("no inserted open lots")
+	}
+	insertedLot := insertedLots[0]
+
+	return &insertedTrade, &insertedLot, nil
+}
+
+func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
+	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(insertedTrades) == 0 {
+		return nil, nil, errors.New("no inserted trades")
+	}
+	insertedTrade := insertedTrades[0]
+	newLot := model.OpenLot{
+		CostBasis:  insertedTrade.CostBasis,
+		Quantity:   insertedTrade.Quantity,
+		TradeID:    insertedTrade.TradeID,
+		CreatedAt:  util.TimePtr(time.Now().UTC()),
+		ModifiedAt: util.TimePtr(time.Now().UTC()),
+	}
+	insertedLots, err := AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(insertedTrades) == 0 {
+		return nil, nil, errors.New("no inserted open lots")
+	}
+	insertedLot := insertedLots[0]
+
+	return &insertedTrade, &insertedLot, nil
+}
 
 func validateTrade(t model.Trade) error {
 	if t.Quantity.LessThanOrEqual(decimal.Zero) {
@@ -72,8 +130,8 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 			BuyTradeID:    lot.TradeID,
 			SellTradeID:   t.TradeID,
 			Quantity:      quantitySold,
-			CreatedAt:     TimePtr(time.Now().UTC()),
-			ModifiedAt:    TimePtr(time.Now().UTC()),
+			CreatedAt:     util.TimePtr(time.Now().UTC()),
+			ModifiedAt:    util.TimePtr(time.Now().UTC()),
 			RealizedGains: gains,
 			GainsType:     gainsType,
 		}
@@ -81,7 +139,7 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		if lot.Quantity.Equal(decimal.Zero) {
-			lot.DeletedAt = TimePtr(time.Now().UTC())
+			lot.DeletedAt = util.TimePtr(time.Now().UTC())
 			openLots = openLots[1:]
 		}
 		updatedOpenLots = append(updatedOpenLots, lot)
@@ -94,8 +152,4 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 		NewClosedLots:     newClosedLots,
 		UpdatedOpenLots:   updatedOpenLots,
 	}, nil
-}
-
-func TimePtr(t time.Time) *time.Time {
-	return &t
 }

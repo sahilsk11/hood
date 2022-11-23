@@ -1,6 +1,6 @@
 import os
 
-os.chdir("/Users/skapur/portfolio/hood/internal/db/models/postgres/public/model/")
+os.chdir("./internal/db/models/postgres/public/model/")
 files = os.listdir()
 for file in files:
   f = open(file)

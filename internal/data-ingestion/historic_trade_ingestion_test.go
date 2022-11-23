@@ -78,7 +78,7 @@ func TestProcessTrades(t *testing.T) {
 		}
 
 		for _, test := range tests {
-			out, err := ProcessTrades(test.trades, nil)
+			out, err := ProcessHistoricTrades(test.trades, nil)
 			require.NoError(t, err)
 			assertOpenLotsEqual(t, test.expectedOpenLots, out.OpenLots)
 		}

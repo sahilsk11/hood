@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"flag"
 	data_ingestion "hood/internal/data-ingestion"
@@ -16,9 +17,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	Deps := data_ingestion.Deps{
-		Db: db,
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
 	}
+	ctx := context.WithValue(
+		context.Background(),
+		"tx",
+		tx,
+	)
 
 	var cmd string
 	flag.StringVar(&cmd, "command", "", "")
@@ -26,12 +33,12 @@ func main() {
 
 	switch cmd {
 	case "process-outfile":
-		err = Deps.ProcessOutfile()
+		err = data_ingestion.ProcessOutfile(ctx)
 		if err != nil {
 			log.Fatal(err)
 		}
 	case "update-prices":
-		err = Deps.UpdatePrices()
+		err = data_ingestion.UpdatePrices(ctx)
 		if err != nil {
 			log.Fatal(err)
 		}

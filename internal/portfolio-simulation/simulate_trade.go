@@ -2,8 +2,8 @@ package portfolio_simulation
 
 import (
 	"context"
+	data_ingestion "hood/internal/data-ingestion"
 	"hood/internal/db/models/postgres/public/model"
-	"hood/internal/trading"
 
 	"github.com/shopspring/decimal"
 )
@@ -18,7 +18,7 @@ func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult
 	if err != nil {
 		return nil, err
 	}
-	sellResult, err := trading.ProcessSellOrder(trade, openLots)
+	sellResult, err := data_ingestion.ProcessSellOrder(trade, openLots)
 	if err != nil {
 		return nil, err
 	}
