@@ -1,0 +1,92 @@
+[
+  {
+    "symbol": "ABNB",
+    "sellQuantity": "8.432139",
+    "loss": "582.88279667",
+    "breakevenPriceChange": "12.91968180903987"
+  },
+  {
+    "symbol": "MSFT",
+    "sellQuantity": "4.009634",
+    "loss": "217.51918098",
+    "breakevenPriceChange": "3.90702239585029"
+  },
+  {
+    "symbol": "CRM",
+    "sellQuantity": "3.090825",
+    "loss": "238.69322315",
+    "breakevenPriceChange": "9.13111192311265"
+  },
+  {
+    "symbol": "COIN",
+    "sellQuantity": "13.466524",
+    "loss": "3303.63261237",
+    "breakevenPriceChange": "101.1497467075684"
+  },
+  {
+    "symbol": "SQ",
+    "sellQuantity": "31.921719",
+    "loss": "5058.08715948",
+    "breakevenPriceChange": "44.81132464788634"
+  },
+  {
+    "symbol": "TEAM",
+    "sellQuantity": "0.681328",
+    "loss": "170.73398352",
+    "breakevenPriceChange": "38.01079998786518"
+  },
+  {
+    "symbol": "SFIX",
+    "sellQuantity": "5.975959",
+    "loss": "227.88810091",
+    "breakevenPriceChange": "181.87987595057519"
+  },
+  {
+    "symbol": "DOGE",
+    "sellQuantity": "5306.22",
+    "loss": "840.43829854",
+    "breakevenPriceChange": "35.85401518493169"
+  },
+  {
+    "symbol": "NVDA",
+    "sellQuantity": "33.232366",
+    "loss": "1370.21169576",
+    "breakevenPriceChange": "4.53678848691687"
+  },
+  {
+    "symbol": "GOOG",
+    "sellQuantity": "63.0632",
+    "loss": "1812.05708409",
+    "breakevenPriceChange": "5.20980514814647"
+  },
+  {
+    "symbol": "DIS",
+    "sellQuantity": "7.549471",
+    "loss": "273.68224461",
+    "breakevenPriceChange": "6.64939634837677"
+  },
+  {
+    "symbol": "TSLA",
+    "sellQuantity": "19.203586",
+    "loss": "3026.330106569999999522971",
+    "breakevenPriceChange": "16.36094829237509"
+  },
+  {
+    "symbol": "HOOD",
+    "sellQuantity": "2.724532",
+    "loss": "78.76622012",
+    "breakevenPriceChange": "56.1250242671326"
+  },
+  {
+    "symbol": "AMZN",
+    "sellQuantity": "8.27196",
+    "loss": "329.06169222",
+    "breakevenPriceChange": "7.53226033664812"
+  },
+  {
+    "symbol": "UAL",
+    "sellQuantity": "8.198896",
+    "loss": "125.51878376",
+    "breakevenPriceChange": "6.22065117483892"
+  }
+]
