@@ -3,7 +3,7 @@ CREATE TABLE asset_split (
   symbol text not null,
   ratio int not null,
   date timestamp with time zone not null,
-  created_at timestamp with time zone,
+  created_at timestamp with time zone not null,
   UNIQUE(symbol, ratio, date)
 );
 

@@ -19,7 +19,9 @@ import (
 )
 
 func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
-	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
+	newTrade.CreatedAt = time.Now().UTC()
+	newTrade.ModifiedAt = time.Now().UTC()
+	insertedTrades, err := db.AddTradesToDb(ctx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -34,7 +36,7 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
 	}
-	insertedLots, err := AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
+	insertedLots, err := db.AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -51,7 +53,9 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 	if err != nil {
 		return nil, nil, err
 	}
-	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
+	newTrade.CreatedAt = time.Now().UTC()
+	newTrade.ModifiedAt = time.Now().UTC()
+	insertedTrades, err := db.AddTradesToDb(ctx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -60,7 +64,7 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 	if err != nil {
 		return nil, nil, err
 	}
-	insertedClosedLots, err := AddClosedLotsToDb(ctx, sellOrderResult.NewClosedLots)
+	insertedClosedLots, err := db.AddClosedLotsToDb(ctx, sellOrderResult.NewClosedLots)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -74,7 +78,7 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 			columnlist = append(columnlist, table.OpenLot.DeletedAt)
 			dbOpenLot.DeletedAt = util.TimePtr(time.Now().UTC())
 		}
-		_, err = UpdateOpenLotInDb(ctx, dbOpenLot, columnlist)
+		_, err = db.UpdateOpenLotInDb(ctx, dbOpenLot, columnlist)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -164,7 +168,8 @@ func ProcessSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 }
 
 func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
-	insertedSplits, err := AddAssetsSplitsToDb(ctx, []*model.AssetSplit{&split})
+	split.CreatedAt = time.Now().UTC()
+	insertedSplits, err := db.AddAssetsSplitsToDb(ctx, []*model.AssetSplit{&split})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -183,17 +188,18 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 			Quantity:  lot.Quantity.Mul(ratio),
 		}
 		columnList := postgres.ColumnList{table.OpenLot.CostBasis, table.OpenLot.Quantity}
-		updatedOpenLot, err := UpdateOpenLotInDb(ctx, dbLot, columnList)
+		updatedOpenLot, err := db.UpdateOpenLotInDb(ctx, dbLot, columnList)
 		if err != nil {
 			return nil, nil, err
 		}
 		appliedSplit := model.AppliedAssetSplit{
 			AssetSplitID: insertedSplit.AssetSplitID,
 			OpenLotID:    updatedOpenLot.OpenLotID,
+			AppliedAt:    time.Now().UTC(),
 		}
 		appliedSplits = append(appliedSplits, appliedSplit)
 	}
-	insertedAppliedSplits, err := AddAppliedAssetSplitsToDb(ctx, appliedSplits)
+	insertedAppliedSplits, err := db.AddAppliedAssetSplitsToDb(ctx, appliedSplits)
 	if err != nil {
 		return nil, nil, err
 	}

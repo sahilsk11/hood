@@ -16,5 +16,5 @@ type AssetSplit struct {
 	Symbol       string
 	Ratio        int32
 	Date         time.Time
-	CreatedAt    *time.Time
+	CreatedAt    time.Time
 }
