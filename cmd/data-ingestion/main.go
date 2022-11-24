@@ -45,5 +45,6 @@ func main() {
 	default:
 		log.Fatalf("unknown command '%s'", cmd)
 	}
+	tx.Commit()
 
 }

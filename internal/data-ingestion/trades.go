@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
-	"hood/internal/util"
+	db "hood/internal/db/query"
+	"hood/internal/domain"
 	"math"
 	"sort"
 	"time"
+
+	"hood/internal/util"
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/shopspring/decimal"
@@ -44,15 +47,16 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 }
 
 func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
-	openLots, err := GetOpenLotsFromDb(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	sellOrderResult, err := ProcessSellOrder(newTrade, openLots)
+	openLots, err := db.GetOpenLots(ctx, newTrade.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
 	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
+	if err != nil {
+		return nil, nil, err
+	}
+	insertedTrade := insertedTrades[0]
+	sellOrderResult, err := ProcessSellOrder(insertedTrade, openLots)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -61,13 +65,20 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 		return nil, nil, err
 	}
 	for _, updatedOpenLot := range sellOrderResult.UpdatedOpenLots {
-		_, err = UpdateOpenLotInDb(ctx, *updatedOpenLot, postgres.ColumnList{table.OpenLot.Quantity})
+		columnlist := postgres.ColumnList{table.OpenLot.Quantity}
+		dbOpenLot := model.OpenLot{
+			OpenLotID: updatedOpenLot.OpenLotID,
+			Quantity:  updatedOpenLot.Quantity,
+		}
+		if updatedOpenLot.Quantity.Equal(decimal.Zero) {
+			columnlist = append(columnlist, table.OpenLot.DeletedAt)
+			dbOpenLot.DeletedAt = util.TimePtr(time.Now().UTC())
+		}
+		_, err = UpdateOpenLotInDb(ctx, dbOpenLot, columnlist)
 		if err != nil {
 			return nil, nil, err
 		}
 	}
-
-	insertedTrade := insertedTrades[0]
 
 	return &insertedTrade, insertedClosedLots, nil
 }
@@ -87,16 +98,13 @@ func validateTrade(t model.Trade) error {
 }
 
 type ProcessSellOrderResult struct {
-	// used for updating caller's list
-	// useful for running in a list
-	RemainingOpenLots []*model.OpenLot
-	NewClosedLots     []*model.ClosedLot
+	NewClosedLots []*model.ClosedLot
 	// Lots that need to be updated in DB
 	// if trade is executed
-	UpdatedOpenLots []*model.OpenLot
+	UpdatedOpenLots []*domain.OpenLot
 }
 
-func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrderResult, error) {
+func ProcessSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
 	if err := validateTrade(t); err != nil {
 		return nil, err
 	}
@@ -104,11 +112,11 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 	// ensure lots are in FIFO
 	// could make this dynamic for LIFO systems
 	sort.Slice(openLots, func(i, j int) bool {
-		return openLots[i].TradeID < openLots[j].TradeID
+		return openLots[i].PurchaseDate.Unix() < openLots[j].PurchaseDate.Unix()
 	})
 
 	remainingSellQuantity := t.Quantity
-	updatedOpenLots := []*model.OpenLot{}
+	updatedOpenLots := []*domain.OpenLot{}
 	newClosedLots := []*model.ClosedLot{}
 
 	for remainingSellQuantity.GreaterThan(decimal.Zero) {
@@ -142,7 +150,6 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		if lot.Quantity.Equal(decimal.Zero) {
-			lot.DeletedAt = util.TimePtr(time.Now().UTC())
 			openLots = openLots[1:]
 		}
 		updatedOpenLots = append(updatedOpenLots, lot)
@@ -151,8 +158,45 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 	}
 
 	return &ProcessSellOrderResult{
-		RemainingOpenLots: openLots,
-		NewClosedLots:     newClosedLots,
-		UpdatedOpenLots:   updatedOpenLots,
+		NewClosedLots:   newClosedLots,
+		UpdatedOpenLots: updatedOpenLots,
 	}, nil
+}
+
+func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
+	insertedSplits, err := AddAssetsSplitsToDb(ctx, []*model.AssetSplit{&split})
+	if err != nil {
+		return nil, nil, err
+	}
+	insertedSplit := insertedSplits[0]
+	lots, err := db.GetOpenLots(ctx, split.Symbol)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	ratio := decimal.NewFromInt32(insertedSplit.Ratio)
+	appliedSplits := []model.AppliedAssetSplit{}
+	for _, lot := range lots {
+		dbLot := model.OpenLot{
+			OpenLotID: lot.OpenLotID,
+			CostBasis: lot.CostBasis.Div(ratio),
+			Quantity:  lot.Quantity.Mul(ratio),
+		}
+		columnList := postgres.ColumnList{table.OpenLot.CostBasis, table.OpenLot.Quantity}
+		updatedOpenLot, err := UpdateOpenLotInDb(ctx, dbLot, columnList)
+		if err != nil {
+			return nil, nil, err
+		}
+		appliedSplit := model.AppliedAssetSplit{
+			AssetSplitID: insertedSplit.AssetSplitID,
+			OpenLotID:    updatedOpenLot.OpenLotID,
+		}
+		appliedSplits = append(appliedSplits, appliedSplit)
+	}
+	insertedAppliedSplits, err := AddAppliedAssetSplitsToDb(ctx, appliedSplits)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &insertedSplit, insertedAppliedSplits, nil
 }

@@ -64,23 +64,6 @@ func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.Op
 	return result, nil
 }
 
-func GetOpenLotsFromDb(ctx context.Context) ([]*model.OpenLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
-	t := table.OpenLot
-	query := t.SELECT(t.AllColumns)
-
-	result := []*model.OpenLot{}
-	err = query.Query(tx, &result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}
-
 func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
@@ -187,13 +170,14 @@ func UpdateOpenLotInDb(ctx context.Context, updatedLot model.OpenLot, columns po
 
 	stmt := t.UPDATE(columns).
 		MODEL(updatedLot).
+		WHERE(t.OpenLotID.EQ(postgres.Int32(updatedLot.OpenLotID))).
 		RETURNING(t.AllColumns)
 
-	result := &model.OpenLot{}
+	result := model.OpenLot{}
 	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert closed lots: %w", err)
 	}
 
-	return result, nil
+	return &result, nil
 }

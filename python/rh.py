@@ -116,7 +116,7 @@ def parse_row(row):
     asset_name = header.replace(" BUY", "")
     out["asset"] = asset_name
     if asset_name == "ETHEREUM" or asset_name == "BITCOIN" or asset_name == "DOGECOIN":
-      long_date = row[13]
+      long_date = row[13].replace("2022,", "2022").replace("2021,", "2021").replace("2020,", "2020")
     out["action"] = "BUY"
     out["quantity"] = num_shares
     out["cost_basis"] = cost_basis
@@ -125,13 +125,13 @@ def parse_row(row):
       print("long date missing")
       print(out)
       exit(1)
-    out["long_date"] = long_date
+    out["long_date"] = long_date.replace(" at", "")
     return out
   if "SELL" in header:
     # verify_row(row)
     asset_name = header.replace(" SELL", "")
     if asset_name == "ETHEREUM" or asset_name == "BITCOIN" or asset_name == "DOGECOIN":
-      long_date = row[13]
+      long_date = row[13].replace("2022,", "2022").replace("2021,", "2021").replace("2020,", "2020")
     out["asset"] = asset_name
     out["action"] = "SELL"
     out["quantity"] = num_shares
@@ -141,7 +141,7 @@ def parse_row(row):
       print("long date missing")
       print(out)
       exit(1)
-    out["long_date"] = long_date
+    out["long_date"] = long_date.replace(" at", "")
     return out
 
 

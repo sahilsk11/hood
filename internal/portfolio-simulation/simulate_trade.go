@@ -5,6 +5,8 @@ import (
 	data_ingestion "hood/internal/data-ingestion"
 	"hood/internal/db/models/postgres/public/model"
 
+	db "hood/internal/db/query"
+
 	"github.com/shopspring/decimal"
 )
 
@@ -14,7 +16,7 @@ type SimulateTradeResult struct {
 }
 
 func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult, error) {
-	openLots, err := GetOpenLotsFromDb(ctx, trade.Symbol)
+	openLots, err := db.GetOpenLots(ctx, trade.Symbol)
 	if err != nil {
 		return nil, err
 	}

@@ -79,64 +79,66 @@ $116.34
 `
 
 var tickerMap = map[string]string{
-	"SIRI":  "SIRIUS XM",
-	"AMAG":  "AMAG PHARMACEUTICALS",
-	"SONO":  "SONOS",
-	"GPS":   "GAP",
-	"SNAP":  "SNAP",
-	"SPOT":  "SPOTIFY",
-	"BTC":   "BITCOIN",
-	"UBER":  "UBER",
-	"META":  "META PLATFORMS",
-	"TWTR":  "TWITTER",
-	"AAPL":  "APPLE",
-	"TSLA":  "TESLA",
-	"GOOGL": "ALPHABET CLASS A",
-	"GOOG":  "ALPHABET CLASS C",
-	"NVDA":  "NVIDIA",
-	"UAL":   "UNITED AIRLINES",
-	"MSFT":  "MICROSOFT",
-	"AMZN":  "AMAZON",
-	"SQ":    "BLOCK",
-	"CRM":   "SALESFORCE",
-	"COIN":  "COINBASE",
-	"SFIX":  "STITCH FIX",
-	"DIS":   "DISNEY",
-	"HOOD":  "ROBINHOOD MARKETS",
-	"TEAM":  "ATLASSIAN",
-	"DOGE":  "DOGECOIN",
-	"ABNB":  "AIRBNB",
-	"SAP":   "SAP",
-	"DDOG":  "DATADOG",
-	"GLD":   "SPDR GOLD TRUST",
-	"VYM":   "VANGUARD HIGH DIVIDEND YIELD ETF",
-	"SPYD":  "SPDR PORTFOLIO S&P 500 HIGH DIVIDEND ETF",
-	"SPG":   "SIMON PROPERTY GROUP",
-	"NIO":   "NIO",
-	"ETH":   "ETHEREUM",
-	"GME":   "GAMESTOP",
-	"AMC":   "AMC ENTERTAINMENT",
-	"DASH":  "DOORDASH",
-	"SPY":   "SPDR S&P 500 ETF",
-	"XLNX":  "XILINX",
+	"SIRIUS XM":                        "SIRI",
+	"AMAG PHARMACEUTICALS":             "AMAG",
+	"SONOS":                            "SONO",
+	"GAP":                              "GPS",
+	"SNAP":                             "SNAP",
+	"SPOTIFY":                          "SPOT",
+	"BITCOIN":                          "BTC",
+	"UBER":                             "UBER",
+	"META PLATFORMS":                   "META",
+	"TWITTER":                          "TWTR",
+	"APPLE":                            "AAPL",
+	"TESLA":                            "TSLA",
+	"ALPHABET CLASS A":                 "GOOGL",
+	"ALPHABET CLASS C":                 "GOOG",
+	"NVIDIA":                           "NVDA",
+	"UNITED AIRLINES":                  "UAL",
+	"MICROSOFT":                        "MSFT",
+	"AMAZON":                           "AMZN",
+	"BLOCK":                            "SQ",
+	"SALESFORCE":                       "CRM",
+	"COINBASE":                         "COIN",
+	"STITCH FIX":                       "SFIX",
+	"DISNEY":                           "DIS",
+	"ROBINHOOD MARKETS":                "HOOD",
+	"ATLASSIAN":                        "TEAM",
+	"ATLASSIAN CORPORATION":            "TEAM",
+	"DOGECOIN":                         "DOGE",
+	"AIRBNB":                           "ABNB",
+	"SAP":                              "SAP",
+	"DATADOG":                          "DDOG",
+	"SPDR GOLD TRUST":                  "GLD",
+	"VANGUARD HIGH DIVIDEND YIELD ETF": "VYM",
+	"SPDR PORTFOLIO S&P 500 HIGH DIVIDEND ETF": "SPYD",
+	"SIMON PROPERTY GROUP":                     "SPG",
+	"NIO":                                      "NIO",
+	"ETHEREUM":                                 "ETH",
+	"GAMESTOP":                                 "GME",
+	"AMC ENTERTAINMENT":                        "AMC",
+	"DOORDASH":                                 "DASH",
+	"SPDR S&P 500 ETF":                         "SPY",
+	"XILINX":                                   "XLNX",
 }
 
 func tickerToName(ticker string) (string, error) {
-	name, ok := tickerMap[ticker]
-	if !ok {
-		return "", fmt.Errorf("could not map ticker '%s' to name", ticker)
-	}
-
-	return name, nil
-}
-
-func nameToTicker(name string) (string, error) {
 	for k, v := range tickerMap {
-		if v == name {
+		if v == ticker {
 			return k, nil
 		}
 	}
-	return "", fmt.Errorf("could not map name '%s' to ticker", name)
+
+	return "", fmt.Errorf("could not map ticker '%s' to name", ticker)
+}
+
+func nameToTicker(name string) (string, error) {
+	ticker, ok := tickerMap[name]
+	if !ok {
+		return "", fmt.Errorf("could not map name '%s' to ticker", name)
+	}
+
+	return ticker, nil
 }
 
 func parseRhPrices(textExport string) ([]model.Price, error) {

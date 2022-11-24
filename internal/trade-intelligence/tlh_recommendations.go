@@ -3,7 +3,7 @@ package trade_intelligence
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
-	db_utils "hood/internal/db/utils"
+	db "hood/internal/db/query"
 	"sort"
 
 	"github.com/shopspring/decimal"
@@ -19,7 +19,7 @@ type TLHRecomendation struct {
 func IdentifyTLHOptions(ctx context.Context) ([]TLHRecomendation, error) {
 	tlhRecs := []TLHRecomendation{}
 
-	lots, err := db_utils.GetVwOpenLotPosition(ctx)
+	lots, err := db.GetVwOpenLotPosition(ctx)
 	if err != nil {
 		return nil, err
 	}
