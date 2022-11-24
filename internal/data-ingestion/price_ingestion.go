@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 	"regexp"
 	"strings"
 	"time"
@@ -185,7 +186,7 @@ func UpdatePrices(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse prices file: %w", err)
 	}
-	_, err = AddPricesToDb(ctx, prices)
+	_, err = db.AddPricesToDb(ctx, prices)
 	if err != nil {
 		return err
 	}
