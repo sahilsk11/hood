@@ -21,6 +21,6 @@ type Trade struct {
 	CostBasis   decimal.Decimal
 	Date        time.Time
 	Description *string
-	CreatedAt   *time.Time
-	ModifiedAt  *time.Time
+	CreatedAt   time.Time
+	ModifiedAt  time.Time
 }

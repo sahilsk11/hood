@@ -20,6 +20,6 @@ type ClosedLot struct {
 	Quantity      decimal.Decimal
 	RealizedGains decimal.Decimal
 	GainsType     GainsType
-	CreatedAt     *time.Time
-	ModifiedAt    *time.Time
+	CreatedAt     time.Time
+	ModifiedAt    time.Time
 }

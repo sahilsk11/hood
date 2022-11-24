@@ -46,16 +46,6 @@ func (a ClosedLotTable) FromSchema(schemaName string) *ClosedLotTable {
 	return newClosedLotTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new ClosedLotTable with assigned table prefix
-func (a ClosedLotTable) WithPrefix(prefix string) *ClosedLotTable {
-	return newClosedLotTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new ClosedLotTable with assigned table suffix
-func (a ClosedLotTable) WithSuffix(suffix string) *ClosedLotTable {
-	return newClosedLotTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newClosedLotTable(schemaName, tableName, alias string) *ClosedLotTable {
 	return &ClosedLotTable{
 		closedLotTable: newClosedLotTableImpl(schemaName, tableName, alias),

@@ -44,16 +44,6 @@ func (a BankActivityTable) FromSchema(schemaName string) *BankActivityTable {
 	return newBankActivityTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new BankActivityTable with assigned table prefix
-func (a BankActivityTable) WithPrefix(prefix string) *BankActivityTable {
-	return newBankActivityTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new BankActivityTable with assigned table suffix
-func (a BankActivityTable) WithSuffix(suffix string) *BankActivityTable {
-	return newBankActivityTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newBankActivityTable(schemaName, tableName, alias string) *BankActivityTable {
 	return &BankActivityTable{
 		bankActivityTable: newBankActivityTableImpl(schemaName, tableName, alias),

@@ -41,16 +41,6 @@ func (a VwHoldingTable) FromSchema(schemaName string) *VwHoldingTable {
 	return newVwHoldingTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new VwHoldingTable with assigned table prefix
-func (a VwHoldingTable) WithPrefix(prefix string) *VwHoldingTable {
-	return newVwHoldingTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new VwHoldingTable with assigned table suffix
-func (a VwHoldingTable) WithSuffix(suffix string) *VwHoldingTable {
-	return newVwHoldingTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newVwHoldingTable(schemaName, tableName, alias string) *VwHoldingTable {
 	return &VwHoldingTable{
 		vwHoldingTable: newVwHoldingTableImpl(schemaName, tableName, alias),

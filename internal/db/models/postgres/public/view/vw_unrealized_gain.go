@@ -42,16 +42,6 @@ func (a VwUnrealizedGainTable) FromSchema(schemaName string) *VwUnrealizedGainTa
 	return newVwUnrealizedGainTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new VwUnrealizedGainTable with assigned table prefix
-func (a VwUnrealizedGainTable) WithPrefix(prefix string) *VwUnrealizedGainTable {
-	return newVwUnrealizedGainTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new VwUnrealizedGainTable with assigned table suffix
-func (a VwUnrealizedGainTable) WithSuffix(suffix string) *VwUnrealizedGainTable {
-	return newVwUnrealizedGainTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newVwUnrealizedGainTable(schemaName, tableName, alias string) *VwUnrealizedGainTable {
 	return &VwUnrealizedGainTable{
 		vwUnrealizedGainTable: newVwUnrealizedGainTableImpl(schemaName, tableName, alias),

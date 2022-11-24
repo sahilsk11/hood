@@ -43,16 +43,6 @@ func (a AssetSplitTable) FromSchema(schemaName string) *AssetSplitTable {
 	return newAssetSplitTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new AssetSplitTable with assigned table prefix
-func (a AssetSplitTable) WithPrefix(prefix string) *AssetSplitTable {
-	return newAssetSplitTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new AssetSplitTable with assigned table suffix
-func (a AssetSplitTable) WithSuffix(suffix string) *AssetSplitTable {
-	return newAssetSplitTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newAssetSplitTable(schemaName, tableName, alias string) *AssetSplitTable {
 	return &AssetSplitTable{
 		assetSplitTable: newAssetSplitTableImpl(schemaName, tableName, alias),

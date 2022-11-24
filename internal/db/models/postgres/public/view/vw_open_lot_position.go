@@ -20,7 +20,7 @@ type vwOpenLotPositionTable struct {
 	OpenLotID       postgres.ColumnInteger
 	Symbol          postgres.ColumnString
 	Quantity        postgres.ColumnFloat
-	PurchaseDate    postgres.ColumnDate
+	PurchaseDate    postgres.ColumnTimestampz
 	CostBasis       postgres.ColumnFloat
 	UnrealizedGains postgres.ColumnFloat
 	GainsType       postgres.ColumnString
@@ -47,16 +47,6 @@ func (a VwOpenLotPositionTable) FromSchema(schemaName string) *VwOpenLotPosition
 	return newVwOpenLotPositionTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new VwOpenLotPositionTable with assigned table prefix
-func (a VwOpenLotPositionTable) WithPrefix(prefix string) *VwOpenLotPositionTable {
-	return newVwOpenLotPositionTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new VwOpenLotPositionTable with assigned table suffix
-func (a VwOpenLotPositionTable) WithSuffix(suffix string) *VwOpenLotPositionTable {
-	return newVwOpenLotPositionTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newVwOpenLotPositionTable(schemaName, tableName, alias string) *VwOpenLotPositionTable {
 	return &VwOpenLotPositionTable{
 		vwOpenLotPositionTable: newVwOpenLotPositionTableImpl(schemaName, tableName, alias),
@@ -69,7 +59,7 @@ func newVwOpenLotPositionTableImpl(schemaName, tableName, alias string) vwOpenLo
 		OpenLotIDColumn       = postgres.IntegerColumn("open_lot_id")
 		SymbolColumn          = postgres.StringColumn("symbol")
 		QuantityColumn        = postgres.FloatColumn("quantity")
-		PurchaseDateColumn    = postgres.DateColumn("purchase_date")
+		PurchaseDateColumn    = postgres.TimestampzColumn("purchase_date")
 		CostBasisColumn       = postgres.FloatColumn("cost_basis")
 		UnrealizedGainsColumn = postgres.FloatColumn("unrealized_gains")
 		GainsTypeColumn       = postgres.StringColumn("gains_type")

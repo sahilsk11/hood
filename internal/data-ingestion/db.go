@@ -6,6 +6,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db_utils "hood/internal/db/utils"
+	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
 )
@@ -56,6 +57,23 @@ func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.Op
 
 	result := []model.OpenLot{}
 	err = stmt.Query(tx, &result)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func GetOpenLotsFromDb(ctx context.Context) ([]*model.OpenLot, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+	t := table.OpenLot
+	query := t.SELECT(t.AllColumns)
+
+	result := []*model.OpenLot{}
+	err = query.Query(tx, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +149,7 @@ func AddPricesToDb(ctx context.Context, prices []model.Price) ([]model.Price, er
 	return result, nil
 }
 
-func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]model.ClosedLot, error) {
+func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err
@@ -148,7 +166,30 @@ func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]model.Cl
 		).
 		RETURNING(t.AllColumns)
 
-	result := []model.ClosedLot{}
+	result := []*model.ClosedLot{}
+	err = stmt.Query(tx, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert closed lots: %w", err)
+	}
+
+	return result, nil
+}
+
+func UpdateOpenLotInDb(ctx context.Context, updatedLot model.OpenLot, columns postgres.ColumnList) (*model.OpenLot, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	t := table.OpenLot
+	updatedLot.ModifiedAt = time.Now().UTC()
+	columns = append(columns, t.ModifiedAt)
+
+	stmt := t.UPDATE(columns).
+		MODEL(updatedLot).
+		RETURNING(t.AllColumns)
+
+	result := &model.OpenLot{}
 	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert closed lots: %w", err)

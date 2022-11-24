@@ -22,7 +22,7 @@ type tradeTable struct {
 	Action      postgres.ColumnString
 	Quantity    postgres.ColumnFloat
 	CostBasis   postgres.ColumnFloat
-	Date        postgres.ColumnDate
+	Date        postgres.ColumnTimestampz
 	Description postgres.ColumnString
 	CreatedAt   postgres.ColumnTimestampz
 	ModifiedAt  postgres.ColumnTimestampz
@@ -47,16 +47,6 @@ func (a TradeTable) FromSchema(schemaName string) *TradeTable {
 	return newTradeTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new TradeTable with assigned table prefix
-func (a TradeTable) WithPrefix(prefix string) *TradeTable {
-	return newTradeTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new TradeTable with assigned table suffix
-func (a TradeTable) WithSuffix(suffix string) *TradeTable {
-	return newTradeTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newTradeTable(schemaName, tableName, alias string) *TradeTable {
 	return &TradeTable{
 		tradeTable: newTradeTableImpl(schemaName, tableName, alias),
@@ -71,7 +61,7 @@ func newTradeTableImpl(schemaName, tableName, alias string) tradeTable {
 		ActionColumn      = postgres.StringColumn("action")
 		QuantityColumn    = postgres.FloatColumn("quantity")
 		CostBasisColumn   = postgres.FloatColumn("cost_basis")
-		DateColumn        = postgres.DateColumn("date")
+		DateColumn        = postgres.TimestampzColumn("date")
 		DescriptionColumn = postgres.StringColumn("description")
 		CreatedAtColumn   = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn  = postgres.TimestampzColumn("modified_at")

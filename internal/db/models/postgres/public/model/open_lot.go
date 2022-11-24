@@ -19,6 +19,6 @@ type OpenLot struct {
 	Quantity   decimal.Decimal
 	TradeID    int32
 	DeletedAt  *time.Time
-	CreatedAt  *time.Time
-	ModifiedAt *time.Time
+	CreatedAt  time.Time
+	ModifiedAt time.Time
 }

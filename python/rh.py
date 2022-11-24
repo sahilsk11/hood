@@ -50,35 +50,52 @@ def days_between(d1, d2):
   a = datetime.date(int(d1_attr[0]), int(d1_attr[1]), int(d1_attr[1]))
   return abs((b-a).days)
 
+def verify_row(row):
+  x = None
+  if row[1] not in row[17]:
+    if input("mismatched dates " + str(row)) != "c":
+      exit(1)
+  if row[3] != row[19]:
+    if input("mismatched symbols " + str(row)) != "c":
+      exit(1)
+  return
 
 def parse_row(row):
+  if len(row) < 3:
+    return
   if row[2] == "Canceled" or row[2] == "Failed" or row[2] == "Rejected":
     return
   header = row[0].upper()
+  if len(row) > 10 and ("LIMIT" in header or "STOP LOSS" in header):
+    row.pop(10)
+    row.pop(10)
   header = header.replace(" STOP LOSS", "").replace(" TRAILING STOP", "").replace(" LIMIT", "")
   date = format_date(row[1])
-  if "Split" not in row[2]:
-    nominal_price = abs(Decimal(row[2].replace("$", "").replace("+", "").replace(",", "")))
+  long_date = None
+  if len(row) > 17:
+    long_date = row[17]
   if len(row) > 3:
     if "at $" in row[3]:
       (num_shares, cost_basis) = parse_purchase_details(row[3])
     if row[3] == "Reinvested":
       return
+  
 
   out = {
     "date": date
   }
 
   if "FREE CHECKING" in header:
-    out["asset"] = "CASH"
-    out["quantity"] = nominal_price
-    out["cost_basis"] = Decimal(1)
-    if "DEPOSIT" in header:
-      out["description"] = "BANK_DEPOSIT"
-    if "WITHDRAWAL" in header:
-      out["description"] = "BANK_WITHDRAWAL"
-      out["cost_basis"] *= Decimal(-1)
-    return out
+    # out["asset"] = "CASH"
+    # out["quantity"] = nominal_price
+    # out["cost_basis"] = Decimal(1)
+    # if "DEPOSIT" in header:
+    #   out["description"] = "BANK_DEPOSIT"
+    # if "WITHDRAWAL" in header:
+    #   out["description"] = "BANK_WITHDRAWAL"
+    #   out["cost_basis"] *= Decimal(-1)
+    # return out
+    return
 
   if "FORWARD SPLIT" in header:
     out["asset"] = header.replace(" FORWARD SPLIT", "")
@@ -95,45 +112,65 @@ def parse_row(row):
     return out
 
   if "BUY" in header:
+    # verify_row(row)
     asset_name = header.replace(" BUY", "")
     out["asset"] = asset_name
+    if asset_name == "ETHEREUM" or asset_name == "BITCOIN" or asset_name == "DOGECOIN":
+      long_date = row[13]
     out["action"] = "BUY"
     out["quantity"] = num_shares
     out["cost_basis"] = cost_basis
     out["description"] = "BUY "+asset_name
+    if long_date == None:
+      print("long date missing")
+      print(out)
+      exit(1)
+    out["long_date"] = long_date
     return out
   if "SELL" in header:
+    # verify_row(row)
     asset_name = header.replace(" SELL", "")
+    if asset_name == "ETHEREUM" or asset_name == "BITCOIN" or asset_name == "DOGECOIN":
+      long_date = row[13]
     out["asset"] = asset_name
     out["action"] = "SELL"
     out["quantity"] = num_shares
     out["cost_basis"] = cost_basis
     out["description"] = "SELL "+asset_name
+    if long_date == None:
+      print("long date missing")
+      print(out)
+      exit(1)
+    out["long_date"] = long_date
     return out
 
 
   if "DIVIDEND FROM" in header:
-    out["asset"] = "CASH"
-    out["quantity"] = nominal_price
-    out["cost_basis"] = Decimal(1)
-    out["description"] = header
-    return out
+    # out["asset"] = "CASH"
+    # out["quantity"] = nominal_price
+    # out["cost_basis"] = Decimal(1)
+    # out["description"] = header
+    # return out
+    return
 
   if "INTEREST" in header:
-    out["asset"] = "CASH"
-    out["quantity"] = nominal_price
-    out["cost_basis"] = Decimal(1)
-    out["description"] = header
-    return out
+    # out["asset"] = "CASH"
+    # out["quantity"] = nominal_price
+    # out["cost_basis"] = Decimal(1)
+    # out["description"] = header
+    # return out
+    return
 
   if "ROBINHOOD GOLD" in header:
-    out["asset"] = "CASH"
-    out["quantity"] = nominal_price
-    out["cost_basis"] = Decimal(-1)
-    out["description"] = header
-    return out
+    # out["asset"] = "CASH"
+    # out["quantity"] = nominal_price
+    # out["cost_basis"] = Decimal(-1)
+    # out["description"] = header
+    # return out
+    return
 
   print("unhandled case", header)
+  exit(1)
 
 for row in rows:
   parsed_row = parse_row(row)

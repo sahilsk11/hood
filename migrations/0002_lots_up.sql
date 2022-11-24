@@ -6,8 +6,8 @@ CREATE TABLE open_lot (
   quantity decimal not null,
   trade_id int references trade(trade_id) not null unique,
   deleted_at timestamp with time zone, -- needed for asset split
-  created_at timestamp with time zone,
-  modified_at timestamp with time zone
+  created_at timestamp with time zone not null,
+  modified_at timestamp with time zone not null
 );
 
 CREATE TYPE gains_type as enum('SHORT_TERM', 'LONG_TERM');
@@ -19,8 +19,8 @@ CREATE TABLE closed_lot (
   quantity decimal not null,
   realized_gains decimal not null,
   gains_type gains_type not null,
-  created_at timestamp with time zone,
-  modified_at timestamp with time zone,
+  created_at timestamp with time zone not null,
+  modified_at timestamp with time zone not null,
   UNIQUE(buy_trade_id, sell_trade_id)
 );
 

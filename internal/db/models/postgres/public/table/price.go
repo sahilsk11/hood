@@ -42,16 +42,6 @@ func (a PriceTable) FromSchema(schemaName string) *PriceTable {
 	return newPriceTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new PriceTable with assigned table prefix
-func (a PriceTable) WithPrefix(prefix string) *PriceTable {
-	return newPriceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new PriceTable with assigned table suffix
-func (a PriceTable) WithSuffix(suffix string) *PriceTable {
-	return newPriceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newPriceTable(schemaName, tableName, alias string) *PriceTable {
 	return &PriceTable{
 		priceTable: newPriceTableImpl(schemaName, tableName, alias),

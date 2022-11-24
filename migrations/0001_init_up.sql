@@ -6,10 +6,10 @@ CREATE TABLE trade (
   action trade_action_type NOT NULL,
   quantity decimal not null,
   cost_basis decimal not null,
-  date date not null,
+  date timestamp with time zone not null,
   description text,
-  created_at timestamp with time zone,
-  modified_at timestamp with time zone,
+  created_at timestamp with time zone not null,
+  modified_at timestamp with time zone not null,
   UNIQUE(symbol, action, quantity, cost_basis, date)
 );
 

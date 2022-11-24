@@ -44,16 +44,6 @@ func (a DividendTable) FromSchema(schemaName string) *DividendTable {
 	return newDividendTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new DividendTable with assigned table prefix
-func (a DividendTable) WithPrefix(prefix string) *DividendTable {
-	return newDividendTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new DividendTable with assigned table suffix
-func (a DividendTable) WithSuffix(suffix string) *DividendTable {
-	return newDividendTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newDividendTable(schemaName, tableName, alias string) *DividendTable {
 	return &DividendTable{
 		dividendTable: newDividendTableImpl(schemaName, tableName, alias),

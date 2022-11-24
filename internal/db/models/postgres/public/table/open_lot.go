@@ -45,16 +45,6 @@ func (a OpenLotTable) FromSchema(schemaName string) *OpenLotTable {
 	return newOpenLotTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new OpenLotTable with assigned table prefix
-func (a OpenLotTable) WithPrefix(prefix string) *OpenLotTable {
-	return newOpenLotTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new OpenLotTable with assigned table suffix
-func (a OpenLotTable) WithSuffix(suffix string) *OpenLotTable {
-	return newOpenLotTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newOpenLotTable(schemaName, tableName, alias string) *OpenLotTable {
 	return &OpenLotTable{
 		openLotTable: newOpenLotTableImpl(schemaName, tableName, alias),

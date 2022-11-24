@@ -42,16 +42,6 @@ func (a AppliedAssetSplitTable) FromSchema(schemaName string) *AppliedAssetSplit
 	return newAppliedAssetSplitTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new AppliedAssetSplitTable with assigned table prefix
-func (a AppliedAssetSplitTable) WithPrefix(prefix string) *AppliedAssetSplitTable {
-	return newAppliedAssetSplitTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new AppliedAssetSplitTable with assigned table suffix
-func (a AppliedAssetSplitTable) WithSuffix(suffix string) *AppliedAssetSplitTable {
-	return newAppliedAssetSplitTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newAppliedAssetSplitTable(schemaName, tableName, alias string) *AppliedAssetSplitTable {
 	return &AppliedAssetSplitTable{
 		appliedAssetSplitTable: newAppliedAssetSplitTableImpl(schemaName, tableName, alias),

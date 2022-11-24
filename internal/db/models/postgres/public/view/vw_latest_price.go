@@ -42,16 +42,6 @@ func (a VwLatestPriceTable) FromSchema(schemaName string) *VwLatestPriceTable {
 	return newVwLatestPriceTable(schemaName, a.TableName(), a.Alias())
 }
 
-// WithPrefix creates new VwLatestPriceTable with assigned table prefix
-func (a VwLatestPriceTable) WithPrefix(prefix string) *VwLatestPriceTable {
-	return newVwLatestPriceTable(a.SchemaName(), prefix+a.TableName(), a.TableName())
-}
-
-// WithSuffix creates new VwLatestPriceTable with assigned table suffix
-func (a VwLatestPriceTable) WithSuffix(suffix string) *VwLatestPriceTable {
-	return newVwLatestPriceTable(a.SchemaName(), a.TableName()+suffix, a.TableName())
-}
-
 func newVwLatestPriceTable(schemaName, tableName, alias string) *VwLatestPriceTable {
 	return &VwLatestPriceTable{
 		vwLatestPriceTable: newVwLatestPriceTableImpl(schemaName, tableName, alias),

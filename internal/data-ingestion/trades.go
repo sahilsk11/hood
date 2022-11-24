@@ -5,11 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/db/models/postgres/public/table"
 	"hood/internal/util"
 	"math"
 	"sort"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/shopspring/decimal"
 )
 
@@ -26,8 +28,8 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 		CostBasis:  insertedTrade.CostBasis,
 		Quantity:   insertedTrade.Quantity,
 		TradeID:    insertedTrade.TradeID,
-		CreatedAt:  util.TimePtr(time.Now().UTC()),
-		ModifiedAt: util.TimePtr(time.Now().UTC()),
+		CreatedAt:  time.Now().UTC(),
+		ModifiedAt: time.Now().UTC(),
 	}
 	insertedLots, err := AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
 	if err != nil {
@@ -41,32 +43,33 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 	return &insertedTrade, &insertedLot, nil
 }
 
-func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
+func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
+	openLots, err := GetOpenLotsFromDb(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	sellOrderResult, err := ProcessSellOrder(newTrade, openLots)
+	if err != nil {
+		return nil, nil, err
+	}
 	insertedTrades, err := AddTradesToDb(ctx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(insertedTrades) == 0 {
-		return nil, nil, errors.New("no inserted trades")
-	}
-	insertedTrade := insertedTrades[0]
-	newLot := model.OpenLot{
-		CostBasis:  insertedTrade.CostBasis,
-		Quantity:   insertedTrade.Quantity,
-		TradeID:    insertedTrade.TradeID,
-		CreatedAt:  util.TimePtr(time.Now().UTC()),
-		ModifiedAt: util.TimePtr(time.Now().UTC()),
-	}
-	insertedLots, err := AddOpenLotsToDb(ctx, []*model.OpenLot{&newLot})
+	insertedClosedLots, err := AddClosedLotsToDb(ctx, sellOrderResult.NewClosedLots)
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(insertedTrades) == 0 {
-		return nil, nil, errors.New("no inserted open lots")
+	for _, updatedOpenLot := range sellOrderResult.UpdatedOpenLots {
+		_, err = UpdateOpenLotInDb(ctx, *updatedOpenLot, postgres.ColumnList{table.OpenLot.Quantity})
+		if err != nil {
+			return nil, nil, err
+		}
 	}
-	insertedLot := insertedLots[0]
 
-	return &insertedTrade, &insertedLot, nil
+	insertedTrade := insertedTrades[0]
+
+	return &insertedTrade, insertedClosedLots, nil
 }
 
 func validateTrade(t model.Trade) error {
@@ -130,8 +133,8 @@ func ProcessSellOrder(t model.Trade, openLots []*model.OpenLot) (*ProcessSellOrd
 			BuyTradeID:    lot.TradeID,
 			SellTradeID:   t.TradeID,
 			Quantity:      quantitySold,
-			CreatedAt:     util.TimePtr(time.Now().UTC()),
-			ModifiedAt:    util.TimePtr(time.Now().UTC()),
+			CreatedAt:     time.Now().UTC(),
+			ModifiedAt:    time.Now().UTC(),
 			RealizedGains: gains,
 			GainsType:     gainsType,
 		}

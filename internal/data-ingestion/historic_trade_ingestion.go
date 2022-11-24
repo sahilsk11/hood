@@ -23,6 +23,7 @@ type outEntry struct {
 	CostBasis   decimal.Decimal `json:"cost_basis"`
 	Description string          `json:"description"`
 	Ratio       int             `json:"ratio"`
+	LongDate    string          `json:"long_date"`
 }
 
 // ParseFromOutfile reads the output JSON generated
@@ -173,8 +174,8 @@ func ProcessHistoricTrades(trades []model.Trade, splits []model.AssetSplit) (*Pr
 				TradeID:    t.TradeID,
 				CostBasis:  t.CostBasis,
 				Quantity:   t.Quantity,
-				CreatedAt:  util.TimePtr(time.Now().UTC()),
-				ModifiedAt: util.TimePtr(time.Now().UTC()),
+				CreatedAt:  time.Now().UTC(),
+				ModifiedAt: time.Now().UTC(),
 			}
 			if _, ok := openLotsMap[t.Symbol]; !ok {
 				openLotsMap[t.Symbol] = []*model.OpenLot{}
@@ -195,8 +196,6 @@ func ProcessHistoricTrades(trades []model.Trade, splits []model.AssetSplit) (*Pr
 				}
 			}
 		} else {
-			// openLotsMap should be updated within the trading function
-			// so we don't need to update open lots
 			sellResult, err := ProcessSellOrder(t, openLotsMap[t.Symbol])
 			if err != nil {
 				return nil, err
