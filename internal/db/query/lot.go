@@ -78,9 +78,6 @@ func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.Op
 	t := table.OpenLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(openLots).
-		ON_CONFLICT(t.TradeID).DO_UPDATE(
-		postgres.SET(t.TradeID.SET(t.EXCLUDED.TradeID)),
-	).
 		RETURNING(t.AllColumns)
 
 	result := []model.OpenLot{}
@@ -101,12 +98,6 @@ func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]*model.C
 	t := table.ClosedLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(lots).
-		ON_CONFLICT(t.BuyTradeID, t.SellTradeID).
-		DO_UPDATE(
-			postgres.SET(
-				t.BuyTradeID.SET(t.EXCLUDED.BuyTradeID),
-			),
-		).
 		RETURNING(t.AllColumns)
 
 	result := []*model.ClosedLot{}

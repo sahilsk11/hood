@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
 )
 
 func GetTx(ctx context.Context) (*sql.Tx, error) {
@@ -18,4 +19,8 @@ func GetTx(ctx context.Context) (*sql.Tx, error) {
 	}
 
 	return tx, nil
+}
+
+func IsDuplicateEntryErr(err error) bool {
+	return strings.Contains(err.Error(), "duplicate key value violates unique constraint")
 }

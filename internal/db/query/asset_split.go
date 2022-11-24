@@ -6,8 +6,6 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db_utils "hood/internal/db/utils"
-
-	"github.com/go-jet/jet/v2/postgres"
 )
 
 func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
@@ -19,9 +17,7 @@ func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]mod
 	t := table.AssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(splits).
-		ON_CONFLICT(t.Symbol, t.Ratio, t.Date).DO_UPDATE(
-		postgres.SET(t.Symbol.SET(t.EXCLUDED.Symbol)),
-	).
+		ON_CONFLICT(t.Symbol, t.Ratio, t.Date).DO_NOTHING().
 		RETURNING(t.AllColumns)
 
 	result := []model.AssetSplit{}
@@ -42,11 +38,6 @@ func AddAppliedAssetSplitsToDb(ctx context.Context, appliedAssetSplits []model.A
 	t := table.AppliedAssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(appliedAssetSplits).
-		ON_CONFLICT(t.AssetSplitID, t.OpenLotID).DO_UPDATE(
-		postgres.SET(
-			t.AppliedAssetSplitID.SET(t.EXCLUDED.AppliedAssetSplitID),
-		),
-	).
 		RETURNING(t.AllColumns)
 
 	result := []model.AppliedAssetSplit{}

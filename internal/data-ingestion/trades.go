@@ -26,7 +26,7 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 		return nil, nil, err
 	}
 	if len(insertedTrades) == 0 {
-		return nil, nil, errors.New("no inserted trades")
+		return nil, nil, nil
 	}
 	insertedTrade := insertedTrades[0]
 	newLot := model.OpenLot{
@@ -58,6 +58,9 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 	insertedTrades, err := db.AddTradesToDb(ctx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(insertedTrades) == 0 {
+		return nil, nil, nil
 	}
 	insertedTrade := insertedTrades[0]
 	sellOrderResult, err := ProcessSellOrder(insertedTrade, openLots)
@@ -172,6 +175,9 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 	insertedSplits, err := db.AddAssetsSplitsToDb(ctx, []*model.AssetSplit{&split})
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(insertedSplits) == 0 {
+		return nil, nil, nil
 	}
 	insertedSplit := insertedSplits[0]
 	lots, err := db.GetOpenLots(ctx, split.Symbol)

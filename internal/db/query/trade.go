@@ -2,11 +2,10 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db_utils "hood/internal/db/utils"
-
-	"github.com/go-jet/jet/v2/postgres"
 )
 
 func AddTradesToDb(ctx context.Context, trades []*model.Trade) ([]model.Trade, error) {
@@ -23,17 +22,16 @@ func AddTradesToDb(ctx context.Context, trades []*model.Trade) ([]model.Trade, e
 			table.Trade.Quantity,
 			table.Trade.CostBasis,
 			table.Trade.Date,
-		).DO_UPDATE(
-		postgres.SET(
-			table.Trade.Symbol.SET(table.Trade.EXCLUDED.Symbol),
-		),
-	).
+		).DO_NOTHING().
 		RETURNING(table.Trade.AllColumns)
 
 	result := []model.Trade{}
 	err = stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
+	}
+	if result == nil {
+		fmt.Println("froho")
 	}
 
 	return result, nil
