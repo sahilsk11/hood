@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	data_ingestion "hood/internal/data-ingestion"
 	"hood/internal/db/models/postgres/public/model"
+	trade_ingestion "hood/internal/trade-ingestion"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -58,14 +58,13 @@ func GetAndProcess(ctx context.Context, sqsService *sqs.SQS) error {
 	trade.Date = date
 
 	if trade.Action == model.TradeActionType_Buy {
-		_, _, err = data_ingestion.AddBuyOrder(ctx, trade)
+		_, _, err = trade_ingestion.AddBuyOrder(ctx, trade)
 	} else {
-		_, _, err = data_ingestion.AddSellOrder(ctx, trade)
+		_, _, err = trade_ingestion.AddSellOrder(ctx, trade)
 	}
 	if err != nil {
 		return err
 	}
-	fmt.Println("processed")
 
 	url := "https://sqs.us-east-1.amazonaws.com/326651360928/hood-email-queue"
 	_, err = sqsService.DeleteMessage(&sqs.DeleteMessageInput{

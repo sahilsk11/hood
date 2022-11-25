@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"flag"
-	data_ingestion "hood/internal/data-ingestion"
+	trade_ingestion "hood/internal/trade-ingestion"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -33,12 +33,12 @@ func main() {
 
 	switch cmd {
 	case "process-outfile":
-		err = data_ingestion.ProcessOutfile(ctx)
+		err = trade_ingestion.ProcessOutfile(ctx)
 		if err != nil {
 			log.Fatal(err)
 		}
 	case "update-prices":
-		err = data_ingestion.UpdatePrices(ctx)
+		err = trade_ingestion.UpdatePrices(ctx)
 		if err != nil {
 			log.Fatal(err)
 		}
