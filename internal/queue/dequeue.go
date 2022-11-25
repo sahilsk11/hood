@@ -13,11 +13,12 @@ import (
 )
 
 type tradeMessage struct {
-	Action    string `json:"action"`
-	Symbol    string `json:"symbol"`
-	Quantity  string `json:"quantity"`
-	Date      string `json:"date"`
-	CostBasis string `json:"cost_basis"`
+	Action           string `json:"action"`
+	Symbol           string `json:"symbol"`
+	Quantity         string `json:"quantity"`
+	Date             string `json:"date"`
+	CostBasis        string `json:"cost_basis"`
+	SqsMessageHandle string
 }
 
 func GetAndProcess(ctx context.Context, sqsService *sqs.SQS) error {
@@ -61,6 +62,16 @@ func GetAndProcess(ctx context.Context, sqsService *sqs.SQS) error {
 	} else {
 		_, _, err = data_ingestion.AddSellOrder(ctx, trade)
 	}
+	if err != nil {
+		return err
+	}
+	fmt.Println("processed")
+
+	url := "https://sqs.us-east-1.amazonaws.com/326651360928/hood-email-queue"
+	_, err = sqsService.DeleteMessage(&sqs.DeleteMessageInput{
+		QueueUrl:      &url,
+		ReceiptHandle: &tradeMessage.SqsMessageHandle,
+	})
 
 	return err
 }
@@ -87,6 +98,8 @@ func getNext(sqsService *sqs.SQS) (*tradeMessage, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	trade.SqsMessageHandle = *out.Messages[0].ReceiptHandle
 
 	return &trade, nil
 }
