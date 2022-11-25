@@ -69,7 +69,7 @@ func GetVwOpenLotPosition(ctx context.Context) ([]model.VwOpenLotPosition, error
 	return results, nil
 }
 
-func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLot, error) {
+func AddOpenLots(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLot, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func AddOpenLotsToDb(ctx context.Context, openLots []*model.OpenLot) ([]model.Op
 	return result, nil
 }
 
-func AddClosedLotsToDb(ctx context.Context, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
+func AddClosedLots(ctx context.Context, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err

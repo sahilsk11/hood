@@ -8,7 +8,7 @@ import (
 	db_utils "hood/internal/db/utils"
 )
 
-func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
+func AddAssetsSplits(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err
@@ -29,7 +29,7 @@ func AddAssetsSplitsToDb(ctx context.Context, splits []*model.AssetSplit) ([]mod
 	return result, nil
 }
 
-func AddAppliedAssetSplitsToDb(ctx context.Context, appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
+func AddAppliedAssetSplits(ctx context.Context, appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err

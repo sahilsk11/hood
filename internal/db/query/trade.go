@@ -8,7 +8,7 @@ import (
 	db_utils "hood/internal/db/utils"
 )
 
-func AddTradesToDb(ctx context.Context, trades []*model.Trade) ([]model.Trade, error) {
+func AddTrades(ctx context.Context, trades []*model.Trade) ([]model.Trade, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err

@@ -5,3 +5,4 @@ out.json
 __pycache__/
 secrets/
 new.json
+secrets.json

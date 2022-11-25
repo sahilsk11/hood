@@ -1,0 +1,35 @@
+package price_ingestion
+
+import (
+	"context"
+	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
+)
+
+func UpdatePrice(ctx context.Context, priceClient PriceIngestionClient, symbol string) error {
+	newPrice, err := priceClient.GetLatestPrice(symbol)
+	if err != nil {
+		return err
+	}
+	_, err = db.AddPrices(ctx, []model.Price{*newPrice})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func UpdateCurrentHoldingsPrices(ctx context.Context, priceClient PriceIngestionClient) error {
+	holdings, err := db.GetVwHolding(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, holding := range holdings {
+		err = UpdatePrice(ctx, priceClient, *holding.Symbol)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}

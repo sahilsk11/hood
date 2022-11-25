@@ -186,7 +186,7 @@ func UpdatePrices(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to parse prices file: %w", err)
 	}
-	_, err = db.AddPricesToDb(ctx, prices)
+	_, err = db.AddPrices(ctx, prices)
 	if err != nil {
 		return err
 	}

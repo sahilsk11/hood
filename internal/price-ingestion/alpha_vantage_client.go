@@ -7,14 +7,15 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 type AlphaVantageClient struct {
-	httpClient http.Client
-	apiKey     string
+	HttpClient *http.Client
+	ApiKey     string
 }
 
 type alphaVantageQuoteResult struct {
@@ -30,15 +31,16 @@ type alphaVantageQuoteResult struct {
 		Change           string `json:"change"`
 		ChangePercent    string `json:"change percent"`
 	} `json:"Global Quote"`
+	Note string `json:"Note"`
 }
 
 func (c AlphaVantageClient) GetLatestPrice(symbol string) (*model.Price, error) {
-	url := fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s&apikey=%s", symbol, c.apiKey)
+	url := fmt.Sprintf("https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=%s&apikey=%s", symbol, c.ApiKey)
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}
-	response, err := c.httpClient.Do(req)
+	response, err := c.HttpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -55,10 +57,15 @@ func (c AlphaVantageClient) GetLatestPrice(symbol string) (*model.Price, error) 
 	}
 	// API uses odd format which includes numbers in JSON keys
 	cleanedResponseBytes := cleanResponseBody(responseBytes)
-	fmt.Println(string(cleanedResponseBytes))
 	err = json.Unmarshal(cleanedResponseBytes, &responseJson)
 	if err != nil {
 		return nil, err
+	}
+
+	if strings.Contains(responseJson.Note, "Our standard API call frequency is 5 calls per minute") {
+		fmt.Println("alpha vantage rate limit hit, waiting")
+		time.Sleep(time.Minute)
+		return c.GetLatestPrice(symbol)
 	}
 
 	price, err := decimal.NewFromString(responseJson.GlobalQuote.Price)

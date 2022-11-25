@@ -8,7 +8,7 @@ import (
 	db_utils "hood/internal/db/utils"
 )
 
-func AddPricesToDb(ctx context.Context, prices []model.Price) ([]model.Price, error) {
+func AddPrices(ctx context.Context, prices []model.Price) ([]model.Price, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, err
