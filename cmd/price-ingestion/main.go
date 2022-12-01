@@ -37,9 +37,22 @@ func main() {
 		ApiKey:     secrets.AlphaVantageKey,
 	}
 
-	err = price_ingestion.UpdateCurrentHoldingsPrices(ctx, priceClient)
-	if err != nil {
-		log.Fatal(err)
+	// err = price_ingestion.UpdateCurrentHoldingsPrices(ctx, priceClient)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	symbols := []string{
+		"GOOG",
+		"HOOD",
+		"TEAM",
+		"UAL",
+		"MSFT",
+	}
+	for _, symbol := range symbols {
+		err = price_ingestion.UpdatePrice(ctx, priceClient, symbol)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 	tx.Commit()
 

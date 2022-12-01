@@ -4,14 +4,20 @@ import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
+	db_utils "hood/internal/db/utils"
 )
 
 func UpdatePrice(ctx context.Context, priceClient PriceIngestionClient, symbol string) error {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return err
+	}
+
 	newPrice, err := priceClient.GetLatestPrice(symbol)
 	if err != nil {
 		return err
 	}
-	_, err = db.AddPrices(ctx, []model.Price{*newPrice})
+	_, err = db.AddPrices(ctx, tx, []model.Price{*newPrice})
 	if err != nil {
 		return err
 	}
@@ -20,7 +26,11 @@ func UpdatePrice(ctx context.Context, priceClient PriceIngestionClient, symbol s
 }
 
 func UpdateCurrentHoldingsPrices(ctx context.Context, priceClient PriceIngestionClient) error {
-	holdings, err := db.GetVwHolding(ctx)
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return err
+	}
+	holdings, err := db.GetVwHolding(ctx, tx)
 	if err != nil {
 		return err
 	}

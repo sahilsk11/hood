@@ -15,6 +15,7 @@ import (
 
 type VwOpenLotPosition struct {
 	OpenLotID       *int32
+	TradeID         *int32
 	Symbol          *string
 	Quantity        *decimal.Decimal
 	PurchaseDate    *time.Time

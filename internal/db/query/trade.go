@@ -2,17 +2,13 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
-	db_utils "hood/internal/db/utils"
 )
 
-func AddTrades(ctx context.Context, trades []*model.Trade) ([]model.Trade, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.Trade, error) {
 
 	stmt := table.Trade.INSERT(table.Trade.MutableColumns).
 		MODELS(trades).
@@ -26,7 +22,7 @@ func AddTrades(ctx context.Context, trades []*model.Trade) ([]model.Trade, error
 		RETURNING(table.Trade.AllColumns)
 
 	result := []model.Trade{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
 	}

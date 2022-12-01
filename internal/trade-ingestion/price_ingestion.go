@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
+	db_utils "hood/internal/db/utils"
 	"regexp"
 	"strings"
 	"time"
@@ -182,11 +183,16 @@ func parseRhPrices(textExport string) ([]model.Price, error) {
 }
 
 func UpdatePrices(ctx context.Context) error {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return err
+	}
+
 	prices, err := parseRhPrices(fileContents)
 	if err != nil {
 		return fmt.Errorf("failed to parse prices file: %w", err)
 	}
-	_, err = db.AddPrices(ctx, prices)
+	_, err = db.AddPrices(ctx, tx, prices)
 	if err != nil {
 		return err
 	}

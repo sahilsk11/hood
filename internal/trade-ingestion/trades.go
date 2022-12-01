@@ -7,6 +7,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
+	db_utils "hood/internal/db/utils"
 	"hood/internal/domain"
 	"math"
 	"sort"
@@ -19,9 +20,14 @@ import (
 )
 
 func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	newTrade.CreatedAt = time.Now().UTC()
 	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, []*model.Trade{&newTrade})
+	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -36,7 +42,7 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
 	}
-	insertedLots, err := db.AddOpenLots(ctx, []*model.OpenLot{&newLot})
+	insertedLots, err := db.AddOpenLots(ctx, tx, []*model.OpenLot{&newLot})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -49,13 +55,17 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 }
 
 func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
-	openLots, err := db.GetOpenLots(ctx, newTrade.Symbol)
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	openLots, err := db.GetOpenLots(ctx, tx, newTrade.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
 	newTrade.CreatedAt = time.Now().UTC()
 	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, []*model.Trade{&newTrade})
+	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -67,7 +77,7 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 	if err != nil {
 		return nil, nil, err
 	}
-	insertedClosedLots, err := db.AddClosedLots(ctx, sellOrderResult.NewClosedLots)
+	insertedClosedLots, err := db.AddClosedLots(ctx, tx, sellOrderResult.NewClosedLots)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -81,7 +91,7 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 			columnlist = append(columnlist, table.OpenLot.DeletedAt)
 			dbOpenLot.DeletedAt = util.TimePtr(time.Now().UTC())
 		}
-		_, err = db.UpdateOpenLotInDb(ctx, dbOpenLot, columnlist)
+		_, err = db.UpdateOpenLotInDb(ctx, tx, dbOpenLot, columnlist)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -171,8 +181,13 @@ func ProcessSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 }
 
 func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
+	tx, err := db_utils.GetTx(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	split.CreatedAt = time.Now().UTC()
-	insertedSplits, err := db.AddAssetsSplits(ctx, []*model.AssetSplit{&split})
+	insertedSplits, err := db.AddAssetsSplits(ctx, tx, []*model.AssetSplit{&split})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -180,7 +195,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 		return nil, nil, nil
 	}
 	insertedSplit := insertedSplits[0]
-	lots, err := db.GetOpenLots(ctx, split.Symbol)
+	lots, err := db.GetOpenLots(ctx, tx, split.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -194,7 +209,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 			Quantity:  lot.Quantity.Mul(ratio),
 		}
 		columnList := postgres.ColumnList{table.OpenLot.CostBasis, table.OpenLot.Quantity}
-		updatedOpenLot, err := db.UpdateOpenLotInDb(ctx, dbLot, columnList)
+		updatedOpenLot, err := db.UpdateOpenLotInDb(ctx, tx, dbLot, columnList)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -205,7 +220,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 		}
 		appliedSplits = append(appliedSplits, appliedSplit)
 	}
-	insertedAppliedSplits, err := db.AddAppliedAssetSplits(ctx, appliedSplits)
+	insertedAppliedSplits, err := db.AddAppliedAssetSplits(ctx, tx, appliedSplits)
 	if err != nil {
 		return nil, nil, err
 	}

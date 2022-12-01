@@ -17,7 +17,7 @@ CREATE VIEW vw_latest_price AS
 
 CREATE VIEW vw_open_lot_position AS
   select
-    open_lot.open_lot_id, trade.symbol, open_lot.quantity, trade.date AS "purchase_date", open_lot.cost_basis,
+    open_lot.open_lot_id, trade.trade_id, trade.symbol, open_lot.quantity, trade.date AS "purchase_date", open_lot.cost_basis,
     (vw_latest_price.price - open_lot.cost_basis) * open_lot.quantity AS "unrealized_gains",
     CASE
       WHEN DATE_PART('day', now() - trade.date) >= 365 then 'LONG_TERM'

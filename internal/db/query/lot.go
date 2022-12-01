@@ -2,22 +2,18 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	"hood/internal/db/models/postgres/public/view"
-	db_utils "hood/internal/db/utils"
 	"hood/internal/domain"
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-func GetOpenLots(ctx context.Context, symbol string) ([]*domain.OpenLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string) ([]*domain.OpenLot, error) {
 	query := `
 	SELECT open_lot.open_lot_id, trade.trade_id, trade.symbol, open_lot.quantity, open_lot.cost_basis, trade.date AS "purchase_date"
 	FROM open_lot
@@ -51,17 +47,13 @@ func GetOpenLots(ctx context.Context, symbol string) ([]*domain.OpenLot, error) 
 	return result, nil
 }
 
-func GetVwOpenLotPosition(ctx context.Context) ([]model.VwOpenLotPosition, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPosition, error) {
 
 	v := view.VwOpenLotPosition
 	query := v.SELECT(v.AllColumns)
 
 	var results []model.VwOpenLotPosition
-	err = query.Query(tx, &results)
+	err := query.Query(tx, &results)
 	if err != nil {
 		return nil, err
 	}
@@ -69,11 +61,7 @@ func GetVwOpenLotPosition(ctx context.Context) ([]model.VwOpenLotPosition, error
 	return results, nil
 }
 
-func AddOpenLots(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []*model.OpenLot) ([]model.OpenLot, error) {
 
 	t := table.OpenLot
 	stmt := t.INSERT(t.MutableColumns).
@@ -81,7 +69,7 @@ func AddOpenLots(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLo
 		RETURNING(t.AllColumns)
 
 	result := []model.OpenLot{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -89,11 +77,7 @@ func AddOpenLots(ctx context.Context, openLots []*model.OpenLot) ([]model.OpenLo
 	return result, nil
 }
 
-func AddClosedLots(ctx context.Context, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func AddClosedLots(ctx context.Context, tx *sql.Tx, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
 
 	t := table.ClosedLot
 	stmt := t.INSERT(t.MutableColumns).
@@ -101,7 +85,7 @@ func AddClosedLots(ctx context.Context, lots []*model.ClosedLot) ([]*model.Close
 		RETURNING(t.AllColumns)
 
 	result := []*model.ClosedLot{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert closed lots: %w", err)
 	}
@@ -109,11 +93,7 @@ func AddClosedLots(ctx context.Context, lots []*model.ClosedLot) ([]*model.Close
 	return result, nil
 }
 
-func UpdateOpenLotInDb(ctx context.Context, updatedLot model.OpenLot, columns postgres.ColumnList) (*model.OpenLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func UpdateOpenLotInDb(ctx context.Context, tx *sql.Tx, updatedLot model.OpenLot, columns postgres.ColumnList) (*model.OpenLot, error) {
 
 	t := table.OpenLot
 	updatedLot.ModifiedAt = time.Now().UTC()
@@ -125,7 +105,7 @@ func UpdateOpenLotInDb(ctx context.Context, updatedLot model.OpenLot, columns po
 		RETURNING(t.AllColumns)
 
 	result := model.OpenLot{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert closed lots: %w", err)
 	}

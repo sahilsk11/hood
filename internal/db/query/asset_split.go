@@ -2,17 +2,13 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
-	db_utils "hood/internal/db/utils"
 )
 
-func AddAssetsSplits(ctx context.Context, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func AddAssetsSplits(ctx context.Context, tx *sql.Tx, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
 
 	t := table.AssetSplit
 	stmt := t.INSERT(t.MutableColumns).
@@ -21,7 +17,7 @@ func AddAssetsSplits(ctx context.Context, splits []*model.AssetSplit) ([]model.A
 		RETURNING(t.AllColumns)
 
 	result := []model.AssetSplit{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to asset asset splits: %w", err)
 	}
@@ -29,11 +25,7 @@ func AddAssetsSplits(ctx context.Context, splits []*model.AssetSplit) ([]model.A
 	return result, nil
 }
 
-func AddAppliedAssetSplits(ctx context.Context, appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, err
-	}
+func AddAppliedAssetSplits(ctx context.Context, tx *sql.Tx, appliedAssetSplits []model.AppliedAssetSplit) ([]model.AppliedAssetSplit, error) {
 
 	t := table.AppliedAssetSplit
 	stmt := t.INSERT(t.MutableColumns).
@@ -41,7 +33,7 @@ func AddAppliedAssetSplits(ctx context.Context, appliedAssetSplits []model.Appli
 		RETURNING(t.AllColumns)
 
 	result := []model.AppliedAssetSplit{}
-	err = stmt.Query(tx, &result)
+	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert applied asset splits: %w", err)
 	}

@@ -18,6 +18,7 @@ type vwOpenLotPositionTable struct {
 
 	//Columns
 	OpenLotID       postgres.ColumnInteger
+	TradeID         postgres.ColumnInteger
 	Symbol          postgres.ColumnString
 	Quantity        postgres.ColumnFloat
 	PurchaseDate    postgres.ColumnTimestampz
@@ -57,6 +58,7 @@ func newVwOpenLotPositionTable(schemaName, tableName, alias string) *VwOpenLotPo
 func newVwOpenLotPositionTableImpl(schemaName, tableName, alias string) vwOpenLotPositionTable {
 	var (
 		OpenLotIDColumn       = postgres.IntegerColumn("open_lot_id")
+		TradeIDColumn         = postgres.IntegerColumn("trade_id")
 		SymbolColumn          = postgres.StringColumn("symbol")
 		QuantityColumn        = postgres.FloatColumn("quantity")
 		PurchaseDateColumn    = postgres.TimestampzColumn("purchase_date")
@@ -65,8 +67,8 @@ func newVwOpenLotPositionTableImpl(schemaName, tableName, alias string) vwOpenLo
 		GainsTypeColumn       = postgres.StringColumn("gains_type")
 		PriceColumn           = postgres.FloatColumn("price")
 		PriceUpdatedAtColumn  = postgres.TimestampzColumn("price_updated_at")
-		allColumns            = postgres.ColumnList{OpenLotIDColumn, SymbolColumn, QuantityColumn, PurchaseDateColumn, CostBasisColumn, UnrealizedGainsColumn, GainsTypeColumn, PriceColumn, PriceUpdatedAtColumn}
-		mutableColumns        = postgres.ColumnList{OpenLotIDColumn, SymbolColumn, QuantityColumn, PurchaseDateColumn, CostBasisColumn, UnrealizedGainsColumn, GainsTypeColumn, PriceColumn, PriceUpdatedAtColumn}
+		allColumns            = postgres.ColumnList{OpenLotIDColumn, TradeIDColumn, SymbolColumn, QuantityColumn, PurchaseDateColumn, CostBasisColumn, UnrealizedGainsColumn, GainsTypeColumn, PriceColumn, PriceUpdatedAtColumn}
+		mutableColumns        = postgres.ColumnList{OpenLotIDColumn, TradeIDColumn, SymbolColumn, QuantityColumn, PurchaseDateColumn, CostBasisColumn, UnrealizedGainsColumn, GainsTypeColumn, PriceColumn, PriceUpdatedAtColumn}
 	)
 
 	return vwOpenLotPositionTable{
@@ -74,6 +76,7 @@ func newVwOpenLotPositionTableImpl(schemaName, tableName, alias string) vwOpenLo
 
 		//Columns
 		OpenLotID:       OpenLotIDColumn,
+		TradeID:         TradeIDColumn,
 		Symbol:          SymbolColumn,
 		Quantity:        QuantityColumn,
 		PurchaseDate:    PurchaseDateColumn,
