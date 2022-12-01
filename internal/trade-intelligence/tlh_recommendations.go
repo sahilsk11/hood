@@ -63,7 +63,8 @@ func IdentifyTLHOptions(ctx context.Context, minRequiredLoss, minBreakevenPriceC
 	return tlhRecs, nil
 }
 
-// use 0 for tlhPriceRisk to simply maximize loss
+// calculateMaxLossGivenPriceRisk calculated the sell quantity which generates the min gain (max loss)
+// under the tlhPriceRisk constraint
 func calculateMaxLossGivenPriceRisk(sortedLots []domain.OpenLot, price, tlhPriceRisk decimal.Decimal) (decimal.Decimal, decimal.Decimal) {
 	minGain := decimal.Zero
 	minGainQuantity := decimal.Zero
