@@ -17,6 +17,7 @@ func StringPtr(s string) *string {
 
 type Secrets struct {
 	AlphaVantageKey string `json:"alphaVantage"`
+	RdsPassword     string `json:"db"`
 }
 
 func LoadSecrets() (*Secrets, error) {
