@@ -122,7 +122,7 @@ def parse_row(row):
     out["cost_basis"] = cost_basis
     out["description"] = "BUY "+asset_name
     if long_date == None:
-      print("long date missing")
+      print("long date missing. you need to expand the stock details then copy it over")
       print(out)
       exit(1)
     out["long_date"] = long_date.replace(" at", "")
@@ -317,7 +317,7 @@ def idk():
   print(json.dumps(lots, cls=DecimalEncoder))
 
 # print([x for x in trades if "asset" in x and x["asset"] == "CASH" and x["cost_basis"] != Decimal(1)])
-idk()
+# idk()
 # count_cash(trades)
 # count_holdings(trades)
 # print(json.dumps(trades))

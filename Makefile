@@ -9,7 +9,7 @@ db-run-all:
 	tools/env/bin/python3.9 tools/migrations.py up
 
 process-outfile:
-	go run cmd/data-ingestion/main.go -command=process-outfile
+	go run cmd/trade-ingestion/main.go -command=process-outfile
 
 update-prices:
 	go run cmd/data-ingestion/main.go -command=update-prices
