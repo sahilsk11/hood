@@ -26,7 +26,9 @@ func main() {
 		tx,
 	)
 
-	_, err = trade_ingestion.ParseTdaTransactionFile(ctx, "transactions.csv")
+	tiService := trade_ingestion.NewTradeIngestionService(ctx, tx)
+
+	_, err = trade_ingestion.ParseTdaTransactionFile(ctx, "transactions.csv", tiService)
 	if err != nil {
 		log.Fatal(err)
 	}

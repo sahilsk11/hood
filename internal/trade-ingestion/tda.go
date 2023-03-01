@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -43,8 +44,25 @@ func determineColumnOrder(headerRow []string) (map[string]int, error) {
 	return columnIndices, nil
 }
 
-func ParseTdaTransactionFile(ctx context.Context, csvFileName string) ([]model.Trade, error) {
+func ParseTdaTransactionFile(ctx context.Context, csvFileName string, tiService TradeIngestionService) ([]model.Trade, error) {
 	f, err := os.Open(csvFileName)
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, err := io.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+	f.Close()
+
+	revisedFile := strings.ReplaceAll(string(bytes), "\n***END OF FILE***", "")
+	err = os.WriteFile(csvFileName, []byte(revisedFile), 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	f, err = os.Open(csvFileName)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +112,7 @@ func ParseTdaTransactionFile(ctx context.Context, csvFileName string) ([]model.T
 				Custodian: model.CustodianType_Tda,
 			}
 
-			_, _, err = AddBuyOrder(ctx, buyOrder, &transactionID)
+			_, _, err = tiService.ProcessTdaBuyOrder(ctx, buyOrder, transactionID)
 			if err != nil {
 				return nil, err
 			}

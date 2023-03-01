@@ -27,7 +27,7 @@ func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult
 	if err != nil {
 		return nil, err
 	}
-	sellResult, err := trade_ingestion.ProcessSellOrder(trade, openLots)
+	sellResult, err := trade_ingestion.PreviewSellOrder(trade, openLots)
 	if err != nil {
 		return nil, err
 	}

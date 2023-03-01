@@ -14,6 +14,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// Only exists to continue parsing RH data
+
 type entry struct {
 	// tradeEntry and assetSplitEntry
 	Asset  string `json:"asset"`
@@ -179,22 +181,22 @@ func parseSplitFromEntry(e entry) (*model.AssetSplit, error) {
 	}, nil
 }
 
-func ProcessHistoricTrades(ctx context.Context, i entryIterator) error {
+func ProcessHistoricTrades(ctx context.Context, i entryIterator, h TradeIngestionService) error {
 	for i.hasNext() {
 		nextTrade, nextSplit := i.next()
 		if nextSplit != nil {
-			_, _, err := AddAssetSplit(ctx, *nextSplit)
+			_, _, err := h.AddAssetSplit(ctx, *nextSplit)
 			if err != nil {
 				return fmt.Errorf("failed to add asset split: %w", err)
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
-				_, _, err := AddBuyOrder(ctx, *nextTrade, nil)
+				_, _, err := h.ProcessBuyOrder(ctx, *nextTrade)
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}
 			} else {
-				_, _, err := AddSellOrder(ctx, *nextTrade)
+				_, _, err := h.ProcessSellOrder(ctx, *nextTrade)
 				if err != nil {
 					return fmt.Errorf("failed to add sell order %v: %w", *nextTrade, err)
 				}
@@ -205,16 +207,79 @@ func ProcessHistoricTrades(ctx context.Context, i entryIterator) error {
 	return nil
 }
 
-func ProcessOutfile(ctx context.Context) error {
+func ProcessOutfile(ctx context.Context, tiService TradeIngestionService) error {
 	outfileEntries, err := ParseEntriesFromOutfile()
 	if err != nil {
 		return err
 	}
 	entryIterator := newEntryiterator(outfileEntries.Trades, outfileEntries.AssetSplits)
-	err = ProcessHistoricTrades(ctx, entryIterator)
+	err = ProcessHistoricTrades(ctx, entryIterator, tiService)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+var tickerMap = map[string]string{
+	"SIRIUS XM":                        "SIRI",
+	"AMAG PHARMACEUTICALS":             "AMAG",
+	"SONOS":                            "SONO",
+	"GAP":                              "GPS",
+	"SNAP":                             "SNAP",
+	"SPOTIFY":                          "SPOT",
+	"BITCOIN":                          "BTC",
+	"UBER":                             "UBER",
+	"META PLATFORMS":                   "META",
+	"TWITTER":                          "TWTR",
+	"APPLE":                            "AAPL",
+	"TESLA":                            "TSLA",
+	"ALPHABET CLASS A":                 "GOOGL",
+	"ALPHABET CLASS C":                 "GOOG",
+	"NVIDIA":                           "NVDA",
+	"UNITED AIRLINES":                  "UAL",
+	"MICROSOFT":                        "MSFT",
+	"AMAZON":                           "AMZN",
+	"BLOCK":                            "SQ",
+	"SALESFORCE":                       "CRM",
+	"COINBASE":                         "COIN",
+	"STITCH FIX":                       "SFIX",
+	"DISNEY":                           "DIS",
+	"ROBINHOOD MARKETS":                "HOOD",
+	"ATLASSIAN":                        "TEAM",
+	"ATLASSIAN CORPORATION":            "TEAM",
+	"DOGECOIN":                         "DOGE",
+	"AIRBNB":                           "ABNB",
+	"SAP":                              "SAP",
+	"DATADOG":                          "DDOG",
+	"SPDR GOLD TRUST":                  "GLD",
+	"VANGUARD HIGH DIVIDEND YIELD ETF": "VYM",
+	"SPDR PORTFOLIO S&P 500 HIGH DIVIDEND ETF": "SPYD",
+	"SIMON PROPERTY GROUP":                     "SPG",
+	"NIO":                                      "NIO",
+	"ETHEREUM":                                 "ETH",
+	"GAMESTOP":                                 "GME",
+	"AMC ENTERTAINMENT":                        "AMC",
+	"DOORDASH":                                 "DASH",
+	"SPDR S&P 500 ETF":                         "SPY",
+	"XILINX":                                   "XLNX",
+}
+
+func tickerToName(ticker string) (string, error) {
+	for k, v := range tickerMap {
+		if v == ticker {
+			return k, nil
+		}
+	}
+
+	return "", fmt.Errorf("could not map ticker '%s' to name", ticker)
+}
+
+func nameToTicker(name string) (string, error) {
+	ticker, ok := tickerMap[name]
+	if !ok {
+		return "", fmt.Errorf("could not map name '%s' to ticker", name)
+	}
+
+	return ticker, nil
 }
