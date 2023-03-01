@@ -189,7 +189,7 @@ func ProcessHistoricTrades(ctx context.Context, i entryIterator) error {
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
-				_, _, err := AddBuyOrder(ctx, *nextTrade)
+				_, _, err := AddBuyOrder(ctx, *nextTrade, nil)
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}

@@ -26,6 +26,7 @@ type tradeTable struct {
 	Description postgres.ColumnString
 	CreatedAt   postgres.ColumnTimestampz
 	ModifiedAt  postgres.ColumnTimestampz
+	Custodian   postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -65,8 +66,9 @@ func newTradeTableImpl(schemaName, tableName, alias string) tradeTable {
 		DescriptionColumn = postgres.StringColumn("description")
 		CreatedAtColumn   = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn  = postgres.TimestampzColumn("modified_at")
-		allColumns        = postgres.ColumnList{TradeIDColumn, SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn}
-		mutableColumns    = postgres.ColumnList{SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn}
+		CustodianColumn   = postgres.StringColumn("custodian")
+		allColumns        = postgres.ColumnList{TradeIDColumn, SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
+		mutableColumns    = postgres.ColumnList{SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
 	)
 
 	return tradeTable{
@@ -82,6 +84,7 @@ func newTradeTableImpl(schemaName, tableName, alias string) tradeTable {
 		Description: DescriptionColumn,
 		CreatedAt:   CreatedAtColumn,
 		ModifiedAt:  ModifiedAtColumn,
+		Custodian:   CustodianColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

@@ -19,7 +19,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
+func AddBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error) {
 	tx, err := db_utils.GetTx(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -34,6 +34,18 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *mode
 	if len(insertedTrades) == 0 {
 		return nil, nil, nil
 	}
+
+	if newTrade.Custodian == model.CustodianType_Tda {
+		tdaOrder := model.TdaTrade{
+			TdaTransactionID: *tdaTxId,
+			TradeID:          &newTrade.TradeID,
+		}
+		_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(tx)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
 	insertedTrade := insertedTrades[0]
 	newLot := model.OpenLot{
 		CostBasis:  insertedTrade.CostBasis,

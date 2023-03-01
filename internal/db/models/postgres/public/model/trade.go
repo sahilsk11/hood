@@ -23,4 +23,5 @@ type Trade struct {
 	Description *string
 	CreatedAt   time.Time
 	ModifiedAt  time.Time
+	Custodian   CustodianType
 }
