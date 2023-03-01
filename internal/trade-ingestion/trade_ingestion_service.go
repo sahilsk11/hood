@@ -2,12 +2,12 @@ package trade_ingestion
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
-	db_utils "hood/internal/db/utils"
 	"hood/internal/domain"
 	"math"
 	"sort"
@@ -19,31 +19,53 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func AddBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error) {
-	tx, err := db_utils.GetTx(ctx)
+// consider changing these names from "Add" to something better
+
+type TradeIngestionService interface {
+	ProcessBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error)
+	ProcessSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error)
+	AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
+
+	ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error)
+}
+
+type tradeIngestionHandler struct {
+	Tx *sql.Tx
+}
+
+func NewTradeIngestionService(ctx context.Context, tx *sql.Tx) TradeIngestionService {
+	return tradeIngestionHandler{
+		Tx: tx,
+	}
+}
+
+func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error) {
+	trade, lots, err := h.ProcessBuyOrder(ctx, newTrade)
 	if err != nil {
 		return nil, nil, err
 	}
 
+	tdaOrder := model.TdaTrade{
+		TdaTransactionID: *tdaTxId,
+		TradeID:          &newTrade.TradeID,
+	}
+	_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(h.Tx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return trade, lots, nil
+}
+
+func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
 	newTrade.CreatedAt = time.Now().UTC()
 	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
+	insertedTrades, err := db.AddTrades(ctx, h.Tx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
 	if len(insertedTrades) == 0 {
 		return nil, nil, nil
-	}
-
-	if newTrade.Custodian == model.CustodianType_Tda {
-		tdaOrder := model.TdaTrade{
-			TdaTransactionID: *tdaTxId,
-			TradeID:          &newTrade.TradeID,
-		}
-		_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(tx)
-		if err != nil {
-			return nil, nil, err
-		}
 	}
 
 	insertedTrade := insertedTrades[0]
@@ -54,7 +76,7 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*mo
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
 	}
-	insertedLots, err := db.AddOpenLots(ctx, tx, []*model.OpenLot{&newLot})
+	insertedLots, err := db.AddOpenLots(ctx, h.Tx, []*model.OpenLot{&newLot})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,18 +88,14 @@ func AddBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*mo
 	return &insertedTrade, &insertedLot, nil
 }
 
-func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	openLots, err := db.GetOpenLots(ctx, tx, newTrade.Symbol)
+func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
+	openLots, err := db.GetOpenLots(ctx, h.Tx, newTrade.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
 	newTrade.CreatedAt = time.Now().UTC()
 	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
+	insertedTrades, err := db.AddTrades(ctx, h.Tx, []*model.Trade{&newTrade})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,11 +103,11 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 		return nil, nil, nil
 	}
 	insertedTrade := insertedTrades[0]
-	sellOrderResult, err := ProcessSellOrder(insertedTrade, openLots)
+	sellOrderResult, err := PreviewSellOrder(insertedTrade, openLots)
 	if err != nil {
 		return nil, nil, err
 	}
-	insertedClosedLots, err := db.AddClosedLots(ctx, tx, sellOrderResult.NewClosedLots)
+	insertedClosedLots, err := db.AddClosedLots(ctx, h.Tx, sellOrderResult.NewClosedLots)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +121,7 @@ func AddSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*m
 			columnlist = append(columnlist, table.OpenLot.DeletedAt)
 			dbOpenLot.DeletedAt = util.TimePtr(time.Now().UTC())
 		}
-		_, err = db.UpdateOpenLotInDb(ctx, tx, dbOpenLot, columnlist)
+		_, err = db.UpdateOpenLotInDb(ctx, h.Tx, dbOpenLot, columnlist)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -133,7 +151,14 @@ type ProcessSellOrderResult struct {
 	UpdatedOpenLots []*domain.OpenLot
 }
 
-func ProcessSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
+// Selling an asset involves closing currently open lots. In doing this, we may either
+// close all open lots for the asset, or close some. The latter requires us to modify
+// the existing open lot. Actually, both require us to modify the open lot
+//
+// This function does the "heavy lifting" to determine which lots should be sold
+// without actually selling them. It's only exported because we re-use this logic
+// when simulating what a sell order would do
+func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
 	if err := validateTrade(t); err != nil {
 		return nil, err
 	}
@@ -192,14 +217,9 @@ func ProcessSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 	}, nil
 }
 
-func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
-	tx, err := db_utils.GetTx(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-
+func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
 	split.CreatedAt = time.Now().UTC()
-	insertedSplits, err := db.AddAssetsSplits(ctx, tx, []*model.AssetSplit{&split})
+	insertedSplits, err := db.AddAssetsSplits(ctx, h.Tx, []*model.AssetSplit{&split})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -207,7 +227,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 		return nil, nil, nil
 	}
 	insertedSplit := insertedSplits[0]
-	lots, err := db.GetOpenLots(ctx, tx, split.Symbol)
+	lots, err := db.GetOpenLots(ctx, h.Tx, split.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -221,7 +241,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 			Quantity:  lot.Quantity.Mul(ratio),
 		}
 		columnList := postgres.ColumnList{table.OpenLot.CostBasis, table.OpenLot.Quantity}
-		updatedOpenLot, err := db.UpdateOpenLotInDb(ctx, tx, dbLot, columnList)
+		updatedOpenLot, err := db.UpdateOpenLotInDb(ctx, h.Tx, dbLot, columnList)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -232,7 +252,7 @@ func AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSpl
 		}
 		appliedSplits = append(appliedSplits, appliedSplit)
 	}
-	insertedAppliedSplits, err := db.AddAppliedAssetSplits(ctx, tx, appliedSplits)
+	insertedAppliedSplits, err := db.AddAppliedAssetSplits(ctx, h.Tx, appliedSplits)
 	if err != nil {
 		return nil, nil, err
 	}
