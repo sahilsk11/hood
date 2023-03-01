@@ -26,7 +26,7 @@ type TradeIngestionService interface {
 	ProcessSellOrder(ctx context.Context, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error)
 	AddAssetSplit(ctx context.Context, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
-	ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error)
+	ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error)
 }
 
 type tradeIngestionHandler struct {
@@ -39,14 +39,14 @@ func NewTradeIngestionService(ctx context.Context, tx *sql.Tx) TradeIngestionSer
 	}
 }
 
-func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId *int64) (*model.Trade, *model.OpenLot, error) {
+func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error) {
 	trade, lots, err := h.ProcessBuyOrder(ctx, newTrade)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	tdaOrder := model.TdaTrade{
-		TdaTransactionID: *tdaTxId,
+		TdaTransactionID: tdaTxId,
 		TradeID:          &newTrade.TradeID,
 	}
 	_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(h.Tx)

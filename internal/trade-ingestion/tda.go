@@ -112,7 +112,7 @@ func ParseTdaTransactionFile(ctx context.Context, csvFileName string, tiService 
 				Custodian: model.CustodianType_Tda,
 			}
 
-			_, _, err = tiService.ProcessTdaBuyOrder(ctx, buyOrder, &transactionID)
+			_, _, err = tiService.ProcessTdaBuyOrder(ctx, buyOrder, transactionID)
 			if err != nil {
 				return nil, err
 			}
