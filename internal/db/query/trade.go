@@ -3,13 +3,11 @@ package db
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 )
 
 func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.Trade, error) {
-
 	stmt := table.Trade.INSERT(table.Trade.MutableColumns).
 		MODELS(trades).
 		ON_CONFLICT(
@@ -25,9 +23,6 @@ func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.
 	err := stmt.Query(tx, &result)
 	if err != nil {
 		return nil, err
-	}
-	if result == nil {
-		fmt.Println("froho")
 	}
 
 	return result, nil
