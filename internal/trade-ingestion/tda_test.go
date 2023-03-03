@@ -30,4 +30,6 @@ func TestParseTdaTransactionFile(t *testing.T) {
 
 	_, err := ParseTdaTransactionFile(ctx, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
+
+	require.NotNil(t, nil)
 }
