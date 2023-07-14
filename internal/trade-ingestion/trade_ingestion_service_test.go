@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	"testing"
 	"time"
@@ -44,7 +45,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
 		fmt.Println(err)
 
-		require.True(t, errors.As(err, &ErrDuplicateTrade{}), err)
+		require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 		tx.Rollback()
 	})
 }

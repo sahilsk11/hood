@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"fmt"
+	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
+
 	"io"
 	"os"
 	"strconv"
@@ -114,10 +117,11 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 			}
 
 			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buyOrder, transactionID)
-			if err != nil {
+			if err != nil && errors.As(err, &hood_errors.ErrDuplicateTrade{}) {
+				fmt.Printf("skipping duplicate trade: %s\n", err.Error())
+			} else if err != nil {
 				return nil, err
 			}
-
 		}
 	}
 

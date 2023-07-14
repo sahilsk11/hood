@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
@@ -67,7 +68,7 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 		}
 		// don't hate me
 		if err.Error() == `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"` {
-			return nil, nil, ErrDuplicateTrade{
+			return nil, nil, hood_errors.ErrDuplicateTrade{
 				Custodian:              model.CustodianType_Tda,
 				CustodianTransactionID: tdaTxId,
 			}
@@ -76,15 +77,6 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 	}
 
 	return trade, lots, nil
-}
-
-type ErrDuplicateTrade struct {
-	Custodian              model.CustodianType
-	CustodianTransactionID int64
-}
-
-func (e ErrDuplicateTrade) Error() string {
-	return fmt.Sprintf("attempted to insert duplicate transaction of custodian %s with custodian ID %d", e.Custodian, e.CustodianTransactionID)
 }
 
 func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {

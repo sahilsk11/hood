@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	connStr := "postgresql://postgres:postgres@localhost:5438/postgres?sslmode=disable"
+	connStr := "postgresql://postgres:postgres@localhost:5438/postgres_test?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		log.Fatal(err)
@@ -28,7 +28,7 @@ func main() {
 
 	tiService := trade_ingestion.NewTradeIngestionService(ctx, tx)
 
-	_, err = trade_ingestion.ParseTdaTransactionFile(ctx, tx, "transactions.csv", tiService)
+	_, err = trade_ingestion.ParseTdaTransactionFile(ctx, tx, "transactions (1).csv", tiService)
 	if err != nil {
 		log.Fatal(err)
 	}
