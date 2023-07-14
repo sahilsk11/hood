@@ -19,7 +19,7 @@ func TestParseTdaTransactionFile(t *testing.T) {
 
 	tiService.
 		EXPECT().
-		ProcessTdaBuyOrder(ctx, model.Trade{
+		ProcessTdaBuyOrder(ctx, nil, model.Trade{
 			Symbol:    "VTI",
 			Action:    model.TradeActionType_Buy,
 			Quantity:  decimal.NewFromFloat(2),
@@ -28,6 +28,6 @@ func TestParseTdaTransactionFile(t *testing.T) {
 			Custodian: model.CustodianType_Tda,
 		}, int64(47424103872))
 
-	_, err := ParseTdaTransactionFile(ctx, "testdata/transactions.csv", tiService)
+	_, err := ParseTdaTransactionFile(ctx, nil, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
 }

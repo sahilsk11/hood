@@ -2,6 +2,7 @@ package trade_ingestion
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -181,22 +182,22 @@ func parseSplitFromEntry(e entry) (*model.AssetSplit, error) {
 	}, nil
 }
 
-func ProcessHistoricTrades(ctx context.Context, i entryIterator, h TradeIngestionService) error {
+func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h TradeIngestionService) error {
 	for i.hasNext() {
 		nextTrade, nextSplit := i.next()
 		if nextSplit != nil {
-			_, _, err := h.AddAssetSplit(ctx, *nextSplit)
+			_, _, err := h.AddAssetSplit(ctx, tx, *nextSplit)
 			if err != nil {
 				return fmt.Errorf("failed to add asset split: %w", err)
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
-				_, _, err := h.ProcessBuyOrder(ctx, *nextTrade)
+				_, _, err := h.ProcessBuyOrder(ctx, tx, *nextTrade)
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}
 			} else {
-				_, _, err := h.ProcessSellOrder(ctx, *nextTrade)
+				_, _, err := h.ProcessSellOrder(ctx, tx, *nextTrade)
 				if err != nil {
 					return fmt.Errorf("failed to add sell order %v: %w", *nextTrade, err)
 				}
@@ -207,13 +208,13 @@ func ProcessHistoricTrades(ctx context.Context, i entryIterator, h TradeIngestio
 	return nil
 }
 
-func ProcessOutfile(ctx context.Context, tiService TradeIngestionService) error {
+func ProcessOutfile(ctx context.Context, tx *sql.Tx, tiService TradeIngestionService) error {
 	outfileEntries, err := ParseEntriesFromOutfile()
 	if err != nil {
 		return err
 	}
 	entryIterator := newEntryiterator(outfileEntries.Trades, outfileEntries.AssetSplits)
-	err = ProcessHistoricTrades(ctx, entryIterator, tiService)
+	err = ProcessHistoricTrades(ctx, tx, entryIterator, tiService)
 	if err != nil {
 		return err
 	}
