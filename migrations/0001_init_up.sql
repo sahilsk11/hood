@@ -1,3 +1,4 @@
+drop type if exists trade_action_type;
 CREATE TYPE trade_action_type as enum('BUY', 'SELL');
 
 CREATE TABLE trade (
