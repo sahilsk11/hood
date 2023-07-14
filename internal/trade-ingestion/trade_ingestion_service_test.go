@@ -27,33 +27,21 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 		tiService := NewTradeIngestionService(ctx, tx)
 
 		tdaID := int64(1)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, model.Trade{
-			Symbol:    "AAPL",
-			Action:    "BUY",
-			Quantity:  decimal.NewFromFloat(10.5),
-			CostBasis: decimal.NewFromFloat(100.25),
-			Date:      time.Now(),
-
+		trade := model.Trade{
+			Symbol:      "AAPL",
+			Action:      "BUY",
+			Quantity:    decimal.NewFromFloat(10.5),
+			CostBasis:   decimal.NewFromFloat(100.25),
+			Date:        time.Now(),
 			Description: nil,
 			CreatedAt:   time.Now(),
 			ModifiedAt:  time.Now(),
 			Custodian:   model.CustodianType_Tda,
-		}, tdaID)
-		require.NoError(t, err, "failed on 2")
-		fmt.Println("here")
+		}
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
+		require.NoError(t, err)
 
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, model.Trade{
-			Symbol:    "AAPL",
-			Action:    "BUY",
-			Quantity:  decimal.NewFromFloat(10.5),
-			CostBasis: decimal.NewFromFloat(100.25),
-			Date:      time.Now(),
-
-			Description: nil,
-			CreatedAt:   time.Now(),
-			ModifiedAt:  time.Now(),
-			Custodian:   model.CustodianType_Tda,
-		}, tdaID)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
 		fmt.Println(err)
 
 		require.True(t, errors.As(err, &ErrDuplicateTrade{}), err)

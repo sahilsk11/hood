@@ -39,6 +39,10 @@ func NewTradeIngestionService(ctx context.Context, tx *sql.Tx) TradeIngestionSer
 }
 
 func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error) {
+	if newTrade.Custodian != model.CustodianType_Tda {
+		return nil, nil, fmt.Errorf("cannot process tda buy order with custodian %s", newTrade.Custodian.String())
+	}
+
 	savepointName := "x" + strings.ReplaceAll(uuid.New().String(), "-", "")
 	_, err := tx.Exec("SAVEPOINT " + savepointName + ";")
 	if err != nil {
