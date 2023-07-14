@@ -1,0 +1,2 @@
+ALTER TABLE trade
+drop constraint trade_symbol_action_quantity_cost_basis_date_key;
