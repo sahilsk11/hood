@@ -11,11 +11,13 @@ import (
 	"hood/internal/domain"
 	"math"
 	"sort"
+	"strings"
 	"time"
 
 	"hood/internal/util"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -37,6 +39,12 @@ func NewTradeIngestionService(ctx context.Context, tx *sql.Tx) TradeIngestionSer
 }
 
 func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error) {
+	savepointName := "x" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	_, err := tx.Exec("SAVEPOINT " + savepointName + ";")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create savepoint at ProcessTdaBuyOrder: %w", err)
+	}
+
 	trade, lots, err := h.ProcessBuyOrder(ctx, tx, newTrade)
 	if err != nil {
 		return nil, nil, err
@@ -44,14 +52,35 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 
 	tdaOrder := model.TdaTrade{
 		TdaTransactionID: tdaTxId,
-		TradeID:          &newTrade.TradeID,
+		TradeID:          &trade.TradeID,
 	}
+
 	_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(tx)
 	if err != nil {
+		_, rollbackErr := tx.Exec("ROLLBACK TO SAVEPOINT " + savepointName)
+		if rollbackErr != nil {
+			return nil, nil, fmt.Errorf("failed to rollback buy order: %w", rollbackErr)
+		}
+		// don't hate me
+		if err.Error() == `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"` {
+			return nil, nil, ErrDuplicateTrade{
+				Custodian:              model.CustodianType_Tda,
+				CustodianTransactionID: tdaTxId,
+			}
+		}
 		return nil, nil, err
 	}
 
 	return trade, lots, nil
+}
+
+type ErrDuplicateTrade struct {
+	Custodian              model.CustodianType
+	CustodianTransactionID int64
+}
+
+func (e ErrDuplicateTrade) Error() string {
+	return fmt.Sprintf("attempted to insert duplicate transaction of custodian %s with custodian ID %d", e.Custodian, e.CustodianTransactionID)
 }
 
 func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
