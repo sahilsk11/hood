@@ -53,7 +53,7 @@ jobs:
         pip install -r tools/requirements.txt
 
     - name: Set up Database
-      run: make db-run-all
+      run: python3 tools/migrations.py up
 
     - name: Build
       run: go build -v ./...
