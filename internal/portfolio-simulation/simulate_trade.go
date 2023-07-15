@@ -3,7 +3,6 @@ package portfolio_simulation
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
-	trade_ingestion "hood/internal/trade-ingestion"
 
 	db "hood/internal/db/query"
 
@@ -25,7 +24,7 @@ func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult
 	if err != nil {
 		return nil, err
 	}
-	sellResult, err := trade_ingestion.PreviewSellOrder(trade, openLots)
+	sellResult, err := trade.PreviewSellOrder(trade, openLots)
 	if err != nil {
 		return nil, err
 	}
