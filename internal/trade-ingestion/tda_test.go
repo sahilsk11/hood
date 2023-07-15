@@ -19,7 +19,7 @@ func TestParseTdaTransactionFile(t *testing.T) {
 	require.NoError(t, err)
 	tx, err := dbConn.Begin()
 	require.NoError(t, err)
-	db.CleanupTest(t, tx)
+	db.RollbackAfterTest(t, tx)
 
 	tiService := NewMockTradeIngestionService(ctrl)
 

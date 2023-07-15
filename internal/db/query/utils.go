@@ -46,7 +46,7 @@ func NewTest() (*sql.DB, error) {
 	return dbConn, nil
 }
 
-func CleanupTest(t *testing.T, tx *sql.Tx) {
+func RollbackAfterTest(t *testing.T, tx *sql.Tx) {
 	t.Cleanup(func() {
 		err := tx.Rollback()
 		if err != nil {

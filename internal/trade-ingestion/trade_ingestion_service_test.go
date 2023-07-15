@@ -23,7 +23,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		db.CleanupTest(t, tx)
+		db.RollbackAfterTest(t, tx)
 
 		tiService := NewTradeIngestionService()
 

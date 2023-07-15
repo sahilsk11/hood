@@ -21,11 +21,7 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			if err := tx.Rollback(); err != nil {
-				panic(err)
-			}
-		})
+		db.RollbackAfterTest(t, tx)
 
 		buy := newTrade(100, 1, model.TradeActionType_Buy)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
@@ -43,11 +39,7 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 	t.Run("slight gain", func(t *testing.T) {
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			if err := tx.Rollback(); err != nil {
-				panic(err)
-			}
-		})
+		db.RollbackAfterTest(t, tx)
 
 		buy := newTrade(100, 2, model.TradeActionType_Buy)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
@@ -77,11 +69,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			if err := tx.Rollback(); err != nil {
-				panic(err)
-			}
-		})
+		db.RollbackAfterTest(t, tx)
 
 		buy := newTrade(100, 1, model.TradeActionType_Buy)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
@@ -104,11 +92,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 	t.Run("slight gain", func(t *testing.T) {
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			if err := tx.Rollback(); err != nil {
-				panic(err)
-			}
-		})
+		db.RollbackAfterTest(t, tx)
 
 		buy := newTrade(100, 1, model.TradeActionType_Buy)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
@@ -138,11 +122,7 @@ func Test_CalculateNetReturns(t *testing.T) {
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		t.Cleanup(func() {
-			if err := tx.Rollback(); err != nil {
-				panic(err)
-			}
-		})
+		db.RollbackAfterTest(t, tx)
 
 		buy := newTrade(100, 1, model.TradeActionType_Buy)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
