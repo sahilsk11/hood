@@ -3,3 +3,5 @@ CREATE TABLE schema_version (
 );
 
 INSERT INTO schema_version (version) VALUES (0);
+
+CREATE DATABASE postgres_test;
