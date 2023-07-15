@@ -3,13 +3,12 @@ package main
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"hood/internal/db/models/postgres/public/model"
-	portfolio_simulation "hood/internal/portfolio-simulation"
+	"hood/internal/prices"
+	"hood/internal/util"
 	"log"
+	"net/http"
 
 	_ "github.com/lib/pq"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
@@ -18,6 +17,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	tx, err := db.Begin()
 	if err != nil {
 		log.Fatal(err)
@@ -27,21 +27,21 @@ func main() {
 		"tx",
 		tx,
 	)
-
-	result, err := portfolio_simulation.SimulateTrade(ctx, model.Trade{
-		Symbol:    "ATLASSIAN",
-		Quantity:  decimal.NewFromFloat(0.681328),
-		Action:    model.TradeActionType_Sell,
-		CostBasis: decimal.NewFromFloat(118.7),
-	})
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = tx.Rollback()
+	priceClient := prices.AlphaVantageClient{
+		HttpClient: http.DefaultClient,
+		ApiKey:     secrets.AlphaVantageKey,
+	}
+
+	err = prices.UpdateCurrentHoldingsPrices(ctx, priceClient)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Println(result)
+	tx.Commit()
+
 }

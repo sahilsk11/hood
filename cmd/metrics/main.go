@@ -6,7 +6,7 @@ import (
 	"fmt"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	metrics "hood/internal/portfolio-metrics"
+	metrics "hood/internal/metrics"
 	"log"
 
 	_ "github.com/lib/pq"
