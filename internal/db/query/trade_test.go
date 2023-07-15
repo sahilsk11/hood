@@ -2,9 +2,7 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	"testing"
@@ -17,10 +15,9 @@ import (
 
 func Test_findDuplicateRhTrades(t *testing.T) {
 	ctx := context.Background()
-	connStr := "postgresql://postgres:postgres@localhost:5438/postgres_test?sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	dbConn, err := NewTest()
 	require.NoError(t, err)
-	tx, err := db.Begin()
+	tx, err := dbConn.Begin()
 	require.NoError(t, err)
 
 	tDate := time.Now()
@@ -42,7 +39,5 @@ func Test_findDuplicateRhTrades(t *testing.T) {
 	require.NoError(t, err)
 
 	err = findDuplicateRhTrades(tx, trades)
-	fmt.Println(err)
-	t.Fail()
 	require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 }

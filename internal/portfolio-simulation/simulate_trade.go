@@ -7,8 +7,6 @@ import (
 
 	db "hood/internal/db/query"
 
-	db_utils "hood/internal/db/utils"
-
 	"github.com/shopspring/decimal"
 )
 
@@ -18,7 +16,7 @@ type SimulateTradeResult struct {
 }
 
 func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult, error) {
-	tx, err := db_utils.GetTx(ctx)
+	tx, err := db.GetTx(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -3,6 +3,7 @@ package trade_ingestion
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 	"testing"
 	"time"
 
@@ -14,12 +15,17 @@ import (
 func TestParseTdaTransactionFile(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
+	dbConn, err := db.New()
+	require.NoError(t, err)
+	tx, err := dbConn.Begin()
+	require.NoError(t, err)
+	db.CleanupTest(t, tx)
 
 	tiService := NewMockTradeIngestionService(ctrl)
 
 	tiService.
 		EXPECT().
-		ProcessTdaBuyOrder(ctx, nil, model.Trade{
+		ProcessTdaBuyOrder(ctx, tx, model.Trade{
 			Symbol:    "VTI",
 			Action:    model.TradeActionType_Buy,
 			Quantity:  decimal.NewFromFloat(2),
@@ -28,6 +34,6 @@ func TestParseTdaTransactionFile(t *testing.T) {
 			Custodian: model.CustodianType_Tda,
 		}, int64(47424103872))
 
-	_, err := ParseTdaTransactionFile(ctx, nil, "testdata/transactions.csv", tiService)
+	_, err = ParseTdaTransactionFile(ctx, tx, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
 }

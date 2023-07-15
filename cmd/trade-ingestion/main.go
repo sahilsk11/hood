@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 	trade_ingestion "hood/internal/trade-ingestion"
 	"log"
 	"time"
@@ -13,13 +13,12 @@ import (
 )
 
 func main() {
-	connStr := "postgresql://postgres:postgres@localhost:5438/postgres?sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	dbConn, err := db.New()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tx, err := db.Begin()
+	tx, err := dbConn.Begin()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -29,7 +28,7 @@ func main() {
 		tx,
 	)
 
-	tiService := trade_ingestion.NewTradeIngestionService(ctx, tx)
+	tiService := trade_ingestion.NewTradeIngestionService()
 
 	_, _, err = tiService.ProcessSellOrder(ctx, tx, model.Trade{
 		Symbol:     "SPY",

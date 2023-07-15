@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	trade_intelligence "hood/internal/trade-intelligence"
+	trade_intelligence "hood/internal/portfolio-analytics"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -17,8 +16,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	connStr := "postgresql://postgres:postgres@localhost:5438/postgres?sslmode=disable"
-	dbConn, err := sql.Open("postgres", connStr)
+	dbConn, err := db.New()
 	if err != nil {
 		log.Fatal(err)
 	}

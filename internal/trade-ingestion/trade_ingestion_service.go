@@ -34,7 +34,7 @@ type TradeIngestionService interface {
 type tradeIngestionHandler struct {
 }
 
-func NewTradeIngestionService(ctx context.Context, tx *sql.Tx) TradeIngestionService {
+func NewTradeIngestionService() TradeIngestionService {
 	return tradeIngestionHandler{}
 }
 

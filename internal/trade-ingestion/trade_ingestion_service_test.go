@@ -2,11 +2,10 @@ package trade_ingestion
 
 import (
 	"context"
-	"database/sql"
 	"errors"
-	"fmt"
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 	"testing"
 	"time"
 
@@ -19,13 +18,14 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 	t.Run("try on test db", func(t *testing.T) {
 		ctx := context.Background()
 
-		connStr := "postgresql://postgres:postgres@localhost:5438/postgres_test?sslmode=disable"
-		db, err := sql.Open("postgres", connStr)
+		dbConn, err := db.New()
 		require.NoError(t, err)
 
-		tx, err := db.Begin()
+		tx, err := dbConn.Begin()
 		require.NoError(t, err)
-		tiService := NewTradeIngestionService(ctx, tx)
+		db.CleanupTest(t, tx)
+
+		tiService := NewTradeIngestionService()
 
 		tdaID := int64(1)
 		trade := model.Trade{
@@ -43,9 +43,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 		require.NoError(t, err)
 
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
-		fmt.Println(err)
 
 		require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
-		tx.Rollback()
 	})
 }
