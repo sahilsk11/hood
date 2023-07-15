@@ -18,7 +18,6 @@ import (
 	"hood/internal/util"
 
 	"github.com/go-jet/jet/v2/postgres"
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -44,12 +43,6 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 		return nil, nil, fmt.Errorf("cannot process tda buy order with custodian %s", newTrade.Custodian.String())
 	}
 
-	savepointName := "x" + strings.ReplaceAll(uuid.New().String(), "-", "")
-	_, err := tx.Exec("SAVEPOINT " + savepointName + ";")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create savepoint at ProcessTdaBuyOrder: %w", err)
-	}
-
 	trade, lots, err := h.ProcessBuyOrder(ctx, tx, newTrade)
 	if err != nil {
 		return nil, nil, err
@@ -57,22 +50,16 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 
 	tdaOrder := model.TdaTrade{
 		TdaTransactionID: tdaTxId,
-		TradeID:          &trade.TradeID,
+		TradeID:          trade.TradeID,
 	}
 
-	_, err = table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaOrder).Exec(tx)
-	if err != nil {
-		_, rollbackErr := tx.Exec("ROLLBACK TO SAVEPOINT " + savepointName)
-		if rollbackErr != nil {
-			return nil, nil, fmt.Errorf("failed to rollback buy order: %w", rollbackErr)
+	err = db.AddTdaTrade(tx, tdaOrder)
+	if err != nil && strings.Contains(err.Error(), `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"`) {
+		return nil, nil, hood_errors.ErrDuplicateTrade{
+			Custodian:              model.CustodianType_Tda,
+			CustodianTransactionID: tdaTxId,
 		}
-		// don't hate me
-		if err.Error() == `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"` {
-			return nil, nil, hood_errors.ErrDuplicateTrade{
-				Custodian:              model.CustodianType_Tda,
-				CustodianTransactionID: tdaTxId,
-			}
-		}
+	} else if err != nil {
 		return nil, nil, err
 	}
 

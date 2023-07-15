@@ -82,3 +82,11 @@ func findDuplicateRhTrades(tx *sql.Tx, trades []*model.Trade) error {
 
 	return nil
 }
+
+func AddTdaTrade(tx *sql.Tx, tdaTrade model.TdaTrade) error {
+	_, err := table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaTrade).Exec(tx)
+	if err != nil {
+		return fmt.Errorf("failed to add TDA trade: %w", err)
+	}
+	return nil
+}

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 
 	"io"
 	"os"
@@ -116,11 +117,21 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				Custodian: model.CustodianType_Tda,
 			}
 
+			savepointName, err := db.AddSavepoint(tx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaBuyOrder: %w", err)
+			}
 			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buyOrder, transactionID)
-			if err != nil && errors.As(err, &hood_errors.ErrDuplicateTrade{}) {
-				fmt.Printf("skipping duplicate trade: %s\n", err.Error())
-			} else if err != nil {
-				return nil, err
+			if err != nil {
+				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
+					return nil, rollbackErr
+				}
+
+				if errors.As(err, &hood_errors.ErrDuplicateTrade{}) {
+					fmt.Printf("skipping duplicate trade: %s\n", err.Error())
+				} else {
+					return nil, err
+				}
 			}
 		}
 	}

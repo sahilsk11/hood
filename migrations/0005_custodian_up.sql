@@ -8,5 +8,5 @@ alter table trade alter column custodian drop default;
 CREATE TABLE tda_trade (
   tda_trade_id serial primary key,
   tda_transaction_id bigint not null unique,
-  trade_id int references trade(trade_id)
+  trade_id int references trade(trade_id) not null,
 );

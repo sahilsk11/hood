@@ -10,5 +10,5 @@ package model
 type TdaTrade struct {
 	TdaTradeID       int32 `sql:"primary_key"`
 	TdaTransactionID int64
-	TradeID          *int32
+	TradeID          int32
 }
