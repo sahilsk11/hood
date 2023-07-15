@@ -5,7 +5,7 @@ import sys
 os.chdir("migrations")
 conn = psycopg2.connect(
     host="localhost",
-    database="postgres_test",
+    database="postgres",
     user="postgres",
     password="postgres",
     port="5438")
