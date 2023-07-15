@@ -18,7 +18,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 	t.Run("try on test db", func(t *testing.T) {
 		ctx := context.Background()
 
-		dbConn, err := db.New()
+		dbConn, err := db.NewTest()
 		require.NoError(t, err)
 
 		tx, err := dbConn.Begin()
