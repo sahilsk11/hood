@@ -1,4 +1,4 @@
-package price_ingestion
+package prices
 
 import (
 	"context"

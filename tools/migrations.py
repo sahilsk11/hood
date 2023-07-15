@@ -10,15 +10,28 @@ conn = psycopg2.connect(
     password="postgres",
     port="5438")
 
-def get_schema_version():
+def execute_sql(sql):
   cur = conn.cursor()
-  command = """
-  SELECT schema_version.version FROM schema_version;
-  """
-  cur.execute(command)
-  result = cur.fetchone()
+  cur.execute(sql)
   cur.close()
-  return result[0]
+
+def get_schema_version():
+  execute_sql("SAVEPOINT schema;")
+  try:
+    command = """
+    SELECT schema_version.version FROM schema_version;
+    """
+    cur = conn.cursor()
+    cur.execute(command)
+    result = cur.fetchone()
+    cur.close()
+    return result[0]
+  except psycopg2.errors.UndefinedTable as e:
+    execute_sql("ROLLBACK TO schema;")
+    f = open("0000_schema_version.sql")
+    i = f.read()
+    execute_sql(i)
+    return get_schema_version()
 
 def update_schema_version(num):
   cur = conn.cursor()
@@ -62,12 +75,6 @@ def get_up_migration(num):
 
 def get_down_migration(num):
   return get_migration_sql(num, "down")
-
-def execute_sql(sql):
-  cur = conn.cursor()
-  command = sql
-  cur.execute(command)
-  cur.close()
 
 def clear_db():
   current_migration = get_schema_version()

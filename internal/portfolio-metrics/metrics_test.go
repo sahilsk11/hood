@@ -1,10 +1,10 @@
-package trade_intelligence
+package metrics
 
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
-	trade_ingestion "hood/internal/trade-ingestion"
+	trade "hood/internal/trade"
 	"testing"
 	"time"
 
@@ -16,7 +16,7 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 	ctx := context.Background()
 	dbConn, err := db.NewTest()
 	require.NoError(t, err)
-	tiService := trade_ingestion.NewTradeIngestionService()
+	tiService := trade.NewTradeIngestionService()
 
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()
@@ -90,7 +90,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 	ctx := context.Background()
 	dbConn, err := db.NewTest()
 	require.NoError(t, err)
-	tiService := trade_ingestion.NewTradeIngestionService()
+	tiService := trade.NewTradeIngestionService()
 
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()
@@ -143,7 +143,7 @@ func Test_CalculateNetReturns(t *testing.T) {
 	ctx := context.Background()
 	dbConn, err := db.NewTest()
 	require.NoError(t, err)
-	tiService := trade_ingestion.NewTradeIngestionService()
+	tiService := trade.NewTradeIngestionService()
 
 	t.Run("net zero", func(t *testing.T) {
 		tx, err := dbConn.Begin()

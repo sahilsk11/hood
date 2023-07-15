@@ -6,7 +6,7 @@ import (
 	"fmt"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	trade_intelligence "hood/internal/portfolio-analytics"
+	metrics "hood/internal/portfolio-metrics"
 	"log"
 
 	_ "github.com/lib/pq"
@@ -43,7 +43,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	results, err := trade_intelligence.IdentifyTLHOptions(
+	results, err := metrics.IdentifyTLHOptions(
 		ctx,
 		decimal.NewFromInt(5),
 		decimal.NewFromInt(1),

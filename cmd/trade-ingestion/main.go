@@ -4,7 +4,7 @@ import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
-	trade_ingestion "hood/internal/trade-ingestion"
+	trade "hood/internal/trade"
 	"log"
 	"time"
 
@@ -28,7 +28,7 @@ func main() {
 		tx,
 	)
 
-	tiService := trade_ingestion.NewTradeIngestionService()
+	tiService := trade.NewTradeIngestionService()
 
 	_, _, err = tiService.ProcessSellOrder(ctx, tx, model.Trade{
 		Symbol:     "SPY",

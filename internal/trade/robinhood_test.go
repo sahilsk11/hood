@@ -1,4 +1,4 @@
-package trade_ingestion
+package trade
 
 import (
 	"fmt"

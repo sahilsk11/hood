@@ -1,4 +1,4 @@
-package trade_ingestion
+package trade
 
 import (
 	"context"
@@ -18,7 +18,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 	t.Run("try on test db", func(t *testing.T) {
 		ctx := context.Background()
 
-		dbConn, err := db.New()
+		dbConn, err := db.NewTest()
 		require.NoError(t, err)
 
 		tx, err := dbConn.Begin()
@@ -28,7 +28,7 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 		tiService := NewTradeIngestionService()
 
 		tdaID := int64(1)
-		trade := model.Trade{
+		tr := model.Trade{
 			Symbol:      "AAPL",
 			Action:      "BUY",
 			Quantity:    decimal.NewFromFloat(10.5),
@@ -39,10 +39,10 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 			ModifiedAt:  time.Now(),
 			Custodian:   model.CustodianType_Tda,
 		}
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, tr, tdaID)
 		require.NoError(t, err)
 
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, tdaID)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, tr, tdaID)
 
 		require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 	})

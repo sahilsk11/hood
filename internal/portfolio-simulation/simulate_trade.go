@@ -3,7 +3,7 @@ package portfolio_simulation
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
-	trade_ingestion "hood/internal/trade-ingestion"
+	"hood/internal/trade"
 
 	db "hood/internal/db/query"
 
@@ -15,17 +15,17 @@ type SimulateTradeResult struct {
 	ShortTermGains decimal.Decimal
 }
 
-func SimulateTrade(ctx context.Context, trade model.Trade) (*SimulateTradeResult, error) {
+func SimulateTrade(ctx context.Context, t model.Trade) (*SimulateTradeResult, error) {
 	tx, err := db.GetTx(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	openLots, err := db.GetOpenLots(ctx, tx, trade.Symbol)
+	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol)
 	if err != nil {
 		return nil, err
 	}
-	sellResult, err := trade_ingestion.PreviewSellOrder(trade, openLots)
+	sellResult, err := trade.PreviewSellOrder(t, openLots)
 	if err != nil {
 		return nil, err
 	}

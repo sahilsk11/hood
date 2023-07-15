@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	price_ingestion "hood/internal/price-ingestion"
+	prices "hood/internal/price-ingestion"
 	"hood/internal/util"
 	"log"
 	"net/http"
@@ -32,12 +32,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	priceClient := price_ingestion.AlphaVantageClient{
+	priceClient := prices.AlphaVantageClient{
 		HttpClient: http.DefaultClient,
 		ApiKey:     secrets.AlphaVantageKey,
 	}
 
-	err = price_ingestion.UpdateCurrentHoldingsPrices(ctx, priceClient)
+	err = prices.UpdateCurrentHoldingsPrices(ctx, priceClient)
 	if err != nil {
 		log.Fatal(err)
 	}
