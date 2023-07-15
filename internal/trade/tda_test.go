@@ -15,7 +15,7 @@ import (
 func TestParseTdaTransactionFile(t *testing.T) {
 	ctx := context.Background()
 	ctrl := gomock.NewController(t)
-	dbConn, err := db.New()
+	dbConn, err := db.NewTest()
 	require.NoError(t, err)
 	tx, err := dbConn.Begin()
 	require.NoError(t, err)
