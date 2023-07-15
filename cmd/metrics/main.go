@@ -59,8 +59,9 @@ func main() {
 			total = total.Add(r.Loss)
 
 		}
-		// fmt.Printf("%s\t\t\t\t%f\t\t%f\t\t\t%f\n", r.Symbol, r.SellQuantity.InexactFloat64(), r.Loss.InexactFloat64(), r.BreakevenPriceChange.InexactFloat64())
 	}
 	b, _ := json.Marshal(results)
 	fmt.Println(string(b))
+
+	fmt.Println(metrics.CalculateNetReturns(tx))
 }

@@ -2,6 +2,7 @@ package metrics
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	db "hood/internal/db/query"
 
@@ -31,6 +32,18 @@ func CalculateNetReturns(tx *sql.Tx) (decimal.Decimal, error) {
 	if totalCostBasis.Equal(decimal.Zero) {
 		return decimal.Zero, fmt.Errorf("received 0 total cost basis: %w", err)
 	}
+	details := map[string]float64{
+		"netRealizedGains":         totalRealizedGains.InexactFloat64(),
+		"netUnrealizedGains":       totalUnrealizedGains.InexactFloat64(),
+		"closedPositionsCostBasis": totalRealizedCostBasis.InexactFloat64(),
+		"openPositionsCostBasis":   totalUnrealizedCostBasis.InexactFloat64(),
+		"totalGains":               (totalRealizedGains.Add(totalUnrealizedGains)).InexactFloat64(),
+		"totalCostBasis":           (totalRealizedCostBasis.Add(totalUnrealizedCostBasis)).InexactFloat64(),
+	}
+
+	b, _ := json.MarshalIndent(details, "", "    ")
+	fmt.Println(string(b))
+
 	return totalGains.Div(totalCostBasis), nil
 }
 

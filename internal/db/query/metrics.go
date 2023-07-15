@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	. "hood/internal/db/models/postgres/public/table"
+	. "hood/internal/db/models/postgres/public/view"
 
 	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/shopspring/decimal"
@@ -36,11 +37,12 @@ func GetTotalUnrealizedCostBasis(tx *sql.Tx) (decimal.Decimal, error) {
 
 func GetTotalUnrealizedGains(tx *sql.Tx) (decimal.Decimal, error) {
 	query := OpenLot.SELECT(SUM(
-		(Price.Price.SUB(OpenLot.CostBasis)).MUL(OpenLot.Quantity),
+		(VwLatestPrice.Price.SUB(OpenLot.CostBasis)).MUL(OpenLot.Quantity),
 	)).FROM(
 		OpenLot.INNER_JOIN(Trade, OpenLot.TradeID.EQ(Trade.TradeID)).
-			INNER_JOIN(Price, Trade.Symbol.EQ(Price.Symbol)),
+			INNER_JOIN(VwLatestPrice, Trade.Symbol.EQ(VwLatestPrice.Symbol)),
 	)
+
 	return fetchDecimal(tx, query)
 }
 
