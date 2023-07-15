@@ -1,4 +1,4 @@
-package trade_intelligence
+package metrics
 
 import (
 	"context"
