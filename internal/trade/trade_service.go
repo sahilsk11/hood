@@ -24,8 +24,8 @@ import (
 // consider changing these names from "Add" to something better
 
 type TradeIngestionService interface {
-	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, *model.OpenLot, error)
-	ProcessSellOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error)
+	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in ProcessBuyOrderInput) (*model.Trade, *model.OpenLot, error)
+	ProcessSellOrder(ctx context.Context, tx *sql.Tx, in ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error)
 	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
 	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error)
@@ -48,9 +48,8 @@ type ProcessTdaBuyOrderInput struct {
 }
 
 func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
-	t := model.Trade{
+	t := ProcessBuyOrderInput{
 		Symbol:      input.Symbol,
-		Action:      model.TradeActionType_Buy,
 		Quantity:    input.Quantity,
 		CostBasis:   input.CostBasis,
 		Date:        input.Date,
@@ -81,10 +80,29 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 	return trade, lots, nil
 }
 
-func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, *model.OpenLot, error) {
-	newTrade.CreatedAt = time.Now().UTC()
-	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
+type ProcessBuyOrderInput struct {
+	Symbol      string
+	Quantity    decimal.Decimal
+	CostBasis   decimal.Decimal
+	Date        time.Time
+	Description *string
+	Custodian   model.CustodianType
+}
+
+func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in ProcessBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
+	t := model.Trade{
+		Symbol:      in.Symbol,
+		Quantity:    in.Quantity,
+		CostBasis:   in.CostBasis,
+		Date:        in.Date,
+		Description: in.Description,
+		Custodian:   in.Custodian,
+		CreatedAt:   time.Now().UTC(),
+		ModifiedAt:  time.Now().UTC(),
+		Action:      model.TradeActionType_Buy,
+	}
+
+	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&t})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -112,14 +130,34 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 	return &insertedTrade, &insertedLot, nil
 }
 
-func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error) {
-	openLots, err := db.GetOpenLots(ctx, tx, newTrade.Symbol)
+type ProcessSellOrderInput struct {
+	Symbol      string
+	Quantity    decimal.Decimal
+	CostBasis   decimal.Decimal
+	Date        time.Time
+	Description *string
+	Custodian   model.CustodianType
+}
+
+func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx, input ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error) {
+
+	openLots, err := db.GetOpenLots(ctx, tx, input.Symbol)
 	if err != nil {
 		return nil, nil, err
 	}
-	newTrade.CreatedAt = time.Now().UTC()
-	newTrade.ModifiedAt = time.Now().UTC()
-	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&newTrade})
+	t := model.Trade{
+		Symbol:      input.Symbol,
+		Action:      model.TradeActionType_Sell,
+		Quantity:    input.Quantity,
+		CostBasis:   input.CostBasis,
+		Date:        input.Date,
+		Description: input.Description,
+		CreatedAt:   time.Now().UTC(),
+		ModifiedAt:  time.Now().UTC(),
+		Custodian:   input.Custodian,
+	}
+
+	insertedTrades, err := db.AddTrades(ctx, tx, []*model.Trade{&t})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -192,12 +192,26 @@ func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h T
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
-				_, _, err := h.ProcessBuyOrder(ctx, tx, *nextTrade)
+				_, _, err := h.ProcessBuyOrder(ctx, tx, ProcessBuyOrderInput{
+					Symbol:      nextTrade.Symbol,
+					Quantity:    nextTrade.Quantity,
+					CostBasis:   nextTrade.CostBasis,
+					Date:        nextTrade.Date,
+					Description: nextTrade.Description,
+					Custodian:   model.CustodianType_Robinhood,
+				})
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}
 			} else {
-				_, _, err := h.ProcessSellOrder(ctx, tx, *nextTrade)
+				_, _, err := h.ProcessSellOrder(ctx, tx, ProcessSellOrderInput{
+					Symbol:      nextTrade.Symbol,
+					Quantity:    nextTrade.Quantity,
+					CostBasis:   nextTrade.CostBasis,
+					Date:        nextTrade.Date,
+					Description: nextTrade.Description,
+					Custodian:   nextTrade.Custodian,
+				})
 				if err != nil {
 					return fmt.Errorf("failed to add sell order %v: %w", *nextTrade, err)
 				}
