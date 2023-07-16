@@ -1,8 +1,8 @@
 ALTER TABLE price
-ADD COLUMN date timestamp with time zone;
+ADD COLUMN date date;
 
 UPDATE price
-set date = updated_at
+set date = updated_at::date
 where date is null;
 
 alter table price

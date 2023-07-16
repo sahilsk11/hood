@@ -21,6 +21,7 @@ type priceTable struct {
 	Symbol    postgres.ColumnString
 	Price     postgres.ColumnFloat
 	UpdatedAt postgres.ColumnTimestampz
+	Date      postgres.ColumnDate
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -55,8 +56,9 @@ func newPriceTableImpl(schemaName, tableName, alias string) priceTable {
 		SymbolColumn    = postgres.StringColumn("symbol")
 		PriceColumn     = postgres.FloatColumn("price")
 		UpdatedAtColumn = postgres.TimestampzColumn("updated_at")
-		allColumns      = postgres.ColumnList{PriceIDColumn, SymbolColumn, PriceColumn, UpdatedAtColumn}
-		mutableColumns  = postgres.ColumnList{SymbolColumn, PriceColumn, UpdatedAtColumn}
+		DateColumn      = postgres.DateColumn("date")
+		allColumns      = postgres.ColumnList{PriceIDColumn, SymbolColumn, PriceColumn, UpdatedAtColumn, DateColumn}
+		mutableColumns  = postgres.ColumnList{SymbolColumn, PriceColumn, UpdatedAtColumn, DateColumn}
 	)
 
 	return priceTable{
@@ -67,6 +69,7 @@ func newPriceTableImpl(schemaName, tableName, alias string) priceTable {
 		Symbol:    SymbolColumn,
 		Price:     PriceColumn,
 		UpdatedAt: UpdatedAtColumn,
+		Date:      DateColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

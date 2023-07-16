@@ -2,12 +2,16 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
-	trade "hood/internal/trade"
+	"hood/internal/domain"
+	"hood/internal/trade"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
@@ -241,4 +245,142 @@ func Test_CalculateNetReturns(t *testing.T) {
 
 		require.True(t, out.Equal(decimal.Zero), out)
 	})
+}
+
+func TestDailyReturns(t *testing.T) {
+	endTime := time.Now()
+	t.Run("single buy and sell", func(t *testing.T) {
+		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+		trades := []model.Trade{
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(2),
+				CostBasis: dec(100),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Buy,
+			},
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(110),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Sell,
+			},
+		}
+		assetSplits := []model.AssetSplit{}
+		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+
+		require.Equal(t,
+			"",
+			cmp.Diff(
+				map[string]Portfolio{
+					"2020-06-19": {
+						OpenLots: map[string][]*domain.OpenLot{
+							"AAPL": {
+								{
+									OpenLotID: 0,
+									Quantity:  dec(1),
+									CostBasis: dec(100),
+									Trade:     trades[0],
+								},
+							},
+						},
+						ClosedLots: map[string][]*domain.ClosedLot{
+							"AAPL": {
+								{
+									SellTrade:     trades[1],
+									Quantity:      dec(1),
+									RealizedGains: dec(10),
+								},
+							},
+						},
+					},
+				},
+				out,
+				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
+			),
+		)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("close open lot", func(t *testing.T) {
+		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+		trades := []model.Trade{
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(100),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Buy,
+			},
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(110),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Sell,
+			},
+		}
+		assetSplits := []model.AssetSplit{}
+		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+
+		require.Equal(t,
+			"",
+			cmp.Diff(
+				map[string]Portfolio{
+					"2020-06-19": {
+						OpenLots: map[string][]*domain.OpenLot{},
+						ClosedLots: map[string][]*domain.ClosedLot{
+							"AAPL": {
+								{
+									SellTrade:     trades[1],
+									Quantity:      dec(1),
+									RealizedGains: dec(10),
+								},
+							},
+						},
+					},
+				},
+				out,
+				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
+			),
+		)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("real thing", func(t *testing.T) {
+		// t.Skip()
+		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+
+		dbConn, err := db.New()
+		require.NoError(t, err)
+		tx, err := dbConn.Begin()
+		require.NoError(t, err)
+
+		trades, err := db.GetHistoricTrades(tx)
+		require.NoError(t, err)
+		assetSplits, err := db.GetHistoricAssetSplits(tx)
+		require.NoError(t, err)
+
+		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+		require.NoError(t, err)
+
+		dStr := "2023-07-10"
+		d, err := time.Parse("2006-01-02", dStr)
+		require.NoError(t, err)
+		prices, err := db.GetPricesOnDate(tx, d, []string{})
+		require.NoError(t, err)
+		p, ok := out[dStr]
+		if !ok {
+			t.Fatalf("missing date")
+		}
+		fmt.Println(p.CalculateReturns(prices))
+		t.Fail()
+	})
+}
+
+func dec(f float64) decimal.Decimal {
+	return decimal.NewFromFloat(f)
 }

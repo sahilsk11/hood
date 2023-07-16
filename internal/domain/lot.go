@@ -14,6 +14,7 @@ type OpenLot struct {
 	Quantity     decimal.Decimal
 	CostBasis    decimal.Decimal
 	PurchaseDate time.Time
+	Trade        model.Trade
 }
 
 func OpenLotFromVwOpenLotPosition(lot model.VwOpenLotPosition) OpenLot {
@@ -25,4 +26,21 @@ func OpenLotFromVwOpenLotPosition(lot model.VwOpenLotPosition) OpenLot {
 		CostBasis:    *lot.CostBasis,
 		PurchaseDate: *lot.PurchaseDate,
 	}
+}
+
+type ClosedLot struct {
+	// BuyTrade      model.Trade // not supported yet
+	SellTrade     model.Trade
+	Quantity      decimal.Decimal
+	RealizedGains decimal.Decimal
+	GainsType     model.GainsType
+}
+
+func (c ClosedLot) Date() time.Time {
+	return c.SellTrade.Date
+}
+
+func (c ClosedLot) CostBasis() decimal.Decimal {
+	// purchase price = sell price - realized_gains/closed_lot.quantity
+	return c.SellTrade.CostBasis.Sub(c.RealizedGains.Div(c.Quantity))
 }

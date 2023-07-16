@@ -38,7 +38,7 @@ func main() {
 		symbols = append(symbols, *lot.Symbol)
 	}
 
-	priceMap, err := db.GetPrices(ctx, tx, symbols)
+	priceMap, err := db.GetLatestPrices(ctx, tx, symbols)
 	if err != nil {
 		log.Fatal(err)
 	}

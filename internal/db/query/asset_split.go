@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
+	. "hood/internal/db/models/postgres/public/table"
 )
 
 func AddAssetsSplits(ctx context.Context, tx *sql.Tx, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
-
-	t := table.AssetSplit
+	t := AssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(splits).
 		ON_CONFLICT(t.Symbol, t.Ratio, t.Date).DO_NOTHING().
@@ -39,4 +39,16 @@ func AddAppliedAssetSplits(ctx context.Context, tx *sql.Tx, appliedAssetSplits [
 	}
 
 	return result, nil
+}
+
+func GetHistoricAssetSplits(tx *sql.Tx) ([]model.AssetSplit, error) {
+	query := AssetSplit.SELECT(AssetSplit.AllColumns).
+		ORDER_BY(AssetSplit.Date.ASC())
+	out := []model.AssetSplit{}
+	err := query.Query(tx, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
