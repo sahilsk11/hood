@@ -85,9 +85,9 @@ func (mr *MockTradeIngestionServiceMockRecorder) ProcessSellOrder(ctx, tx, newTr
 }
 
 // ProcessTdaBuyOrder mocks base method.
-func (m *MockTradeIngestionService) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error) {
+func (m *MockTradeIngestionService) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProcessTdaBuyOrder", ctx, tx, newTrade, tdaTxId)
+	ret := m.ctrl.Call(m, "ProcessTdaBuyOrder", ctx, tx, input)
 	ret0, _ := ret[0].(*model.Trade)
 	ret1, _ := ret[1].(*model.OpenLot)
 	ret2, _ := ret[2].(error)
@@ -95,7 +95,7 @@ func (m *MockTradeIngestionService) ProcessTdaBuyOrder(ctx context.Context, tx *
 }
 
 // ProcessTdaBuyOrder indicates an expected call of ProcessTdaBuyOrder.
-func (mr *MockTradeIngestionServiceMockRecorder) ProcessTdaBuyOrder(ctx, tx, newTrade, tdaTxId interface{}) *gomock.Call {
+func (mr *MockTradeIngestionServiceMockRecorder) ProcessTdaBuyOrder(ctx, tx, input interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessTdaBuyOrder", reflect.TypeOf((*MockTradeIngestionService)(nil).ProcessTdaBuyOrder), ctx, tx, newTrade, tdaTxId)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessTdaBuyOrder", reflect.TypeOf((*MockTradeIngestionService)(nil).ProcessTdaBuyOrder), ctx, tx, input)
 }

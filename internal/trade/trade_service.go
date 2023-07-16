@@ -28,7 +28,7 @@ type TradeIngestionService interface {
 	ProcessSellOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade) (*model.Trade, []*model.ClosedLot, error)
 	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
-	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error)
+	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error)
 }
 
 type tradeIngestionHandler struct {
@@ -38,18 +38,33 @@ func NewTradeIngestionService() TradeIngestionService {
 	return tradeIngestionHandler{}
 }
 
-func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, newTrade model.Trade, tdaTxId int64) (*model.Trade, *model.OpenLot, error) {
-	if newTrade.Custodian != model.CustodianType_Tda {
-		return nil, nil, fmt.Errorf("cannot process tda buy order with custodian %s", newTrade.Custodian.String())
+type ProcessTdaBuyOrderInput struct {
+	TdaTransactionID int64
+	Symbol           string
+	Quantity         decimal.Decimal
+	CostBasis        decimal.Decimal
+	Date             time.Time
+	Description      *string
+}
+
+func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
+	t := model.Trade{
+		Symbol:      input.Symbol,
+		Action:      model.TradeActionType_Buy,
+		Quantity:    input.Quantity,
+		CostBasis:   input.CostBasis,
+		Date:        input.Date,
+		Description: input.Description,
+		Custodian:   model.CustodianType_Tda,
 	}
 
-	trade, lots, err := h.ProcessBuyOrder(ctx, tx, newTrade)
+	trade, lots, err := h.ProcessBuyOrder(ctx, tx, t)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	tdaOrder := model.TdaTrade{
-		TdaTransactionID: tdaTxId,
+		TdaTransactionID: input.TdaTransactionID,
 		TradeID:          trade.TradeID,
 	}
 
@@ -57,7 +72,7 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 	if err != nil && strings.Contains(err.Error(), `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"`) {
 		return nil, nil, hood_errors.ErrDuplicateTrade{
 			Custodian:              model.CustodianType_Tda,
-			CustodianTransactionID: tdaTxId,
+			CustodianTransactionID: input.TdaTransactionID,
 		}
 	} else if err != nil {
 		return nil, nil, err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	hood_errors "hood/internal"
-	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"testing"
 	"time"
@@ -27,22 +26,18 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 
 		tiService := NewTradeIngestionService()
 
-		tdaID := int64(1)
-		tr := model.Trade{
-			Symbol:      "AAPL",
-			Action:      "BUY",
-			Quantity:    decimal.NewFromFloat(10.5),
-			CostBasis:   decimal.NewFromFloat(100.25),
-			Date:        time.Now(),
-			Description: nil,
-			CreatedAt:   time.Now(),
-			ModifiedAt:  time.Now(),
-			Custodian:   model.CustodianType_Tda,
+		input := ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: int64(1),
+			Quantity:         decimal.NewFromFloat(10.5),
+			CostBasis:        decimal.NewFromFloat(100.25),
+			Date:             time.Now(),
+			Description:      nil,
 		}
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, tr, tdaID)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input)
 		require.NoError(t, err)
 
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, tr, tdaID)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input)
 
 		require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 	})
