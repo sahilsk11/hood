@@ -3,8 +3,6 @@ package main
 import (
 	db "hood/internal/db/query"
 	"log"
-
-	_ "github.com/lib/pq"
 )
 
 func main() {
