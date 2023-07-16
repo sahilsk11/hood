@@ -23,12 +23,23 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(100, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 
-		sell := newTrade(100, 1, model.TradeActionType_Sell)
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, sell)
+		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
+			Symbol:    "AAPL",
+			Quantity:  decimal.NewFromFloat(1),
+			CostBasis: decimal.NewFromFloat(100),
+			Date:      time.Now(),
+			Custodian: model.CustodianType_Tda,
+		})
 		require.NoError(t, err)
 
 		out, err := CalculateNetRealizedReturns(tx)
@@ -41,16 +52,31 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(100, 2, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(2),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+		})
 		require.NoError(t, err)
 
-		sell := newTrade(110, 1, model.TradeActionType_Sell)
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, sell)
+		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
+			Symbol:    "AAPL",
+			Quantity:  decimal.NewFromFloat(1),
+			CostBasis: decimal.NewFromFloat(110),
+			Date:      time.Now(),
+			Custodian: model.CustodianType_Tda,
+		})
 		require.NoError(t, err)
 
-		sell = newTrade(130, 1, model.TradeActionType_Sell)
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, sell)
+		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
+			Symbol:    "AAPL",
+			Quantity:  decimal.NewFromFloat(1),
+			CostBasis: decimal.NewFromFloat(130),
+			Date:      time.Now(),
+			Custodian: model.CustodianType_Tda,
+		})
 		require.NoError(t, err)
 
 		out, err := CalculateNetRealizedReturns(tx)
@@ -63,8 +89,14 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(400, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(400),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 
 		_, _, err = tiService.AddAssetSplit(ctx, tx, model.AssetSplit{
@@ -75,8 +107,13 @@ func TestCalculateNetRealizedReturns(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		sell := newTrade(110, 4, model.TradeActionType_Sell)
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, sell)
+		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
+			Symbol:    "AAPL",
+			Quantity:  decimal.NewFromFloat(4),
+			CostBasis: decimal.NewFromFloat(110),
+			Date:      time.Now(),
+			Custodian: model.CustodianType_Tda,
+		})
 		require.NoError(t, err)
 
 		out, err := CalculateNetRealizedReturns(tx)
@@ -97,8 +134,14 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(100, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 
 		_, err = db.AddPrices(ctx, tx, []model.Price{
@@ -120,8 +163,14 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(100, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 
 		_, err = db.AddPrices(ctx, tx, []model.Price{
@@ -150,15 +199,33 @@ func Test_CalculateNetReturns(t *testing.T) {
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		buy := newTrade(100, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 0)
-		require.NoError(t, err)
-		sell := newTrade(120, 1, model.TradeActionType_Sell)
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, sell)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 0,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 
-		buy = newTrade(100, 1, model.TradeActionType_Buy)
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buy, 1)
+		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
+			Symbol:    "AAPL",
+			Quantity:  decimal.NewFromFloat(1),
+			CostBasis: decimal.NewFromFloat(120),
+			Date:      time.Now(),
+			Custodian: model.CustodianType_Tda,
+		})
+		require.NoError(t, err)
+
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
+			Symbol:           "AAPL",
+			TdaTransactionID: 1,
+			Quantity:         decimal.NewFromFloat(1),
+			CostBasis:        decimal.NewFromFloat(100),
+			Date:             time.Now(),
+			Description:      nil,
+		})
 		require.NoError(t, err)
 		_, err = db.AddPrices(ctx, tx, []model.Price{
 			{
@@ -174,18 +241,4 @@ func Test_CalculateNetReturns(t *testing.T) {
 
 		require.True(t, out.Equal(decimal.Zero), out)
 	})
-}
-
-func newTrade(price, quantity float64, action model.TradeActionType) model.Trade {
-	return model.Trade{
-		Symbol:      "AAPL",
-		Action:      action,
-		Quantity:    decimal.NewFromFloat(quantity),
-		CostBasis:   decimal.NewFromFloat(price),
-		Date:        time.Now(),
-		Description: nil,
-		CreatedAt:   time.Now(),
-		ModifiedAt:  time.Now(),
-		Custodian:   model.CustodianType_Tda,
-	}
 }

@@ -13,3 +13,6 @@ process-outfile:
 
 update-prices:
 	go run cmd/data-ingestion/main.go -command=update-prices
+
+mocks:
+	mockgen -source=internal/trade/trade_service.go -self_package=hood/internal/trade -package=trade > internal/trade/trade_service_mock.go

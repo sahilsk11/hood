@@ -108,20 +108,20 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				return nil, err
 			}
 
-			buyOrder := model.Trade{
-				Symbol:    record[ordering["symbol"]],
-				Action:    model.TradeActionType_Buy,
-				Quantity:  quantity,
-				CostBasis: price,
-				Date:      date,
-				Custodian: model.CustodianType_Tda,
+			input := ProcessTdaBuyOrderInput{
+				Symbol:           record[ordering["symbol"]],
+				TdaTransactionID: transactionID,
+				Quantity:         quantity,
+				CostBasis:        price,
+				Date:             date,
 			}
 
 			savepointName, err := db.AddSavepoint(tx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaBuyOrder: %w", err)
 			}
-			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, buyOrder, transactionID)
+
+			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input)
 			if err != nil {
 				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
 					return nil, rollbackErr

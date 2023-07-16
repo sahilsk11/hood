@@ -2,7 +2,6 @@ package trade
 
 import (
 	"context"
-	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"testing"
 	"time"
@@ -25,14 +24,13 @@ func TestParseTdaTransactionFile(t *testing.T) {
 
 	tiService.
 		EXPECT().
-		ProcessTdaBuyOrder(ctx, tx, model.Trade{
-			Symbol:    "VTI",
-			Action:    model.TradeActionType_Buy,
-			Quantity:  decimal.NewFromFloat(2),
-			CostBasis: decimal.NewFromFloat(191.12),
-			Date:      time.Date(2023, 1, 6, 0, 0, 0, 0, time.UTC),
-			Custodian: model.CustodianType_Tda,
-		}, int64(47424103872))
+		ProcessTdaBuyOrder(ctx, tx, ProcessTdaBuyOrderInput{
+			Symbol:           "VTI",
+			Quantity:         decimal.NewFromFloat(2),
+			CostBasis:        decimal.NewFromFloat(191.12),
+			Date:             time.Date(2023, 1, 6, 0, 0, 0, 0, time.UTC),
+			TdaTransactionID: int64(47424103872),
+		})
 
 	_, err = ParseTdaTransactionFile(ctx, tx, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
