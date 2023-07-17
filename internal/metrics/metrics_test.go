@@ -140,8 +140,8 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
 			Symbol:           "AAPL",
 			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
+			Quantity:         dec(1),
+			CostBasis:        dec(100),
 			Date:             time.Now(),
 			Description:      nil,
 		})
@@ -150,7 +150,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		_, err = db.AddPrices(ctx, tx, []model.Price{
 			{
 				Symbol:    "AAPL",
-				Price:     decimal.NewFromFloat(100),
+				Price:     dec(100),
 				UpdatedAt: time.Now(),
 			},
 		})
@@ -158,7 +158,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 
 		out, err := CalculateNetUnrealizedReturns(tx)
 		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.Zero))
+		require.True(t, out.Equal(decimal.Zero), out)
 	})
 
 	t.Run("slight gain", func(t *testing.T) {

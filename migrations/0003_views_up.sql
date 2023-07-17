@@ -9,10 +9,10 @@ CREATE VIEW vw_latest_price AS
   select a.*
   from price a
   join 
-  ( select symbol, max(date) as "date"
+( select symbol, max(updated_at) as "updated_at"
   from price
   group by symbol) b
-  on a.symbol = b.symbol and a.date = b.date;
+  on a.symbol = b.symbol and a.updated_at = b.updated_at;
 
 
 CREATE VIEW vw_open_lot_position AS
