@@ -128,30 +128,53 @@ func (p Portfolio) deepCopy() Portfolio {
 }
 
 func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
-	totalCostBasis := decimal.Zero
-	totalGains := decimal.Zero
+	openLotsCostBasis := decimal.Zero
+	openLotsGains := decimal.Zero
+	closedLotsCostBasis := decimal.Zero
+	closedLotsGains := decimal.Zero
 
 	if len(p.ClosedLots) == 0 && len(p.OpenLots) == 0 {
 		return decimal.Zero, fmt.Errorf("cannot calculate returns on portfolio with no trades")
 	}
 
-	for k, v := range p.OpenLots {
-		for _, lot := range v {
-			totalCostBasis = totalCostBasis.Add(lot.CostBasis)
-			price, ok := priceMap[k]
-			if !ok {
-				return decimal.Zero, fmt.Errorf("missing pricing for %s", k)
-			}
-			gains := price.Sub(lot.CostBasis).Mul(lot.Quantity)
-			totalGains = totalGains.Add(gains)
+	for symbol, lots := range p.OpenLots {
+		gains := decimal.Zero
+		costBasis := decimal.Zero
+		price, ok := priceMap[symbol]
+		if !ok {
+			return decimal.Zero, fmt.Errorf("missing pricing for %s", symbol)
 		}
+		for _, lot := range lots {
+			costBasis = costBasis.Add((lot.CostBasis.Mul(lot.Quantity)))
+			gains = gains.Add(price.Sub(lot.CostBasis).Mul(lot.Quantity))
+		}
+		openLotsCostBasis = openLotsCostBasis.Add(costBasis)
+		openLotsGains = openLotsGains.Add(gains)
 	}
 	for _, v := range p.ClosedLots {
 		for _, lot := range v {
-			totalCostBasis = totalCostBasis.Add(lot.CostBasis())
-			totalGains = totalGains.Add(lot.RealizedGains)
+			closedLotsCostBasis = closedLotsCostBasis.Add(lot.CostBasis())
+			closedLotsGains = closedLotsGains.Add(lot.RealizedGains)
 		}
 	}
+
+	totalCostBasis := openLotsCostBasis.Add(closedLotsCostBasis)
+	totalGains := openLotsGains.Add(closedLotsGains)
+
+	fmt.Println(openLotsCostBasis.String())
+	details := map[string]float64{
+		"netRealizedGains":         totalGains.InexactFloat64(),
+		"netUnrealizedGains":       openLotsGains.InexactFloat64(),
+		"closedPositionsCostBasis": closedLotsCostBasis.InexactFloat64(),
+		"openPositionsCostBasis":   openLotsCostBasis.InexactFloat64(),
+		"totalGains":               totalGains.InexactFloat64(),
+		"totalCostBasis":           totalCostBasis.InexactFloat64(),
+	}
+	bytes, err := json.Marshal(details)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(string(bytes))
 
 	if totalCostBasis.Equal(decimal.Zero) {
 		return decimal.Zero, fmt.Errorf("zero total cost basis")

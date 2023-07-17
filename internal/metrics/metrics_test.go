@@ -376,6 +376,11 @@ func TestDailyReturns(t *testing.T) {
 		if !ok {
 			t.Fatalf("missing date")
 		}
+
+		// bytes, err := json.Marshal(p)
+		// require.NoError(t, err)
+		// fmt.Println(string(bytes))
+
 		fmt.Println(p.CalculateReturns(prices))
 		t.Fail()
 	})
@@ -383,4 +388,49 @@ func TestDailyReturns(t *testing.T) {
 
 func dec(f float64) decimal.Decimal {
 	return decimal.NewFromFloat(f)
+}
+
+func TestPortfolio_CalculateReturns(t *testing.T) {
+	t.Run("only closed lots", func(t *testing.T) {
+		p := Portfolio{
+			OpenLots: map[string][]*domain.OpenLot{},
+			ClosedLots: map[string][]*domain.ClosedLot{
+				"AAPL": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(10),
+						SellTrade: model.Trade{
+							CostBasis: dec(110),
+						},
+					},
+				},
+				"GOOG": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(10),
+						SellTrade: model.Trade{
+							CostBasis: dec(110),
+						},
+					},
+				},
+				"META": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(-5),
+						SellTrade: model.Trade{
+							CostBasis: dec(95),
+						},
+					},
+				},
+			},
+		}
+		priceMap := map[string]decimal.Decimal{}
+		result, err := p.CalculateReturns(priceMap)
+		require.NoError(t, err)
+		require.Equal(
+			t,
+			0.05,
+			result.InexactFloat64(),
+		)
+	})
 }
