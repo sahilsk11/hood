@@ -8,6 +8,7 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"hood/internal/trade"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -169,19 +170,14 @@ func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decima
 	totalCostBasis := openLotsCostBasis.Add(closedLotsCostBasis)
 	totalGains := openLotsGains.Add(closedLotsGains)
 
-	details := map[string]float64{
-		"netRealizedGains":         closedLotsGains.InexactFloat64(),
-		"netUnrealizedGains":       openLotsGains.InexactFloat64(),
-		"closedPositionsCostBasis": closedLotsCostBasis.InexactFloat64(),
-		"openPositionsCostBasis":   openLotsCostBasis.InexactFloat64(),
-		"totalGains":               totalGains.InexactFloat64(),
-		"totalCostBasis":           totalCostBasis.InexactFloat64(),
-	}
-	bytes, err := json.Marshal(details)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(string(bytes))
+	// details := map[string]float64{
+	// 	"netRealizedGains":         closedLotsGains.InexactFloat64(),
+	// 	"netUnrealizedGains":       openLotsGains.InexactFloat64(),
+	// 	"closedPositionsCostBasis": closedLotsCostBasis.InexactFloat64(),
+	// 	"openPositionsCostBasis":   openLotsCostBasis.InexactFloat64(),
+	// 	"totalGains":               totalGains.InexactFloat64(),
+	// 	"totalCostBasis":           totalCostBasis.InexactFloat64(),
+	// }
 
 	if totalCostBasis.Equal(decimal.Zero) {
 		return decimal.Zero, fmt.Errorf("zero total cost basis")
@@ -267,7 +263,14 @@ func DailyPortfolio(trades []model.Trade, assetSplits []model.AssetSplit, startT
 
 func DailyReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
 	out := map[string]decimal.Decimal{}
-	for dateStr, portfolio := range dailyPortfolios {
+	dateKeys := []string{}
+	for dateStr := range dailyPortfolios {
+		dateKeys = append(dateKeys, dateStr)
+	}
+	sort.Strings(dateKeys)
+
+	for _, dateStr := range dateKeys {
+		portfolio := dailyPortfolios[dateStr]
 		t, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			return nil, err
@@ -278,23 +281,29 @@ func DailyReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[string]
 		}
 
 		priceDate := t
-		fmt.Println(priceDate.Weekday())
+
 		for int(priceDate.Weekday()) == 6 || int(priceDate.Weekday()) == 0 {
 			priceDate = priceDate.AddDate(0, 0, -1)
-			fmt.Println(priceDate.Weekday())
 		}
 
 		priceMap, err := db.GetPricesOnDate(tx, priceDate, symbols)
 		if err != nil {
-			return nil, err
+			e := err
+			tries := 3
+			for tries > 0 && e != nil {
+				priceDate = priceDate.AddDate(0, 0, -1)
+				priceMap, e = db.GetPricesOnDate(tx, priceDate, symbols)
+				tries -= 1
+			}
 		}
 		// cumulative returns up till that day
 		// from date of first portfolio in dailyPortfolio
 		totalReturns, err := portfolio.CalculateReturns(priceMap)
 		if err != nil {
-			return nil, err
+			fmt.Printf("skipping %s: %v\n", dateStr, err)
+		} else {
+			out[dateStr] = totalReturns
 		}
-		out[dateStr] = totalReturns
 	}
 
 	return out, nil
