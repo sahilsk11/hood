@@ -151,19 +151,24 @@ func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decima
 		openLotsCostBasis = openLotsCostBasis.Add(costBasis)
 		openLotsGains = openLotsGains.Add(gains)
 	}
-	for _, v := range p.ClosedLots {
+	for symbol, v := range p.ClosedLots {
+		costBasis := decimal.Zero
+		gains := decimal.Zero
 		for _, lot := range v {
-			closedLotsCostBasis = closedLotsCostBasis.Add(lot.CostBasis())
-			closedLotsGains = closedLotsGains.Add(lot.RealizedGains)
+			costBasis = costBasis.Add(lot.CostBasis())
+			gains = gains.Add(lot.RealizedGains)
 		}
+		fmt.Printf("%s: %f\n", symbol, costBasis.InexactFloat64())
+		closedLotsGains = closedLotsGains.Add(gains)
+		closedLotsCostBasis = closedLotsCostBasis.Add(costBasis)
 	}
+	fmt.Println(closedLotsGains)
 
 	totalCostBasis := openLotsCostBasis.Add(closedLotsCostBasis)
 	totalGains := openLotsGains.Add(closedLotsGains)
 
-	fmt.Println(openLotsCostBasis.String())
 	details := map[string]float64{
-		"netRealizedGains":         totalGains.InexactFloat64(),
+		"netRealizedGains":         closedLotsGains.InexactFloat64(),
 		"netUnrealizedGains":       openLotsGains.InexactFloat64(),
 		"closedPositionsCostBasis": closedLotsCostBasis.InexactFloat64(),
 		"openPositionsCostBasis":   openLotsCostBasis.InexactFloat64(),
@@ -179,7 +184,7 @@ func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decima
 	if totalCostBasis.Equal(decimal.Zero) {
 		return decimal.Zero, fmt.Errorf("zero total cost basis")
 	}
-	fmt.Println(totalGains, totalCostBasis)
+	// fmt.Println(totalGains, totalCostBasis)
 	return totalGains.Div(totalCostBasis), nil
 }
 

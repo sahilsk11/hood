@@ -41,6 +41,8 @@ func (c ClosedLot) Date() time.Time {
 }
 
 func (c ClosedLot) CostBasis() decimal.Decimal {
+	// (sell - buy)*quantity = gains
+	// sell - buy = gains/quantity
 	// purchase price = sell price - realized_gains/closed_lot.quantity
-	return c.SellTrade.CostBasis.Sub(c.RealizedGains.Div(c.Quantity))
+	return c.SellTrade.CostBasis.Sub(c.RealizedGains.Div(c.Quantity)).Mul(c.Quantity)
 }
