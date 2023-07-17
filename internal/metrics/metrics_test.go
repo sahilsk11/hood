@@ -2,7 +2,6 @@ package metrics
 
 import (
 	"context"
-	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
@@ -348,41 +347,6 @@ func TestDailyReturns(t *testing.T) {
 		)
 
 		require.NoError(t, err)
-	})
-
-	t.Run("real thing", func(t *testing.T) {
-		// t.Skip()
-		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
-
-		dbConn, err := db.New()
-		require.NoError(t, err)
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-
-		trades, err := db.GetHistoricTrades(tx)
-		require.NoError(t, err)
-		assetSplits, err := db.GetHistoricAssetSplits(tx)
-		require.NoError(t, err)
-
-		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
-		require.NoError(t, err)
-
-		dStr := "2023-07-10"
-		d, err := time.Parse("2006-01-02", dStr)
-		require.NoError(t, err)
-		prices, err := db.GetPricesOnDate(tx, d, []string{})
-		require.NoError(t, err)
-		p, ok := out[dStr]
-		if !ok {
-			t.Fatalf("missing date")
-		}
-
-		// bytes, err := json.Marshal(p)
-		// require.NoError(t, err)
-		// fmt.Println(string(bytes))
-
-		fmt.Println(p.CalculateReturns(prices))
-		t.Fail()
 	})
 }
 
