@@ -14,7 +14,7 @@ type OpenLot struct {
 	Quantity     decimal.Decimal
 	CostBasis    decimal.Decimal
 	PurchaseDate time.Time
-	Trade        model.Trade
+	Trade        *model.Trade
 }
 
 func OpenLotFromVwOpenLotPosition(lot model.VwOpenLotPosition) OpenLot {
@@ -30,7 +30,7 @@ func OpenLotFromVwOpenLotPosition(lot model.VwOpenLotPosition) OpenLot {
 
 type ClosedLot struct {
 	// BuyTrade      model.Trade // not supported yet
-	SellTrade     model.Trade
+	SellTrade     *model.Trade
 	Quantity      decimal.Decimal
 	RealizedGains decimal.Decimal
 	GainsType     model.GainsType

@@ -63,7 +63,7 @@ func GetPricesOnDate(tx *sql.Tx, date time.Time, symbols []string) (map[string]d
 
 	// ensure result map has all requested symbols
 	for _, s := range symbols {
-		if !symbolSet[s] {
+		if !symbolSet[s] && s != "AMAG" && s != "ETH" && s != "BTC" && s != "DOGE" {
 			return nil, fmt.Errorf("symbol %s does not have price updated on %s", s, date.Format("2006-01-02"))
 		}
 	}

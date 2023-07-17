@@ -55,6 +55,9 @@ func (c AlphaVantageClient) GetLatestPrice(symbol string) (*model.Price, error) 
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Println(string(cleanResponseBody(responseBytes)))
+
 	// API uses odd format which includes numbers in JSON keys
 	cleanedResponseBytes := cleanResponseBody(responseBytes)
 	err = json.Unmarshal(cleanedResponseBytes, &responseJson)
@@ -73,9 +76,15 @@ func (c AlphaVantageClient) GetLatestPrice(symbol string) (*model.Price, error) 
 		return nil, err
 	}
 
+	latestTradingDay, err := time.Parse("2006-01-02", responseJson.GlobalQuote.LatestTradingDay)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse latest trading day from Alpha Vantage response: %w", err)
+	}
+
 	return &model.Price{
 		Symbol:    responseJson.GlobalQuote.Symbol,
 		Price:     price,
+		Date:      latestTradingDay,
 		UpdatedAt: time.Now().UTC(),
 	}, nil
 }

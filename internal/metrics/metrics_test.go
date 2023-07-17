@@ -246,7 +246,7 @@ func Test_CalculateNetReturns(t *testing.T) {
 	})
 }
 
-func TestDailyReturns(t *testing.T) {
+func TestDailyPortfolio(t *testing.T) {
 	endTime := time.Now()
 	t.Run("single buy and sell", func(t *testing.T) {
 		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
@@ -267,7 +267,7 @@ func TestDailyReturns(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+		out, err := DailyPortfolio(trades, assetSplits, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -280,14 +280,14 @@ func TestDailyReturns(t *testing.T) {
 									OpenLotID: 0,
 									Quantity:  dec(1),
 									CostBasis: dec(100),
-									Trade:     trades[0],
+									Trade:     &trades[0],
 								},
 							},
 						},
 						ClosedLots: map[string][]*domain.ClosedLot{
 							"AAPL": {
 								{
-									SellTrade:     trades[1],
+									SellTrade:     &trades[1],
 									Quantity:      dec(1),
 									RealizedGains: dec(10),
 								},
@@ -322,7 +322,7 @@ func TestDailyReturns(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+		out, err := DailyPortfolio(trades, assetSplits, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -333,7 +333,7 @@ func TestDailyReturns(t *testing.T) {
 						ClosedLots: map[string][]*domain.ClosedLot{
 							"AAPL": {
 								{
-									SellTrade:     trades[1],
+									SellTrade:     &trades[1],
 									Quantity:      dec(1),
 									RealizedGains: dec(10),
 								},
@@ -363,7 +363,7 @@ func TestPortfolio_CalculateReturns(t *testing.T) {
 					{
 						Quantity:      dec(1),
 						RealizedGains: dec(10),
-						SellTrade: model.Trade{
+						SellTrade: &model.Trade{
 							CostBasis: dec(110),
 						},
 					},
@@ -372,7 +372,7 @@ func TestPortfolio_CalculateReturns(t *testing.T) {
 					{
 						Quantity:      dec(1),
 						RealizedGains: dec(10),
-						SellTrade: model.Trade{
+						SellTrade: &model.Trade{
 							CostBasis: dec(110),
 						},
 					},
@@ -381,7 +381,7 @@ func TestPortfolio_CalculateReturns(t *testing.T) {
 					{
 						Quantity:      dec(1),
 						RealizedGains: dec(-5),
-						SellTrade: model.Trade{
+						SellTrade: &model.Trade{
 							CostBasis: dec(95),
 						},
 					},
@@ -396,5 +396,99 @@ func TestPortfolio_CalculateReturns(t *testing.T) {
 			0.05,
 			result.InexactFloat64(),
 		)
+	})
+}
+
+func TestDailyReturns(t *testing.T) {
+	dbConn, err := db.NewTest()
+	require.NoError(t, err)
+	t.Run("simple", func(t *testing.T) {
+		ctx := context.Background()
+		tx, err := dbConn.Begin()
+		require.NoError(t, err)
+		db.RollbackAfterTest(t, tx)
+
+		d, err := time.Parse("2006-01-02", "2023-01-02")
+		require.NoError(t, err)
+		db.AddPrices(ctx, tx, []model.Price{
+			{
+				Symbol: "AAPL",
+				Price:  dec(110),
+				Date:   d,
+			},
+		})
+
+		dailyPortfolio := map[string]Portfolio{
+			"2023-01-02": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"AAPL": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+				ClosedLots: map[string][]*domain.ClosedLot{},
+			},
+		}
+
+		out, err := DailyReturns(tx, dailyPortfolio)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				map[string]decimal.Decimal{
+					"2023-01-02": dec(0.1),
+				},
+				out,
+			),
+			out["2023-01-02"].String())
+	})
+
+	t.Run("weekend rollback", func(t *testing.T) {
+		ctx := context.Background()
+		tx, err := dbConn.Begin()
+		require.NoError(t, err)
+		db.RollbackAfterTest(t, tx)
+
+		d, err := time.Parse("2006-01-02", "2023-07-14")
+		require.NoError(t, err)
+		db.AddPrices(ctx, tx, []model.Price{
+			{
+				Symbol: "AAPL",
+				Price:  dec(110),
+				Date:   d,
+			},
+		})
+
+		dailyPortfolio := map[string]Portfolio{
+			"2023-07-15": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"AAPL": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+				ClosedLots: map[string][]*domain.ClosedLot{},
+			},
+		}
+
+		out, err := DailyReturns(tx, dailyPortfolio)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				map[string]decimal.Decimal{
+					"2023-07-15": dec(0.1),
+				},
+				out,
+			),
+			out["2023-01-01"].String())
 	})
 }

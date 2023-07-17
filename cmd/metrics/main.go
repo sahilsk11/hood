@@ -1,21 +1,17 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	db "hood/internal/db/query"
-	"hood/internal/domain"
 	metrics "hood/internal/metrics"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/shopspring/decimal"
 )
 
 func main() {
-	ctx := context.Background()
-
 	dbConn, err := db.New()
 	if err != nil {
 		log.Fatal(err)
@@ -25,43 +21,33 @@ func main() {
 		log.Fatal(err)
 	}
 
-	lots, err := db.GetVwOpenLotPosition(ctx, tx)
+	trades, err := db.GetHistoricTrades(tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	assetSplits, err := db.GetHistoricAssetSplits(tx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	startTime := time.Date(2020, 06, 18, 0, 0, 0, 0, time.UTC)
+	endTime := time.Now()
+
+	dailyPortfolio, err := metrics.DailyPortfolio(trades, assetSplits, startTime, endTime)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// ok to have duplicates because we use SQL IN
-	symbols := []string{}
-	domainLots := []domain.OpenLot{}
-	for _, lot := range lots {
-		domainLots = append(domainLots, domain.OpenLotFromVwOpenLotPosition(lot))
-		symbols = append(symbols, *lot.Symbol)
-	}
-
-	priceMap, err := db.GetLatestPrices(ctx, tx, symbols)
+	out, err := metrics.DailyReturns(tx, dailyPortfolio)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	results, err := metrics.IdentifyTLHOptions(
-		ctx,
-		decimal.NewFromInt(5),
-		decimal.NewFromInt(1),
-		domainLots,
-		priceMap,
-	)
+	bytes, err := json.MarshalIndent(out, "", "    ")
 	if err != nil {
 		log.Fatal(err)
 	}
-	total := decimal.Zero
-	for _, r := range results {
-		if r.BreakevenPriceChange.GreaterThan(decimal.NewFromInt(0)) {
-			total = total.Add(r.Loss)
 
-		}
-	}
-	b, _ := json.Marshal(results)
-	fmt.Println(string(b))
+	fmt.Println(string(bytes))
 
 	fmt.Println(metrics.CalculateNetReturns(tx))
 }

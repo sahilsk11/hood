@@ -266,7 +266,7 @@ func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 			GainsType:     gainsType,
 		}
 		newDomainClosedLot := domain.ClosedLot{
-			SellTrade: t,
+			SellTrade: &t,
 			// BuyTrade: , // TODO - how do we get this
 			Quantity:      quantitySold,
 			RealizedGains: gains,

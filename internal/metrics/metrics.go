@@ -141,28 +141,30 @@ func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decima
 		gains := decimal.Zero
 		costBasis := decimal.Zero
 		price, ok := priceMap[symbol]
-		if !ok {
+		if !ok && symbol != "AMAG" && symbol != "ETH" && symbol != "BTC" && symbol != "DOGE" {
 			return decimal.Zero, fmt.Errorf("missing pricing for %s", symbol)
 		}
 		for _, lot := range lots {
+			if symbol == "AMAG" || symbol == "ETH" || symbol == "BTC" || symbol == "DOGE" {
+				price = lot.CostBasis
+			}
 			costBasis = costBasis.Add((lot.CostBasis.Mul(lot.Quantity)))
 			gains = gains.Add(price.Sub(lot.CostBasis).Mul(lot.Quantity))
 		}
 		openLotsCostBasis = openLotsCostBasis.Add(costBasis)
 		openLotsGains = openLotsGains.Add(gains)
 	}
-	for symbol, v := range p.ClosedLots {
+	for _, v := range p.ClosedLots {
 		costBasis := decimal.Zero
 		gains := decimal.Zero
 		for _, lot := range v {
 			costBasis = costBasis.Add(lot.CostBasis())
 			gains = gains.Add(lot.RealizedGains)
 		}
-		fmt.Printf("%s: %f\n", symbol, costBasis.InexactFloat64())
+
 		closedLotsGains = closedLotsGains.Add(gains)
 		closedLotsCostBasis = closedLotsCostBasis.Add(costBasis)
 	}
-	fmt.Println(closedLotsGains)
 
 	totalCostBasis := openLotsCostBasis.Add(closedLotsCostBasis)
 	totalGains := openLotsGains.Add(closedLotsGains)
@@ -188,7 +190,7 @@ func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decima
 	return totalGains.Div(totalCostBasis), nil
 }
 
-func DailyReturns(trades []model.Trade, assetSplits []model.AssetSplit, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
+func DailyPortfolio(trades []model.Trade, assetSplits []model.AssetSplit, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
 	p := Portfolio{
 		OpenLots:   make(map[string][]*domain.OpenLot),
 		ClosedLots: make(map[string][]*domain.ClosedLot),
@@ -197,68 +199,102 @@ func DailyReturns(trades []model.Trade, assetSplits []model.AssetSplit, startTim
 	out := map[string]Portfolio{}
 
 	t := startTime
+
 	for t.Before(endTime) && len(trades) > 0 {
 		tomorrow := t.Add(time.Hour * 24)
-		if int(t.Weekday()) != 6 && int(t.Weekday()) != 0 {
-			relevantTrades := []model.Trade{}
-			for len(trades) > 0 && trades[0].Date.Before(tomorrow) {
-				relevantTrades = append(relevantTrades, trades[0])
-				trades = trades[1:]
-			}
-			// TODO - edge case of trades and asset splits on the same day
-			relevantAssetSplits := []model.AssetSplit{}
-			for len(assetSplits) > 0 && assetSplits[0].Date.Before(tomorrow) {
-				relevantAssetSplits = append(relevantAssetSplits, assetSplits[0])
-				assetSplits = assetSplits[1:]
-			}
+		relevantTrades := []model.Trade{}
+		for len(trades) > 0 && trades[0].Date.Before(tomorrow) {
+			relevantTrades = append(relevantTrades, trades[0])
+			trades = trades[1:]
+		}
+		// TODO - edge case of trades and asset splits on the same day
+		relevantAssetSplits := []model.AssetSplit{}
+		for len(assetSplits) > 0 && assetSplits[0].Date.Before(tomorrow) {
+			relevantAssetSplits = append(relevantAssetSplits, assetSplits[0])
+			assetSplits = assetSplits[1:]
+		}
 
-			for _, split := range relevantAssetSplits {
-				ratio := decimal.NewFromInt32(split.Ratio)
-				for _, o := range p.OpenLots[split.Symbol] {
-					o.CostBasis = o.CostBasis.Div(ratio)
-					o.Quantity = o.Quantity.Mul(ratio)
+		for _, split := range relevantAssetSplits {
+			ratio := decimal.NewFromInt32(split.Ratio)
+			for _, o := range p.OpenLots[split.Symbol] {
+				o.CostBasis = o.CostBasis.Div(ratio)
+				o.Quantity = o.Quantity.Mul(ratio)
+			}
+		}
+
+		for _, t := range relevantTrades {
+			if t.Action == model.TradeActionType_Buy {
+				_, ok := p.OpenLots[t.Symbol]
+				if !ok {
+					p.OpenLots[t.Symbol] = []*domain.OpenLot{}
 				}
+				p.OpenLots[t.Symbol] = append(p.OpenLots[t.Symbol], &domain.OpenLot{
+					OpenLotID: openLotID,
+					CostBasis: t.CostBasis,
+					Quantity:  t.Quantity,
+					Trade:     &t,
+				})
+				openLotID++
 			}
-
-			for _, t := range relevantTrades {
-				if t.Action == model.TradeActionType_Buy {
-					_, ok := p.OpenLots[t.Symbol]
-					if !ok {
-						p.OpenLots[t.Symbol] = []*domain.OpenLot{}
-					}
-					p.OpenLots[t.Symbol] = append(p.OpenLots[t.Symbol], &domain.OpenLot{
-						OpenLotID: openLotID,
-						CostBasis: t.CostBasis,
-						Quantity:  t.Quantity,
-						Trade:     t,
-					})
-					openLotID++
+			if t.Action == model.TradeActionType_Sell {
+				out, err := trade.PreviewSellOrder(t, p.OpenLots[t.Symbol])
+				if err != nil {
+					return nil, err
 				}
-				if t.Action == model.TradeActionType_Sell {
-					out, err := trade.PreviewSellOrder(t, p.OpenLots[t.Symbol])
-					if err != nil {
-						return nil, err
-					}
-					p.ClosedLots[t.Symbol] = append(p.ClosedLots[t.Symbol], out.NewDomainClosedLots...)
+				p.ClosedLots[t.Symbol] = append(p.ClosedLots[t.Symbol], out.NewDomainClosedLots...)
 
-					for _, l := range out.UpdatedOpenLots {
-						openLots := p.OpenLots[t.Symbol]
-						for i := len(openLots) - 1; i >= 0; i-- {
-							if l.OpenLotID == openLots[i].OpenLotID {
-								openLots[i].Quantity = l.Quantity
+				for _, l := range out.UpdatedOpenLots {
+					openLots := p.OpenLots[t.Symbol]
+					for i := len(openLots) - 1; i >= 0; i-- {
+						if l.OpenLotID == openLots[i].OpenLotID {
+							openLots[i].Quantity = l.Quantity
 
-								if l.Quantity.Equal(decimal.Zero) {
-									openLots = append(openLots[:i], openLots[i+1:]...)
-								}
+							if l.Quantity.Equal(decimal.Zero) {
+								openLots = append(openLots[:i], openLots[i+1:]...)
 							}
 						}
-						p.OpenLots[t.Symbol] = openLots
 					}
+					p.OpenLots[t.Symbol] = openLots
 				}
 			}
-			out[t.Format("2006-01-02")] = p.deepCopy()
 		}
+		out[t.Format("2006-01-02")] = p.deepCopy()
 		t = tomorrow
+	}
+
+	return out, nil
+}
+
+func DailyReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
+	out := map[string]decimal.Decimal{}
+	for dateStr, portfolio := range dailyPortfolios {
+		t, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return nil, err
+		}
+		symbols := []string{}
+		for symbol := range portfolio.OpenLots {
+			symbols = append(symbols, symbol)
+		}
+
+		priceDate := t
+		fmt.Println(priceDate.Weekday())
+		for int(priceDate.Weekday()) == 6 || int(priceDate.Weekday()) == 0 {
+			priceDate = priceDate.AddDate(0, 0, -1)
+			fmt.Println(priceDate.Weekday())
+		}
+
+		priceMap, err := db.GetPricesOnDate(tx, priceDate, symbols)
+		if err != nil {
+			return nil, err
+		}
+		// cumulative returns up till that day
+		// from date of first portfolio in dailyPortfolio
+		totalReturns, err := portfolio.CalculateReturns(priceMap)
+		if err != nil {
+			return nil, err
+		}
+		out[dateStr] = totalReturns
 	}
 
 	return out, nil
