@@ -140,7 +140,6 @@ type ProcessSellOrderInput struct {
 }
 
 func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx, input ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error) {
-
 	openLots, err := db.GetOpenLots(ctx, tx, input.Symbol)
 	if err != nil {
 		return nil, nil, err
@@ -208,6 +207,8 @@ func validateTrade(t model.Trade) error {
 
 type ProcessSellOrderResult struct {
 	NewClosedLots []*model.ClosedLot
+	// transition to domain. for now support both
+	NewDomainClosedLots []*domain.ClosedLot
 	// Lots that need to be updated in DB
 	// if trade is executed
 	UpdatedOpenLots []*domain.OpenLot
@@ -234,6 +235,7 @@ func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 	remainingSellQuantity := t.Quantity
 	updatedOpenLots := []*domain.OpenLot{}
 	newClosedLots := []*model.ClosedLot{}
+	newDomainClosedLots := []*domain.ClosedLot{}
 
 	for remainingSellQuantity.GreaterThan(decimal.Zero) {
 		if len(openLots) == 0 {
@@ -247,6 +249,7 @@ func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 
 		gains := (t.CostBasis.Sub(lot.CostBasis)).Mul(quantitySold)
 
+		// TODO - fix this broken shit
 		daysBetween := math.Abs(float64(time.Until(t.Date).Hours() / 24))
 		gainsType := model.GainsType_ShortTerm
 		if daysBetween >= 365 {
@@ -262,7 +265,15 @@ func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 			RealizedGains: gains,
 			GainsType:     gainsType,
 		}
+		newDomainClosedLot := domain.ClosedLot{
+			SellTrade: t,
+			// BuyTrade: , // TODO - how do we get this
+			Quantity:      quantitySold,
+			RealizedGains: gains,
+			GainsType:     gainsType,
+		}
 		newClosedLots = append(newClosedLots, &newClosedLot)
+		newDomainClosedLots = append(newDomainClosedLots, &newDomainClosedLot)
 
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		if lot.Quantity.Equal(decimal.Zero) {
@@ -274,8 +285,9 @@ func PreviewSellOrder(t model.Trade, openLots []*domain.OpenLot) (*ProcessSellOr
 	}
 
 	return &ProcessSellOrderResult{
-		NewClosedLots:   newClosedLots,
-		UpdatedOpenLots: updatedOpenLots,
+		NewClosedLots:       newClosedLots,
+		NewDomainClosedLots: newDomainClosedLots,
+		UpdatedOpenLots:     updatedOpenLots,
 	}, nil
 }
 

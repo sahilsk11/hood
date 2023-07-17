@@ -4,10 +4,13 @@ import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
-	trade "hood/internal/trade"
+	"hood/internal/domain"
+	"hood/internal/trade"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
@@ -137,8 +140,8 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
 			Symbol:           "AAPL",
 			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
+			Quantity:         dec(1),
+			CostBasis:        dec(100),
 			Date:             time.Now(),
 			Description:      nil,
 		})
@@ -147,7 +150,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 		_, err = db.AddPrices(ctx, tx, []model.Price{
 			{
 				Symbol:    "AAPL",
-				Price:     decimal.NewFromFloat(100),
+				Price:     dec(100),
 				UpdatedAt: time.Now(),
 			},
 		})
@@ -155,7 +158,7 @@ func TestCalculateNetUnrealizedReturns(t *testing.T) {
 
 		out, err := CalculateNetUnrealizedReturns(tx)
 		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.Zero))
+		require.True(t, out.Equal(decimal.Zero), out)
 	})
 
 	t.Run("slight gain", func(t *testing.T) {
@@ -240,5 +243,158 @@ func Test_CalculateNetReturns(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, out.Equal(decimal.Zero), out)
+	})
+}
+
+func TestDailyReturns(t *testing.T) {
+	endTime := time.Now()
+	t.Run("single buy and sell", func(t *testing.T) {
+		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+		trades := []model.Trade{
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(2),
+				CostBasis: dec(100),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Buy,
+			},
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(110),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Sell,
+			},
+		}
+		assetSplits := []model.AssetSplit{}
+		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+
+		require.Equal(t,
+			"",
+			cmp.Diff(
+				map[string]Portfolio{
+					"2020-06-19": {
+						OpenLots: map[string][]*domain.OpenLot{
+							"AAPL": {
+								{
+									OpenLotID: 0,
+									Quantity:  dec(1),
+									CostBasis: dec(100),
+									Trade:     trades[0],
+								},
+							},
+						},
+						ClosedLots: map[string][]*domain.ClosedLot{
+							"AAPL": {
+								{
+									SellTrade:     trades[1],
+									Quantity:      dec(1),
+									RealizedGains: dec(10),
+								},
+							},
+						},
+					},
+				},
+				out,
+				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
+			),
+		)
+
+		require.NoError(t, err)
+	})
+
+	t.Run("close open lot", func(t *testing.T) {
+		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+		trades := []model.Trade{
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(100),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Buy,
+			},
+			{
+				Symbol:    "AAPL",
+				Quantity:  dec(1),
+				CostBasis: dec(110),
+				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+				Action:    model.TradeActionType_Sell,
+			},
+		}
+		assetSplits := []model.AssetSplit{}
+		out, err := DailyReturns(trades, assetSplits, startTime, endTime)
+
+		require.Equal(t,
+			"",
+			cmp.Diff(
+				map[string]Portfolio{
+					"2020-06-19": {
+						OpenLots: map[string][]*domain.OpenLot{},
+						ClosedLots: map[string][]*domain.ClosedLot{
+							"AAPL": {
+								{
+									SellTrade:     trades[1],
+									Quantity:      dec(1),
+									RealizedGains: dec(10),
+								},
+							},
+						},
+					},
+				},
+				out,
+				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
+			),
+		)
+
+		require.NoError(t, err)
+	})
+}
+
+func dec(f float64) decimal.Decimal {
+	return decimal.NewFromFloat(f)
+}
+
+func TestPortfolio_CalculateReturns(t *testing.T) {
+	t.Run("only closed lots", func(t *testing.T) {
+		p := Portfolio{
+			OpenLots: map[string][]*domain.OpenLot{},
+			ClosedLots: map[string][]*domain.ClosedLot{
+				"AAPL": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(10),
+						SellTrade: model.Trade{
+							CostBasis: dec(110),
+						},
+					},
+				},
+				"GOOG": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(10),
+						SellTrade: model.Trade{
+							CostBasis: dec(110),
+						},
+					},
+				},
+				"META": {
+					{
+						Quantity:      dec(1),
+						RealizedGains: dec(-5),
+						SellTrade: model.Trade{
+							CostBasis: dec(95),
+						},
+					},
+				},
+			},
+		}
+		priceMap := map[string]decimal.Decimal{}
+		result, err := p.CalculateReturns(priceMap)
+		require.NoError(t, err)
+		require.Equal(
+			t,
+			0.05,
+			result.InexactFloat64(),
+		)
 	})
 }

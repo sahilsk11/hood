@@ -9,7 +9,7 @@ CREATE VIEW vw_latest_price AS
   select a.*
   from price a
   join 
-  ( select symbol, max(updated_at) as "updated_at"
+( select symbol, max(updated_at) as "updated_at"
   from price
   group by symbol) b
   on a.symbol = b.symbol and a.updated_at = b.updated_at;

@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/go-jet/jet/v2 v2.9.0
 	github.com/golang/mock v1.6.0
+	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.1.1
 	github.com/lib/pq v1.10.5
 	github.com/shopspring/decimal v1.3.1

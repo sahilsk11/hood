@@ -7,7 +7,7 @@ import (
 	"fmt"
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
-	"hood/internal/db/models/postgres/public/table"
+	. "hood/internal/db/models/postgres/public/table"
 
 	"github.com/go-jet/jet/v2/postgres"
 	_ "github.com/lib/pq"
@@ -22,9 +22,9 @@ func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.
 		return nil, err
 	}
 
-	stmt := table.Trade.INSERT(table.Trade.MutableColumns).
+	stmt := Trade.INSERT(Trade.MutableColumns).
 		MODELS(trades).
-		RETURNING(table.Trade.AllColumns)
+		RETURNING(Trade.AllColumns)
 
 	result := []model.Trade{}
 	err = stmt.Query(tx, &result)
@@ -33,6 +33,18 @@ func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.
 	}
 
 	return result, nil
+}
+
+func GetHistoricTrades(tx *sql.Tx) ([]model.Trade, error) {
+	query := Trade.SELECT(Trade.AllColumns).
+		ORDER_BY(Trade.Date.ASC())
+	out := []model.Trade{}
+	err := query.Query(tx, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }
 
 func findDuplicateRhTrades(tx *sql.Tx, trades []*model.Trade) error {
@@ -52,18 +64,18 @@ func findDuplicateRhTrades(tx *sql.Tx, trades []*model.Trade) error {
 		exp = append(
 			exp,
 			postgres.AND(
-				table.Trade.Symbol.EQ(postgres.String(t.Symbol)),
-				table.Trade.Action.EQ(postgres.NewEnumValue(t.Action.String())),
-				table.Trade.Quantity.EQ(postgres.Float(t.Quantity.InexactFloat64())),
-				table.Trade.CostBasis.EQ(postgres.Float(t.CostBasis.InexactFloat64())),
-				table.Trade.Date.EQ(postgres.TimestampzT(t.Date)),
+				Trade.Symbol.EQ(postgres.String(t.Symbol)),
+				Trade.Action.EQ(postgres.NewEnumValue(t.Action.String())),
+				Trade.Quantity.EQ(postgres.Float(t.Quantity.InexactFloat64())),
+				Trade.CostBasis.EQ(postgres.Float(t.CostBasis.InexactFloat64())),
+				Trade.Date.EQ(postgres.TimestampzT(t.Date)),
 			),
 		)
 	}
 
-	query := table.Trade.SELECT(table.Trade.AllColumns).
+	query := Trade.SELECT(Trade.AllColumns).
 		WHERE(postgres.AND(
-			table.Trade.Custodian.EQ(postgres.NewEnumValue(model.CustodianType_Robinhood.String())),
+			Trade.Custodian.EQ(postgres.NewEnumValue(model.CustodianType_Robinhood.String())),
 			postgres.OR(exp...),
 		))
 
@@ -84,7 +96,7 @@ func findDuplicateRhTrades(tx *sql.Tx, trades []*model.Trade) error {
 }
 
 func AddTdaTrade(tx *sql.Tx, tdaTrade model.TdaTrade) error {
-	_, err := table.TdaTrade.INSERT(table.TdaTrade.MutableColumns).MODEL(tdaTrade).Exec(tx)
+	_, err := TdaTrade.INSERT(TdaTrade.MutableColumns).MODEL(tdaTrade).Exec(tx)
 	if err != nil {
 		return fmt.Errorf("failed to add TDA trade: %w", err)
 	}

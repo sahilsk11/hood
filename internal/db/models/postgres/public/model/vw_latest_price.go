@@ -18,4 +18,5 @@ type VwLatestPrice struct {
 	Symbol    *string
 	Price     *decimal.Decimal
 	UpdatedAt *time.Time
+	Date      *time.Time
 }
