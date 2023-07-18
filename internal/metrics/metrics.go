@@ -129,6 +129,7 @@ func (p Portfolio) deepCopy() Portfolio {
 }
 
 func (p Portfolio) CalculateReturns(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
+	// (end value - initial value - cash flow)/(initial value + cash flow)
 	openLotsCostBasis := decimal.Zero
 	openLotsGains := decimal.Zero
 	closedLotsCostBasis := decimal.Zero
