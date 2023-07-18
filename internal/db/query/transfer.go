@@ -15,3 +15,12 @@ func GetHistoricTransfers(tx *sql.Tx) ([]model.BankActivity, error) {
 	}
 	return out, nil
 }
+
+func AddTransfer(tx *sql.Tx, t *model.BankActivity) error {
+	query := BankActivity.INSERT(BankActivity.MutableColumns).MODEL(t).RETURNING(BankActivity.AllColumns)
+	err := query.Query(tx, t)
+	if err != nil {
+		return err
+	}
+	return nil
+}
