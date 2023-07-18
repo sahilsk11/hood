@@ -100,8 +100,6 @@ func CalculateNetUnrealizedReturns(tx *sql.Tx) (decimal.Decimal, error) {
 // then simple func computes on that DS using equation
 // and produces arr/map of returns on given day
 
-func Twr(map[string]Portfolio) map[string]decimal.Decimal
-
 type Portfolio struct {
 	OpenLots    map[string][]*domain.OpenLot
 	Cash        decimal.Decimal
@@ -247,27 +245,19 @@ func CalculateDailyPortfolioValues(trades []model.Trade, assetSplits []model.Ass
 	return out, nil
 }
 
-func TimeWeightedReturns(dailyPortfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
+func TimeWeightedReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
+	if len(dailyPortfolios) < 2 {
+		return nil, fmt.Errorf("at least two daily portfolios required to compute TWR")
+	}
 	out := map[string]decimal.Decimal{}
 	twr := decimal.NewFromInt(1)
-	transfers, err := db.GetHistoricTransfers(tx)
-	if err != nil {
-		return nil, err
-	}
-	tMap := map[string]decimal.Decimal{}
-	for _, t := range transfers {
-		date := t.Date.Format("2006-01-02")
-		if _, ok := tMap[date]; !ok {
-			tMap[date] = decimal.Zero
-		}
-		tMap[date] = tMap[date].Add(t.Amount)
-	}
 
 	dateKeys := []string{}
 	for dateStr := range dailyPortfolios {
 		dateKeys = append(dateKeys, dateStr)
 	}
 	sort.Strings(dateKeys)
+
 	dateKeys = dateKeys[1:]
 
 	for _, dateStr := range dateKeys {
@@ -282,53 +272,58 @@ func TimeWeightedReturns(dailyPortfolios map[string]Portfolio) (map[string]decim
 		}
 
 		priceDate := t
-
 		for int(priceDate.Weekday()) == 6 || int(priceDate.Weekday()) == 0 {
 			priceDate = priceDate.AddDate(0, 0, -1)
 		}
 
-		priceMap, err := getPricesHelper(tx, t, symbols)
+		priceMap, err := getPricesHelper(tx, t)
 		if err != nil {
 			return nil, err
 		}
+
 		yday := t.AddDate(0, 0, -1)
-		t2PriceMap, err := getPricesHelper(tx, yday, symbols)
+		ydayPriceMap, err := getPricesHelper(tx, yday)
 		if err != nil {
 			return nil, err
 		}
 
 		ydayPortfolio, ok := dailyPortfolios[yday.Format("2006-01-02")]
 		if !ok {
-			fmt.Printf("skipping %s - no portfolio found on %s", dateStr, yday.Format("2006-01-02"))
+			return nil, fmt.Errorf("could not find yesterdays portfolio on %s", yday.Format("2006-01-02"))
 		}
 
-		// if not ok, should default to zero
-		netTransfers, _ := tMap[dateStr]
+		start, err := ydayPortfolio.netValue(ydayPriceMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate net value on %s: %w", yday.Format("2006-01-02"), err)
+		}
+		end, err := portfolio.netValue(priceMap)
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate net value on %s: %w", yday.Format(dateStr), err)
+		}
 
-		end, err := ydayPortfolio.CalculatePortfolioValue(priceMap)
-		if err != nil {
-			return nil, err
-		}
-		start, err := portfolio.CalculatePortfolioValue(t2PriceMap)
-		if err != nil {
-			return nil, err
-		}
-		hp := (end.Sub(start).Sub(netTransfers)).Div(start.Add(netTransfers))
-		out[dateStr] = twr.Mul(decimal.NewFromInt(1).Add(hp)).Sub(decimal.NewFromInt(1))
-		twr = twr.Mul(decimal.NewFromInt(1).Mul(hp))
+		// https://www.investopedia.com/terms/t/time-weightedror.asp
+
+		hp := (end.Sub(start).Sub(portfolio.NetCashFlow)).Div(start.Add(portfolio.NetCashFlow))
+		fmt.Println(end.Sub(start).Sub(portfolio.NetCashFlow), start.Add(portfolio.NetCashFlow))
+		fmt.Println("hp", hp, "start", start, "end", end, "flow", portfolio.NetCashFlow, "date", dateStr)
+		fmt.Println(hp)
+
+		newOp := decimal.NewFromInt(1).Add(hp)
+		out[dateStr] = twr.Mul(newOp).Sub(decimal.NewFromInt(1))
+		twr = twr.Mul(newOp)
 	}
 
 	return out, nil
 }
 
-func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
-	priceMap, err := db.GetPricesOnDate(tx, date, symbols)
+func getPricesHelper(tx *sql.Tx, date time.Time) (map[string]decimal.Decimal, error) {
+	priceMap, err := db.GetPricesOnDate(tx, date, []string{})
 	if err != nil {
 		e := err
 		tries := 3
 		for tries > 0 && e != nil {
 			date = date.AddDate(0, 0, -1)
-			priceMap, e = db.GetPricesOnDate(tx, date, symbols)
+			priceMap, e = db.GetPricesOnDate(tx, date, []string{})
 			tries -= 1
 		}
 		if e != nil {

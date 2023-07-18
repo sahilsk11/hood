@@ -246,7 +246,7 @@ func Test_CalculateNetReturns(t *testing.T) {
 	})
 }
 
-func TestDailyPortfolio(t *testing.T) {
+func Test_CalculateDailyPortfolioValues(t *testing.T) {
 	endTime := time.Now()
 	t.Run("single buy and sell", func(t *testing.T) {
 		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
@@ -267,7 +267,7 @@ func TestDailyPortfolio(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := DailyPortfolio(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolioValues(trades, assetSplits, nil, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -284,6 +284,7 @@ func TestDailyPortfolio(t *testing.T) {
 								},
 							},
 						},
+						Cash: dec(110),
 					},
 				},
 				out,
@@ -313,7 +314,7 @@ func TestDailyPortfolio(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := DailyPortfolio(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolioValues(trades, assetSplits, nil, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -321,6 +322,7 @@ func TestDailyPortfolio(t *testing.T) {
 				map[string]Portfolio{
 					"2020-06-19": {
 						OpenLots: map[string][]*domain.OpenLot{},
+						Cash:     dec(110),
 					},
 				},
 				out,
@@ -336,17 +338,18 @@ func dec(f float64) decimal.Decimal {
 	return decimal.NewFromFloat(f)
 }
 
-func TestPortfolio_CalculatePortfolioValue(t *testing.T) {
-	t.Run("only closed lots", func(t *testing.T) {
+func TestPortfolio_netValue(t *testing.T) {
+	t.Run("only cash", func(t *testing.T) {
 		p := Portfolio{
 			OpenLots: map[string][]*domain.OpenLot{},
+			Cash:     dec(100),
 		}
 		priceMap := map[string]decimal.Decimal{}
-		result, err := p.CalculatePortfolioValue(priceMap)
+		result, err := p.netValue(priceMap)
 		require.NoError(t, err)
 		require.Equal(
 			t,
-			0.05,
+			float64(100),
 			result.InexactFloat64(),
 		)
 	})
@@ -413,7 +416,7 @@ func TestDailyReturns(t *testing.T) {
 			},
 		}
 
-		out, err := DailyReturns(tx, dailyPortfolio)
+		out, err := TimeWeightedReturns(tx, dailyPortfolio)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -428,36 +431,52 @@ func TestDailyReturns(t *testing.T) {
 		)
 	})
 
-	t.Run("some gains, some net even", func(t *testing.T) {
+	t.Run("realized gains", func(t *testing.T) {
 		ctx := context.Background()
 		tx, err := dbConn.Begin()
 		require.NoError(t, err)
 		db.RollbackAfterTest(t, tx)
 
-		d, err := time.Parse("2006-01-02", "2023-07-14")
+		d, err := time.Parse("2006-01-02", "2023-07-18")
 		require.NoError(t, err)
 		db.AddPrices(ctx, tx, []model.Price{
 			{
 				Symbol: "AAPL",
-				Price:  dec(110),
+				Price:  dec(100),
 				Date:   d,
+			},
+			{
+				Symbol: "GOOG",
+				Price:  dec(100),
+				Date:   d.AddDate(0, 0, 1),
 			},
 		})
 
 		dailyPortfolio := map[string]Portfolio{
-			"2023-07-15": {
+			"2023-07-18": {
 				OpenLots: map[string][]*domain.OpenLot{
 					"AAPL": {
 						{
 							Quantity:  dec(1),
-							CostBasis: dec(110),
+							CostBasis: dec(100),
 						},
 					},
 				},
 			},
+			"2023-07-19": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"GOOG": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+				Cash: dec(10),
+			},
 		}
 
-		out, err := DailyReturns(tx, dailyPortfolio)
+		out, err := TimeWeightedReturns(tx, dailyPortfolio)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -465,11 +484,91 @@ func TestDailyReturns(t *testing.T) {
 			"",
 			cmp.Diff(
 				map[string]decimal.Decimal{
-					"2023-07-15": dec(0.1),
+					"2023-07-19": dec(0.1),
 				},
 				out,
 			),
-			out["2023-01-01"].String())
+		)
+	})
+
+	t.Run("cash inflows", func(t *testing.T) {
+		ctx := context.Background()
+		tx, err := dbConn.Begin()
+		require.NoError(t, err)
+		db.RollbackAfterTest(t, tx)
+
+		d, err := time.Parse("2006-01-02", "2023-07-18")
+		require.NoError(t, err)
+		db.AddPrices(ctx, tx, []model.Price{
+			{
+				Symbol: "AAPL",
+				Price:  dec(100),
+				Date:   d,
+			},
+			{
+				Symbol: "AAPL",
+				Price:  dec(110),
+				Date:   d.AddDate(0, 0, 1),
+			},
+			{
+				Symbol: "AAPL",
+				Price:  dec(110),
+				Date:   d.AddDate(0, 0, 2),
+			},
+		})
+
+		// TODO - investigate why this fails with
+		// only two days
+
+		dailyPortfolio := map[string]Portfolio{
+			"2023-07-18": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"AAPL": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+			},
+			"2023-07-19": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"AAPL": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+			},
+			"2023-07-20": {
+				OpenLots: map[string][]*domain.OpenLot{
+					"AAPL": {
+						{
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
+				},
+				NetCashFlow: dec(100),
+				Cash:        dec(100),
+			},
+		}
+
+		out, err := TimeWeightedReturns(tx, dailyPortfolio)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				map[string]decimal.Decimal{
+					"2023-07-19": dec(0.1),
+					"2023-07-20": dec(0.1),
+				},
+				out,
+			),
+		)
 	})
 
 }
