@@ -32,8 +32,15 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 				Action:    model.TradeActionType_Sell,
 			},
 		}
+		transfers := []model.BankActivity{
+			{
+				Amount: dec(200),
+				Date:   time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
+			},
+		}
 		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolios(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolios(trades, assetSplits, transfers, startTime, endTime)
+		require.NoError(t, err)
 
 		require.Equal(t,
 			"",
@@ -50,7 +57,8 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 								},
 							},
 						},
-						Cash: dec(110),
+						Cash:        dec(110),
+						NetCashFlow: dec(200),
 					},
 				},
 				out,
@@ -63,6 +71,7 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 
 	t.Run("close open lot", func(t *testing.T) {
 		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
+		transfers := []model.BankActivity{{Amount: dec(100), Date: time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)}}
 		trades := []model.Trade{
 			{
 				Symbol:    "AAPL",
@@ -80,15 +89,16 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolios(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolios(trades, assetSplits, transfers, startTime, endTime)
 
 		require.Equal(t,
 			"",
 			cmp.Diff(
 				map[string]Portfolio{
 					"2020-06-19": {
-						OpenLots: map[string][]*domain.OpenLot{},
-						Cash:     dec(110),
+						OpenLots:    map[string][]*domain.OpenLot{},
+						Cash:        dec(110),
+						NetCashFlow: dec(100),
 					},
 				},
 				out,
