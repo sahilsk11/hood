@@ -13,11 +13,12 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type BankActivity struct {
+type Transfer struct {
 	ActivityID   int32 `sql:"primary_key"`
 	Amount       decimal.Decimal
 	ActivityType BankActivityType
 	Date         time.Time
 	CreatedAt    *time.Time
 	ModifiedAt   *time.Time
+	Custodian    CustodianType
 }

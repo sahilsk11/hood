@@ -32,7 +32,7 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 				Action:    model.TradeActionType_Sell,
 			},
 		}
-		transfers := []model.BankActivity{
+		transfers := []model.Transfer{
 			{
 				Amount: dec(200),
 				Date:   time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
@@ -57,8 +57,8 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 								},
 							},
 						},
-						Cash:        dec(110),
-						NetCashFlow: dec(200),
+						Transfer:        dec(110),
+						NetTransferFlow: dec(200),
 					},
 				},
 				out,
@@ -71,7 +71,7 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 
 	t.Run("close open lot", func(t *testing.T) {
 		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
-		transfers := []model.BankActivity{{Amount: dec(100), Date: time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)}}
+		transfers := []model.Transfer{{Amount: dec(100), Date: time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)}}
 		trades := []model.Trade{
 			{
 				Symbol:    "AAPL",
@@ -96,9 +96,9 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 			cmp.Diff(
 				map[string]Portfolio{
 					"2020-06-19": {
-						OpenLots:    map[string][]*domain.OpenLot{},
-						Cash:        dec(110),
-						NetCashFlow: dec(100),
+						OpenLots:        map[string][]*domain.OpenLot{},
+						Transfer:        dec(110),
+						NetTransferFlow: dec(100),
 					},
 				},
 				out,
@@ -118,7 +118,7 @@ func TestPortfolio_netValue(t *testing.T) {
 	t.Run("only cash", func(t *testing.T) {
 		p := Portfolio{
 			OpenLots: map[string][]*domain.OpenLot{},
-			Cash:     dec(100),
+			Transfer: dec(100),
 		}
 		priceMap := map[string]decimal.Decimal{}
 		result, err := p.netValue(priceMap)

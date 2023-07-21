@@ -11,9 +11,9 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var BankActivity = newBankActivityTable("public", "bank_activity", "")
+var Transfer = newTransferTable("public", "transfer", "")
 
-type bankActivityTable struct {
+type transferTable struct {
 	postgres.Table
 
 	//Columns
@@ -23,35 +23,36 @@ type bankActivityTable struct {
 	Date         postgres.ColumnDate
 	CreatedAt    postgres.ColumnTimestampz
 	ModifiedAt   postgres.ColumnTimestampz
+	Custodian    postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
 }
 
-type BankActivityTable struct {
-	bankActivityTable
+type TransferTable struct {
+	transferTable
 
-	EXCLUDED bankActivityTable
+	EXCLUDED transferTable
 }
 
-// AS creates new BankActivityTable with assigned alias
-func (a BankActivityTable) AS(alias string) *BankActivityTable {
-	return newBankActivityTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new TransferTable with assigned alias
+func (a TransferTable) AS(alias string) *TransferTable {
+	return newTransferTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new BankActivityTable with assigned schema name
-func (a BankActivityTable) FromSchema(schemaName string) *BankActivityTable {
-	return newBankActivityTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new TransferTable with assigned schema name
+func (a TransferTable) FromSchema(schemaName string) *TransferTable {
+	return newTransferTable(schemaName, a.TableName(), a.Alias())
 }
 
-func newBankActivityTable(schemaName, tableName, alias string) *BankActivityTable {
-	return &BankActivityTable{
-		bankActivityTable: newBankActivityTableImpl(schemaName, tableName, alias),
-		EXCLUDED:          newBankActivityTableImpl("", "excluded", ""),
+func newTransferTable(schemaName, tableName, alias string) *TransferTable {
+	return &TransferTable{
+		transferTable: newTransferTableImpl(schemaName, tableName, alias),
+		EXCLUDED:      newTransferTableImpl("", "excluded", ""),
 	}
 }
 
-func newBankActivityTableImpl(schemaName, tableName, alias string) bankActivityTable {
+func newTransferTableImpl(schemaName, tableName, alias string) transferTable {
 	var (
 		ActivityIDColumn   = postgres.IntegerColumn("activity_id")
 		AmountColumn       = postgres.FloatColumn("amount")
@@ -59,11 +60,12 @@ func newBankActivityTableImpl(schemaName, tableName, alias string) bankActivityT
 		DateColumn         = postgres.DateColumn("date")
 		CreatedAtColumn    = postgres.TimestampzColumn("created_at")
 		ModifiedAtColumn   = postgres.TimestampzColumn("modified_at")
-		allColumns         = postgres.ColumnList{ActivityIDColumn, AmountColumn, ActivityTypeColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn}
-		mutableColumns     = postgres.ColumnList{AmountColumn, ActivityTypeColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn}
+		CustodianColumn    = postgres.StringColumn("custodian")
+		allColumns         = postgres.ColumnList{ActivityIDColumn, AmountColumn, ActivityTypeColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
+		mutableColumns     = postgres.ColumnList{AmountColumn, ActivityTypeColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
 	)
 
-	return bankActivityTable{
+	return transferTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
@@ -73,6 +75,7 @@ func newBankActivityTableImpl(schemaName, tableName, alias string) bankActivityT
 		Date:         DateColumn,
 		CreatedAt:    CreatedAtColumn,
 		ModifiedAt:   ModifiedAtColumn,
+		Custodian:    CustodianColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,
