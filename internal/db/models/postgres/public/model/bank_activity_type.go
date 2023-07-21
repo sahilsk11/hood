@@ -9,14 +9,14 @@ package model
 
 import "errors"
 
-type CashType string
+type BankActivityType string
 
 const (
-	CashType_Withdrawal CashType = "WITHDRAWAL"
-	CashType_Deposit    CashType = "DEPOSIT"
+	BankActivityType_Withdrawal BankActivityType = "WITHDRAWAL"
+	BankActivityType_Deposit    BankActivityType = "DEPOSIT"
 )
 
-func (e *CashType) Scan(value interface{}) error {
+func (e *BankActivityType) Scan(value interface{}) error {
 	var enumValue string
 	switch val := value.(type) {
 	case string:
@@ -29,16 +29,16 @@ func (e *CashType) Scan(value interface{}) error {
 
 	switch enumValue {
 	case "WITHDRAWAL":
-		*e = CashType_Withdrawal
+		*e = BankActivityType_Withdrawal
 	case "DEPOSIT":
-		*e = CashType_Deposit
+		*e = BankActivityType_Deposit
 	default:
-		return errors.New("jet: Invalid scan value '" + enumValue + "' for CashType enum")
+		return errors.New("jet: Invalid scan value '" + enumValue + "' for BankActivityType enum")
 	}
 
 	return nil
 }
 
-func (e CashType) String() string {
+func (e BankActivityType) String() string {
 	return string(e)
 }

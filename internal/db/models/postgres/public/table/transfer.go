@@ -11,9 +11,9 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var Cash = newCashTable("public", "cash", "")
+var Transfer = newTransferTable("public", "transfer", "")
 
-type cashTable struct {
+type transferTable struct {
 	postgres.Table
 
 	//Columns
@@ -29,30 +29,30 @@ type cashTable struct {
 	MutableColumns postgres.ColumnList
 }
 
-type CashTable struct {
-	cashTable
+type TransferTable struct {
+	transferTable
 
-	EXCLUDED cashTable
+	EXCLUDED transferTable
 }
 
-// AS creates new CashTable with assigned alias
-func (a CashTable) AS(alias string) *CashTable {
-	return newCashTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new TransferTable with assigned alias
+func (a TransferTable) AS(alias string) *TransferTable {
+	return newTransferTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new CashTable with assigned schema name
-func (a CashTable) FromSchema(schemaName string) *CashTable {
-	return newCashTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new TransferTable with assigned schema name
+func (a TransferTable) FromSchema(schemaName string) *TransferTable {
+	return newTransferTable(schemaName, a.TableName(), a.Alias())
 }
 
-func newCashTable(schemaName, tableName, alias string) *CashTable {
-	return &CashTable{
-		cashTable: newCashTableImpl(schemaName, tableName, alias),
-		EXCLUDED:  newCashTableImpl("", "excluded", ""),
+func newTransferTable(schemaName, tableName, alias string) *TransferTable {
+	return &TransferTable{
+		transferTable: newTransferTableImpl(schemaName, tableName, alias),
+		EXCLUDED:      newTransferTableImpl("", "excluded", ""),
 	}
 }
 
-func newCashTableImpl(schemaName, tableName, alias string) cashTable {
+func newTransferTableImpl(schemaName, tableName, alias string) transferTable {
 	var (
 		ActivityIDColumn   = postgres.IntegerColumn("activity_id")
 		AmountColumn       = postgres.FloatColumn("amount")
@@ -65,7 +65,7 @@ func newCashTableImpl(schemaName, tableName, alias string) cashTable {
 		mutableColumns     = postgres.ColumnList{AmountColumn, ActivityTypeColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
 	)
 
-	return cashTable{
+	return transferTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns

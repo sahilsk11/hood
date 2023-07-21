@@ -29,16 +29,16 @@ const PortfolioInception = "2020-06-19"
 // and produces arr/map of returns on given day
 
 type Portfolio struct {
-	OpenLots    map[string][]*domain.OpenLot
-	Cash        decimal.Decimal
-	NetCashFlow decimal.Decimal
+	OpenLots        map[string][]*domain.OpenLot
+	Transfer        decimal.Decimal
+	NetTransferFlow decimal.Decimal
 }
 
 func (p Portfolio) deepCopy() Portfolio {
 	newP := Portfolio{
-		OpenLots:    make(map[string][]*domain.OpenLot),
-		Cash:        p.Cash,
-		NetCashFlow: p.NetCashFlow,
+		OpenLots:        make(map[string][]*domain.OpenLot),
+		Transfer:        p.Transfer,
+		NetTransferFlow: p.NetTransferFlow,
 	}
 	for k, v := range p.OpenLots {
 		for _, o := range v {
@@ -78,7 +78,7 @@ func (p Portfolio) netValue(priceMap map[string]decimal.Decimal) (decimal.Decima
 			value = value.Add(price.Mul(lot.Quantity))
 		}
 	}
-	value = value.Add(p.Cash)
+	value = value.Add(p.Transfer)
 
 	return value, nil
 }
@@ -96,14 +96,14 @@ func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
 			Trade:     &t,
 		})
 		*openLotID++
-		p.Cash = p.Cash.Sub(t.CostBasis.Mul(t.Quantity))
+		p.Transfer = p.Transfer.Sub(t.CostBasis.Mul(t.Quantity))
 	}
 	if t.Action == model.TradeActionType_Sell {
 		out, err := trade.PreviewSellOrder(t, p.OpenLots[t.Symbol])
 		if err != nil {
 			return err
 		}
-		p.Cash = p.Cash.Add(t.Quantity.Mul(t.CostBasis))
+		p.Transfer = p.Transfer.Add(t.Quantity.Mul(t.CostBasis))
 
 		for _, l := range out.UpdatedOpenLots {
 			openLots := p.OpenLots[t.Symbol]
@@ -123,10 +123,10 @@ func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
 }
 
 // relies on inputs being sorted
-func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.Cash, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
+func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.Transfer, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
 	p := Portfolio{
 		OpenLots: make(map[string][]*domain.OpenLot),
-		Cash:     decimal.Zero,
+		Transfer: decimal.Zero,
 	}
 	openLotID := int32(0)
 	out := map[string]Portfolio{}
@@ -149,7 +149,7 @@ func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSpl
 			relevantAssetSplits = append(relevantAssetSplits, assetSplits[0])
 			assetSplits = assetSplits[1:]
 		}
-		relevantTransfers := []model.Cash{}
+		relevantTransfers := []model.Transfer{}
 		for len(transfers) > 0 && transfers[0].Date.Before(tomorrow) {
 			relevantTransfers = append(relevantTransfers, transfers[0])
 			transfers = transfers[1:]
@@ -157,8 +157,8 @@ func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSpl
 
 		// process relevant data
 		for _, t := range relevantTransfers {
-			p.Cash = p.Cash.Add(t.Amount)
-			p.NetCashFlow = p.NetCashFlow.Add(t.Amount)
+			p.Transfer = p.Transfer.Add(t.Amount)
+			p.NetTransferFlow = p.NetTransferFlow.Add(t.Amount)
 		}
 		for _, split := range relevantAssetSplits {
 			ratio := decimal.NewFromInt32(split.Ratio)
@@ -171,12 +171,12 @@ func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSpl
 			p.processTrade(t, &openLotID)
 		}
 
-		// if p.Cash.LessThan(decimal.Zero) {
-		// 	return nil, fmt.Errorf("cash below $0 (%f) on %s", p.Cash.InexactFloat64(), t.Format("2006-01-02"))
+		// if p.Transfer.LessThan(decimal.Zero) {
+		// 	return nil, fmt.Errorf("cash below $0 (%f) on %s", p.Transfer.InexactFloat64(), t.Format("2006-01-02"))
 		// }
 
 		out[t.Format("2006-01-02")] = p.deepCopy()
-		p.NetCashFlow = decimal.Zero
+		p.NetTransferFlow = decimal.Zero
 		t = tomorrow
 	}
 

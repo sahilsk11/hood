@@ -6,9 +6,9 @@ import (
 	. "hood/internal/db/models/postgres/public/table"
 )
 
-func GetHistoricTransfers(tx *sql.Tx) ([]model.Cash, error) {
-	query := Cash.SELECT(Cash.AllColumns).ORDER_BY(Cash.Date.ASC())
-	out := []model.Cash{}
+func GetHistoricTransfers(tx *sql.Tx) ([]model.Transfer, error) {
+	query := Transfer.SELECT(Transfer.AllColumns).ORDER_BY(Transfer.Date.ASC())
+	out := []model.Transfer{}
 	err := query.Query(tx, &out)
 	if err != nil {
 		return nil, err
@@ -16,8 +16,8 @@ func GetHistoricTransfers(tx *sql.Tx) ([]model.Cash, error) {
 	return out, nil
 }
 
-func AddTransfer(tx *sql.Tx, t *model.Cash) error {
-	query := Cash.INSERT(Cash.MutableColumns).MODEL(t).RETURNING(Cash.AllColumns)
+func AddTransfer(tx *sql.Tx, t *model.Transfer) error {
+	query := Transfer.INSERT(Transfer.MutableColumns).MODEL(t).RETURNING(Transfer.AllColumns)
 	err := query.Query(tx, t)
 	if err != nil {
 		return err
