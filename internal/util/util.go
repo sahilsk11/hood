@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+var EnableDebug = false
+
 func TimePtr(t time.Time) *time.Time {
 	return &t
 }
@@ -32,4 +34,14 @@ func LoadSecrets() (*Secrets, error) {
 	}
 
 	return &secrets, nil
+}
+
+func Pprint(i interface{}) {
+	if EnableDebug {
+		bytes, err := json.MarshalIndent(i, "", "    ")
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(bytes))
+	}
 }
