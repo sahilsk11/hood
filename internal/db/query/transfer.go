@@ -7,7 +7,7 @@ import (
 )
 
 func GetHistoricTransfers(tx *sql.Tx) ([]model.BankActivity, error) {
-	query := BankActivity.SELECT(BankActivity.AllColumns)
+	query := BankActivity.SELECT(BankActivity.AllColumns).ORDER_BY(BankActivity.Date.ASC())
 	out := []model.BankActivity{}
 	err := query.Query(tx, &out)
 	if err != nil {

@@ -2,12 +2,12 @@ package metrics
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"hood/internal/trade"
+	"hood/internal/util"
 	"sort"
 	"time"
 
@@ -15,78 +15,6 @@ import (
 )
 
 const PortfolioInception = "2020-06-19"
-
-func CalculateNetReturns(tx *sql.Tx) (decimal.Decimal, error) {
-	totalRealizedGains, err := db.GetTotalRealizedGains(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total realized gains: %w", err)
-	}
-	totalRealizedCostBasis, err := db.GetTotalRealizedCostBasis(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total realized cost basis: %w", err)
-	}
-	totalUnrealizedGains, err := db.GetTotalUnrealizedGains(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total unrealized gains: %w", err)
-	}
-	totalUnrealizedCostBasis, err := db.GetTotalUnrealizedCostBasis(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total unrealized cost basis: %w", err)
-	}
-
-	totalGains := totalUnrealizedGains.Add(totalRealizedGains)
-	totalCostBasis := totalUnrealizedCostBasis.Add(totalRealizedCostBasis)
-	if totalCostBasis.Equal(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("received 0 total cost basis: %w", err)
-	}
-	details := map[string]float64{
-		"netRealizedGains":         totalRealizedGains.InexactFloat64(),
-		"netUnrealizedGains":       totalUnrealizedGains.InexactFloat64(),
-		"closedPositionsCostBasis": totalRealizedCostBasis.InexactFloat64(),
-		"openPositionsCostBasis":   totalUnrealizedCostBasis.InexactFloat64(),
-		"totalGains":               (totalRealizedGains.Add(totalUnrealizedGains)).InexactFloat64(),
-		"totalCostBasis":           (totalRealizedCostBasis.Add(totalUnrealizedCostBasis)).InexactFloat64(),
-	}
-
-	b, _ := json.MarshalIndent(details, "", "    ")
-	fmt.Println(string(b))
-
-	return totalGains.Div(totalCostBasis), nil
-}
-
-func CalculateNetRealizedReturns(tx *sql.Tx) (decimal.Decimal, error) {
-	totalRealizedGains, err := db.GetTotalRealizedGains(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total realized gains: %w", err)
-	}
-	totalRealizedCostBasis, err := db.GetTotalRealizedCostBasis(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total realized cost basis: %w", err)
-	}
-
-	if totalRealizedCostBasis.Equal(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("received 0 total cost basis: %w", err)
-	}
-
-	return totalRealizedGains.Div(totalRealizedCostBasis), nil
-}
-
-func CalculateNetUnrealizedReturns(tx *sql.Tx) (decimal.Decimal, error) {
-	totalUnrealizedGains, err := db.GetTotalUnrealizedGains(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total unrealized gains: %w", err)
-	}
-	totalUnrealizedCostBasis, err := db.GetTotalUnrealizedCostBasis(tx)
-	if err != nil {
-		return decimal.Zero, fmt.Errorf("failed to get total unrealized cost basis: %w", err)
-	}
-
-	if totalUnrealizedCostBasis.Equal(decimal.Zero) {
-		return decimal.Zero, fmt.Errorf("received 0 total cost basis: %w", err)
-	}
-
-	return totalUnrealizedGains.Div(totalUnrealizedCostBasis), nil
-}
 
 // goal is to figure out portfolio value
 // at every day from [1:] in days (2 days min)
@@ -128,6 +56,14 @@ func (p Portfolio) deepCopy() Portfolio {
 	return newP
 }
 
+func (p Portfolio) symbols() []string {
+	symbols := []string{}
+	for symbol := range p.OpenLots {
+		symbols = append(symbols, symbol)
+	}
+	return symbols
+}
+
 func (p Portfolio) netValue(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
 	value := decimal.Zero
 	for symbol, lots := range p.OpenLots {
@@ -160,6 +96,7 @@ func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
 			Trade:     &t,
 		})
 		*openLotID++
+		p.Cash = p.Cash.Sub(t.CostBasis.Mul(t.Quantity))
 	}
 	if t.Action == model.TradeActionType_Sell {
 		out, err := trade.PreviewSellOrder(t, p.OpenLots[t.Symbol])
@@ -185,7 +122,8 @@ func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
 	return nil
 }
 
-func CalculateDailyPortfolioValues(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.BankActivity, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
+// relies on inputs being sorted
+func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.BankActivity, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
 	p := Portfolio{
 		OpenLots: make(map[string][]*domain.OpenLot),
 		Cash:     decimal.Zero,
@@ -212,9 +150,9 @@ func CalculateDailyPortfolioValues(trades []model.Trade, assetSplits []model.Ass
 			assetSplits = assetSplits[1:]
 		}
 		relevantTransfers := []model.BankActivity{}
-		for len(relevantTransfers) > 0 && relevantTransfers[0].Date.Before(tomorrow) {
-			relevantTransfers = append(relevantTransfers, relevantTransfers[0])
-			relevantTransfers = relevantTransfers[1:]
+		for len(transfers) > 0 && transfers[0].Date.Before(tomorrow) {
+			relevantTransfers = append(relevantTransfers, transfers[0])
+			transfers = transfers[1:]
 		}
 
 		// process relevant data
@@ -233,9 +171,9 @@ func CalculateDailyPortfolioValues(trades []model.Trade, assetSplits []model.Ass
 			p.processTrade(t, &openLotID)
 		}
 
-		if p.Cash.LessThan(decimal.Zero) {
-			return nil, fmt.Errorf("cash below $0 (%f) on %s", p.Cash.InexactFloat64(), t.Format("2006-01-02"))
-		}
+		// if p.Cash.LessThan(decimal.Zero) {
+		// 	return nil, fmt.Errorf("cash below $0 (%f) on %s", p.Cash.InexactFloat64(), t.Format("2006-01-02"))
+		// }
 
 		out[t.Format("2006-01-02")] = p.deepCopy()
 		p.NetCashFlow = decimal.Zero
@@ -245,70 +183,58 @@ func CalculateDailyPortfolioValues(trades []model.Trade, assetSplits []model.Ass
 	return out, nil
 }
 
-func TimeWeightedReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
-	if len(dailyPortfolios) < 2 {
+func CalculateNetPortfolioValues(tx *sql.Tx, portfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
+	out := map[string]decimal.Decimal{}
+	for dateStr, portfolio := range portfolios {
+		d, err := time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return nil, err
+		}
+		prices, err := getPricesHelper(tx, d, portfolio.symbols())
+		if err != nil {
+			return nil, err
+		}
+		value, err := portfolio.netValue(prices)
+		if err != nil {
+			return nil, err
+		}
+		out[dateStr] = value
+	}
+	return out, nil
+}
+
+func TimeWeightedReturns(dailyPortfolioValues map[string]decimal.Decimal, transfers map[string]decimal.Decimal) (map[string]decimal.Decimal, error) {
+	if len(dailyPortfolioValues) < 2 {
 		return nil, fmt.Errorf("at least two daily portfolios required to compute TWR")
 	}
 	out := map[string]decimal.Decimal{}
 	twr := decimal.NewFromInt(1)
 
 	dateKeys := []string{}
-	for dateStr := range dailyPortfolios {
+	for dateStr := range dailyPortfolioValues {
 		dateKeys = append(dateKeys, dateStr)
 	}
 	sort.Strings(dateKeys)
 
 	dateKeys = dateKeys[1:]
-
 	for _, dateStr := range dateKeys {
-		portfolio := dailyPortfolios[dateStr]
-		t, err := time.Parse("2006-01-02", dateStr)
+		today, err := time.Parse("2006-01-02", dateStr)
 		if err != nil {
 			return nil, err
 		}
-		symbols := []string{}
-		for symbol := range portfolio.OpenLots {
-			symbols = append(symbols, symbol)
-		}
-
-		priceDate := t
-		for int(priceDate.Weekday()) == 6 || int(priceDate.Weekday()) == 0 {
-			priceDate = priceDate.AddDate(0, 0, -1)
-		}
-
-		priceMap, err := getPricesHelper(tx, t)
-		if err != nil {
-			return nil, err
-		}
-
-		yday := t.AddDate(0, 0, -1)
-		ydayPriceMap, err := getPricesHelper(tx, yday)
-		if err != nil {
-			return nil, err
-		}
-
-		ydayPortfolio, ok := dailyPortfolios[yday.Format("2006-01-02")]
+		yday := today.AddDate(0, 0, -1)
+		end, ok := dailyPortfolioValues[dateStr]
 		if !ok {
-			return nil, fmt.Errorf("could not find yesterdays portfolio on %s", yday.Format("2006-01-02"))
+			return nil, fmt.Errorf("failed to calculate net value - no calculated portfolio value on %s", dateStr)
 		}
-
-		start, err := ydayPortfolio.netValue(ydayPriceMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate net value on %s: %w", yday.Format("2006-01-02"), err)
+		start, ok := dailyPortfolioValues[yday.Format("2006-01-02")]
+		if !ok {
+			return nil, fmt.Errorf("failed to calculate net value - no calculated portfolio value on %s", yday.Format("2006-01-02"))
 		}
-		end, err := portfolio.netValue(priceMap)
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate net value on %s: %w", yday.Format(dateStr), err)
-		}
+		netTransfers, _ := transfers[dateStr]
 
-		// https://www.investopedia.com/terms/t/time-weightedror.asp
+		newOp := hp(start, end, netTransfers)
 
-		hp := (end.Sub(start).Sub(portfolio.NetCashFlow)).Div(start.Add(portfolio.NetCashFlow))
-		fmt.Println(end.Sub(start).Sub(portfolio.NetCashFlow), start.Add(portfolio.NetCashFlow))
-		fmt.Println("hp", hp, "start", start, "end", end, "flow", portfolio.NetCashFlow, "date", dateStr)
-		fmt.Println(hp)
-
-		newOp := decimal.NewFromInt(1).Add(hp)
 		out[dateStr] = twr.Mul(newOp).Sub(decimal.NewFromInt(1))
 		twr = twr.Mul(newOp)
 	}
@@ -316,20 +242,39 @@ func TimeWeightedReturns(tx *sql.Tx, dailyPortfolios map[string]Portfolio) (map[
 	return out, nil
 }
 
-func getPricesHelper(tx *sql.Tx, date time.Time) (map[string]decimal.Decimal, error) {
-	priceMap, err := db.GetPricesOnDate(tx, date, []string{})
+// https://www.investopedia.com/terms/t/time-weightedror.asp
+func hp(start, end, cashFlow decimal.Decimal) decimal.Decimal {
+	numerator := end
+	denominator := start.Add(cashFlow)
+	util.Pprint(map[string]decimal.Decimal{
+		"hp":          numerator.Div(denominator),
+		"numerator":   numerator,
+		"denominator": denominator,
+		"start":       start,
+		"end":         end,
+		"cashFlows":   cashFlow,
+	})
+
+	return numerator.Div(denominator)
+}
+
+func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("getPricesHelper requires at least one symbol")
+	}
+	priceMap, err := db.GetPricesOnDate(tx, date, symbols)
 	if err != nil {
 		e := err
 		tries := 3
 		for tries > 0 && e != nil {
 			date = date.AddDate(0, 0, -1)
-			priceMap, e = db.GetPricesOnDate(tx, date, []string{})
+			priceMap, e = db.GetPricesOnDate(tx, date, symbols)
 			tries -= 1
 		}
 		if e != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get prices: %w", err)
 		}
 	}
 
-	return priceMap, err
+	return priceMap, nil
 }

@@ -1,11 +1,8 @@
 package metrics
 
 import (
-	"context"
 	"hood/internal/db/models/postgres/public/model"
-	db "hood/internal/db/query"
 	"hood/internal/domain"
-	"hood/internal/trade"
 	"testing"
 	"time"
 
@@ -14,237 +11,6 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
-
-func TestCalculateNetRealizedReturns(t *testing.T) {
-	ctx := context.Background()
-	dbConn, err := db.NewTest()
-	require.NoError(t, err)
-	tiService := trade.NewTradeIngestionService()
-
-	t.Run("net zero", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(1),
-			CostBasis: decimal.NewFromFloat(100),
-			Date:      time.Now(),
-			Custodian: model.CustodianType_Tda,
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetRealizedReturns(tx)
-		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.Zero))
-	})
-
-	t.Run("slight gain", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(2),
-			CostBasis:        decimal.NewFromFloat(100),
-			Date:             time.Now(),
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(1),
-			CostBasis: decimal.NewFromFloat(110),
-			Date:      time.Now(),
-			Custodian: model.CustodianType_Tda,
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(1),
-			CostBasis: decimal.NewFromFloat(130),
-			Date:      time.Now(),
-			Custodian: model.CustodianType_Tda,
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetRealizedReturns(tx)
-		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.NewFromFloat(0.2)))
-	})
-
-	t.Run("stock split", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(400),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.AddAssetSplit(ctx, tx, model.AssetSplit{
-			Symbol:    "AAPL",
-			Ratio:     4,
-			Date:      time.Now(),
-			CreatedAt: time.Now(),
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(4),
-			CostBasis: decimal.NewFromFloat(110),
-			Date:      time.Now(),
-			Custodian: model.CustodianType_Tda,
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetRealizedReturns(tx)
-		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.NewFromFloat(0.1)))
-	})
-
-}
-
-func TestCalculateNetUnrealizedReturns(t *testing.T) {
-	ctx := context.Background()
-	dbConn, err := db.NewTest()
-	require.NoError(t, err)
-	tiService := trade.NewTradeIngestionService()
-
-	t.Run("net zero", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         dec(1),
-			CostBasis:        dec(100),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-
-		_, err = db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol:    "AAPL",
-				Price:     dec(100),
-				UpdatedAt: time.Now(),
-			},
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetUnrealizedReturns(tx)
-		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.Zero), out)
-	})
-
-	t.Run("slight gain", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-
-		_, err = db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol:    "AAPL",
-				Price:     decimal.NewFromFloat(120),
-				UpdatedAt: time.Now(),
-			},
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetUnrealizedReturns(tx)
-		require.NoError(t, err)
-		require.True(t, out.Equal(decimal.NewFromFloat(0.2)))
-	})
-}
-
-func Test_CalculateNetReturns(t *testing.T) {
-	ctx := context.Background()
-	dbConn, err := db.NewTest()
-	require.NoError(t, err)
-	tiService := trade.NewTradeIngestionService()
-
-	t.Run("net zero", func(t *testing.T) {
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 0,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessSellOrder(ctx, tx, trade.ProcessSellOrderInput{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(1),
-			CostBasis: decimal.NewFromFloat(120),
-			Date:      time.Now(),
-			Custodian: model.CustodianType_Tda,
-		})
-		require.NoError(t, err)
-
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade.ProcessTdaBuyOrderInput{
-			Symbol:           "AAPL",
-			TdaTransactionID: 1,
-			Quantity:         decimal.NewFromFloat(1),
-			CostBasis:        decimal.NewFromFloat(100),
-			Date:             time.Now(),
-			Description:      nil,
-		})
-		require.NoError(t, err)
-		_, err = db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol:    "AAPL",
-				Price:     decimal.NewFromFloat(80),
-				UpdatedAt: time.Now(),
-			},
-		})
-		require.NoError(t, err)
-
-		out, err := CalculateNetReturns(tx)
-		require.NoError(t, err)
-
-		require.True(t, out.Equal(decimal.Zero), out)
-	})
-}
 
 func Test_CalculateDailyPortfolioValues(t *testing.T) {
 	endTime := time.Now()
@@ -267,7 +33,7 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolioValues(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolios(trades, assetSplits, nil, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -314,7 +80,7 @@ func Test_CalculateDailyPortfolioValues(t *testing.T) {
 			},
 		}
 		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolioValues(trades, assetSplits, nil, startTime, endTime)
+		out, err := CalculateDailyPortfolios(trades, assetSplits, nil, startTime, endTime)
 
 		require.Equal(t,
 			"",
@@ -355,68 +121,15 @@ func TestPortfolio_netValue(t *testing.T) {
 	})
 }
 
-func TestDailyReturns(t *testing.T) {
-	dbConn, err := db.NewTest()
-	require.NoError(t, err)
+func Test_TimeWeightedReturns(t *testing.T) {
 	t.Run("simple", func(t *testing.T) {
-		ctx := context.Background()
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
 
-		d, err := time.Parse("2006-01-02", "2023-07-19")
-		require.NoError(t, err)
-
-		_, err = db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol: "AAPL",
-				Price:  dec(100),
-				Date:   d.AddDate(0, 0, -1),
-			},
-			{
-				Symbol: "AAPL",
-				Price:  dec(110),
-				Date:   d,
-			},
-		})
-		require.NoError(t, err)
-
-		transfer := &model.BankActivity{
-			Date:         d.AddDate(0, 0, -1),
-			Amount:       dec(100),
-			ActivityType: model.BankActivityType_Deposit,
-		}
-		err = db.AddTransfer(tx, transfer)
-		require.NoError(t, err)
-
-		dailyPortfolio := map[string]Portfolio{
-			"2023-07-18": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:     dec(1),
-							CostBasis:    dec(100),
-							PurchaseDate: d.AddDate(0, 0, -1),
-						},
-					},
-				},
-				// Cash: dec(100),
-			},
-			"2023-07-19": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:     dec(1),
-							CostBasis:    dec(100),
-							PurchaseDate: d,
-						},
-					},
-				},
-				// Cash: dec(100),
-			},
+		dailyPortfolioValues := map[string]decimal.Decimal{
+			"2023-07-18": dec(100),
+			"2023-07-19": dec(110),
 		}
 
-		out, err := TimeWeightedReturns(tx, dailyPortfolio)
+		out, err := TimeWeightedReturns(dailyPortfolioValues, map[string]decimal.Decimal{})
 		require.NoError(t, err)
 
 		require.Equal(
@@ -432,51 +145,12 @@ func TestDailyReturns(t *testing.T) {
 	})
 
 	t.Run("realized gains", func(t *testing.T) {
-		ctx := context.Background()
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		d, err := time.Parse("2006-01-02", "2023-07-18")
-		require.NoError(t, err)
-		db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol: "AAPL",
-				Price:  dec(100),
-				Date:   d,
-			},
-			{
-				Symbol: "GOOG",
-				Price:  dec(100),
-				Date:   d.AddDate(0, 0, 1),
-			},
-		})
-
-		dailyPortfolio := map[string]Portfolio{
-			"2023-07-18": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:  dec(1),
-							CostBasis: dec(100),
-						},
-					},
-				},
-			},
-			"2023-07-19": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"GOOG": {
-						{
-							Quantity:  dec(1),
-							CostBasis: dec(100),
-						},
-					},
-				},
-				Cash: dec(10),
-			},
+		dailyPortfolio := map[string]decimal.Decimal{
+			"2023-07-18": dec(100),
+			"2023-07-19": dec(110),
 		}
 
-		out, err := TimeWeightedReturns(tx, dailyPortfolio)
+		out, err := TimeWeightedReturns(dailyPortfolio, map[string]decimal.Decimal{})
 		require.NoError(t, err)
 
 		require.Equal(
@@ -492,70 +166,19 @@ func TestDailyReturns(t *testing.T) {
 	})
 
 	t.Run("cash inflows", func(t *testing.T) {
-		ctx := context.Background()
-		tx, err := dbConn.Begin()
-		require.NoError(t, err)
-		db.RollbackAfterTest(t, tx)
-
-		d, err := time.Parse("2006-01-02", "2023-07-18")
-		require.NoError(t, err)
-		db.AddPrices(ctx, tx, []model.Price{
-			{
-				Symbol: "AAPL",
-				Price:  dec(100),
-				Date:   d,
-			},
-			{
-				Symbol: "AAPL",
-				Price:  dec(110),
-				Date:   d.AddDate(0, 0, 1),
-			},
-			{
-				Symbol: "AAPL",
-				Price:  dec(110),
-				Date:   d.AddDate(0, 0, 2),
-			},
-		})
-
 		// TODO - investigate why this fails with
 		// only two days
 
-		dailyPortfolio := map[string]Portfolio{
-			"2023-07-18": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:  dec(1),
-							CostBasis: dec(100),
-						},
-					},
-				},
-			},
-			"2023-07-19": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:  dec(1),
-							CostBasis: dec(100),
-						},
-					},
-				},
-			},
-			"2023-07-20": {
-				OpenLots: map[string][]*domain.OpenLot{
-					"AAPL": {
-						{
-							Quantity:  dec(1),
-							CostBasis: dec(100),
-						},
-					},
-				},
-				NetCashFlow: dec(100),
-				Cash:        dec(100),
-			},
+		dailyPortfolio := map[string]decimal.Decimal{
+			"2023-07-18": dec(100),
+			"2023-07-19": dec(110),
+			"2023-07-20": dec(210),
+		}
+		transfers := map[string]decimal.Decimal{
+			"2023-07-20": dec(100),
 		}
 
-		out, err := TimeWeightedReturns(tx, dailyPortfolio)
+		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -567,6 +190,69 @@ func TestDailyReturns(t *testing.T) {
 					"2023-07-20": dec(0.1),
 				},
 				out,
+			),
+		)
+	})
+
+	t.Run("gains, losses, gains", func(t *testing.T) {
+		dailyPortfolio := map[string]decimal.Decimal{
+			"2023-07-18": dec(100),
+			"2023-07-19": dec(150),
+			"2023-07-20": dec(200),
+			"2023-07-21": dec(400),
+			"2023-07-22": dec(10),
+			"2023-07-23": dec(150),
+		}
+		transfers := map[string]decimal.Decimal{}
+
+		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				map[string]decimal.Decimal{
+					"2023-07-19": dec(0.5),
+					"2023-07-20": dec(1),
+					"2023-07-21": dec(3),
+					"2023-07-22": dec(-0.9),
+					"2023-07-23": dec(0.5),
+				},
+				out,
+				cmp.Comparer(func(x, y decimal.Decimal) bool {
+					return (x.Sub(y)).Abs().LessThan(dec(0.0000000001))
+				}),
+			),
+		)
+	})
+
+	t.Run("gains, losses, gains with cash flows", func(t *testing.T) {
+		dailyPortfolio := map[string]decimal.Decimal{
+			"2023-07-18": dec(100),
+			"2023-07-19": dec(250),
+			"2023-07-20": dec(250),
+		}
+		transfers := map[string]decimal.Decimal{
+			"2023-07-19": dec(100),
+			"2023-07-20": dec(-50),
+		}
+
+		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		require.NoError(t, err)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				map[string]decimal.Decimal{
+					"2023-07-19": dec(0.25),
+					"2023-07-20": dec(0.5625),
+				},
+				out,
+				cmp.Comparer(func(x, y decimal.Decimal) bool {
+					return (x.Sub(y)).Abs().LessThan(dec(0.0000000001))
+				}),
 			),
 		)
 	})
