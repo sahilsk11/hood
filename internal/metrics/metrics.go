@@ -123,7 +123,7 @@ func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
 }
 
 // relies on inputs being sorted
-func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.BankActivity, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
+func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.Cash, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
 	p := Portfolio{
 		OpenLots: make(map[string][]*domain.OpenLot),
 		Cash:     decimal.Zero,
@@ -149,7 +149,7 @@ func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSpl
 			relevantAssetSplits = append(relevantAssetSplits, assetSplits[0])
 			assetSplits = assetSplits[1:]
 		}
-		relevantTransfers := []model.BankActivity{}
+		relevantTransfers := []model.Cash{}
 		for len(transfers) > 0 && transfers[0].Date.Before(tomorrow) {
 			relevantTransfers = append(relevantTransfers, transfers[0])
 			transfers = transfers[1:]

@@ -9,7 +9,7 @@ package enum
 
 import "github.com/go-jet/jet/v2/postgres"
 
-var BankActivityType = &struct {
+var CashType = &struct {
 	Withdrawal postgres.StringExpression
 	Deposit    postgres.StringExpression
 }{
