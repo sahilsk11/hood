@@ -16,3 +16,10 @@ CREATE VIEW latest_open_lot AS
     group by lot_id
   ) b
   on a.date = b.date;
+
+CREATE TABLE cash (
+  cash_id serial primary key,
+  amount decimal not null,
+  custodian custodian_type not null,
+  created_at timestamp with time zone not null
+);
