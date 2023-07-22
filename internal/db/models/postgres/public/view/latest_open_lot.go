@@ -5,15 +5,15 @@
 // and will be lost if the code is regenerated
 //
 
-package table
+package view
 
 import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var OpenLot = newOpenLotTable("public", "open_lot", "")
+var LatestOpenLot = newLatestOpenLotTable("public", "latest_open_lot", "")
 
-type openLotTable struct {
+type latestOpenLotTable struct {
 	postgres.Table
 
 	//Columns
@@ -31,30 +31,30 @@ type openLotTable struct {
 	MutableColumns postgres.ColumnList
 }
 
-type OpenLotTable struct {
-	openLotTable
+type LatestOpenLotTable struct {
+	latestOpenLotTable
 
-	EXCLUDED openLotTable
+	EXCLUDED latestOpenLotTable
 }
 
-// AS creates new OpenLotTable with assigned alias
-func (a OpenLotTable) AS(alias string) *OpenLotTable {
-	return newOpenLotTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new LatestOpenLotTable with assigned alias
+func (a LatestOpenLotTable) AS(alias string) *LatestOpenLotTable {
+	return newLatestOpenLotTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new OpenLotTable with assigned schema name
-func (a OpenLotTable) FromSchema(schemaName string) *OpenLotTable {
-	return newOpenLotTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new LatestOpenLotTable with assigned schema name
+func (a LatestOpenLotTable) FromSchema(schemaName string) *LatestOpenLotTable {
+	return newLatestOpenLotTable(schemaName, a.TableName(), a.Alias())
 }
 
-func newOpenLotTable(schemaName, tableName, alias string) *OpenLotTable {
-	return &OpenLotTable{
-		openLotTable: newOpenLotTableImpl(schemaName, tableName, alias),
-		EXCLUDED:     newOpenLotTableImpl("", "excluded", ""),
+func newLatestOpenLotTable(schemaName, tableName, alias string) *LatestOpenLotTable {
+	return &LatestOpenLotTable{
+		latestOpenLotTable: newLatestOpenLotTableImpl(schemaName, tableName, alias),
+		EXCLUDED:           newLatestOpenLotTableImpl("", "excluded", ""),
 	}
 }
 
-func newOpenLotTableImpl(schemaName, tableName, alias string) openLotTable {
+func newLatestOpenLotTableImpl(schemaName, tableName, alias string) latestOpenLotTable {
 	var (
 		OpenLotIDColumn  = postgres.IntegerColumn("open_lot_id")
 		CostBasisColumn  = postgres.FloatColumn("cost_basis")
@@ -66,10 +66,10 @@ func newOpenLotTableImpl(schemaName, tableName, alias string) openLotTable {
 		LotIDColumn      = postgres.StringColumn("lot_id")
 		DateColumn       = postgres.DateColumn("date")
 		allColumns       = postgres.ColumnList{OpenLotIDColumn, CostBasisColumn, QuantityColumn, TradeIDColumn, DeletedAtColumn, CreatedAtColumn, ModifiedAtColumn, LotIDColumn, DateColumn}
-		mutableColumns   = postgres.ColumnList{CostBasisColumn, QuantityColumn, TradeIDColumn, DeletedAtColumn, CreatedAtColumn, ModifiedAtColumn, LotIDColumn, DateColumn}
+		mutableColumns   = postgres.ColumnList{OpenLotIDColumn, CostBasisColumn, QuantityColumn, TradeIDColumn, DeletedAtColumn, CreatedAtColumn, ModifiedAtColumn, LotIDColumn, DateColumn}
 	)
 
-	return openLotTable{
+	return latestOpenLotTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns

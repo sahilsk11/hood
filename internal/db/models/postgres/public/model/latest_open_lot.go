@@ -14,14 +14,14 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type OpenLot struct {
-	OpenLotID  int32 `sql:"primary_key"`
-	CostBasis  decimal.Decimal
-	Quantity   decimal.Decimal
-	TradeID    int32
+type LatestOpenLot struct {
+	OpenLotID  *int32
+	CostBasis  *decimal.Decimal
+	Quantity   *decimal.Decimal
+	TradeID    *int32
 	DeletedAt  *time.Time
-	CreatedAt  time.Time
-	ModifiedAt time.Time
-	LotID      uuid.UUID
-	Date       time.Time
+	CreatedAt  *time.Time
+	ModifiedAt *time.Time
+	LotID      *uuid.UUID
+	Date       *time.Time
 }
