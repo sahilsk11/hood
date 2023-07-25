@@ -21,20 +21,29 @@ func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string) ([]domain.OpenL
 	query := OpenLot.SELECT(OpenLot.AllColumns, Trade.AllColumns).FROM(
 		OpenLot.INNER_JOIN(Trade, Trade.TradeID.EQ(OpenLot.TradeID)),
 	).WHERE(OpenLot.Quantity.GT(postgres.Float(0))).ORDER_BY(OpenLot.Date.ASC())
-	err := query.Query(tx, result)
+	err := query.Query(tx, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get open lots from db: %w", err)
 	}
+
 	out := []domain.OpenLot{}
 	for _, r := range result {
-		lot := openLotFromDb(r.OpenLot)
-		lot.Trade = tradeFromDb(r.Trade).Ptr()
+		lot := openLotFromDb(r.OpenLot, r.Trade)
+		out = append(out, lot)
 	}
 	return out, nil
 }
 
-func openLotFromDb(o model.OpenLot) domain.OpenLot {
-	return domain.OpenLot{}
+func openLotFromDb(o model.OpenLot, t model.Trade) domain.OpenLot {
+	return domain.OpenLot{
+		Trade:     tradeFromDb(t).Ptr(),
+		OpenLotID: &o.OpenLotID,
+		TradeID:   &t.TradeID,
+		LotID:     o.LotID,
+		Quantity:  o.Quantity,
+		CostBasis: o.CostBasis,
+		Date:      o.Date,
+	}
 }
 
 func openLotsToDb(lots []domain.OpenLot) []model.OpenLot {
@@ -59,7 +68,7 @@ func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPos
 	return results, nil
 }
 
-func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []*model.OpenLot) ([]model.OpenLot, error) {
+func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []model.OpenLot) ([]model.OpenLot, error) {
 	t := OpenLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(openLots).
@@ -68,7 +77,7 @@ func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []*model.OpenLot) ([]
 	result := []model.OpenLot{}
 	err := stmt.Query(tx, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to add open lots to db: %w", err)
 	}
 
 	return result, nil

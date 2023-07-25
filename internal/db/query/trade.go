@@ -32,7 +32,7 @@ func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]model
 	result := []model.Trade{}
 	err = stmt.Query(tx, &result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to insert trades: %w", err)
 	}
 
 	return result, nil

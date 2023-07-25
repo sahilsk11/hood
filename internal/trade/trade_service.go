@@ -99,7 +99,7 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 
 	insertedTrades, err := db.AddTrades(ctx, tx, []domain.Trade{t})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("failed to add trades for buy order: %w", err)
 	}
 	if len(insertedTrades) == 0 {
 		return nil, nil, nil
@@ -113,7 +113,7 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 		CreatedAt:  time.Now().UTC(),
 		ModifiedAt: time.Now().UTC(),
 	}
-	insertedLots, err := db.AddOpenLots(ctx, tx, []*model.OpenLot{&newLot})
+	insertedLots, err := db.AddOpenLots(ctx, tx, []model.OpenLot{newLot})
 	if err != nil {
 		return nil, nil, err
 	}
