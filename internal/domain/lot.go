@@ -10,7 +10,6 @@ import (
 
 type OpenLot struct {
 	OpenLotID *int32
-	TradeID   *int32
 	LotID     uuid.UUID
 	Quantity  decimal.Decimal
 	CostBasis decimal.Decimal
@@ -21,7 +20,6 @@ type OpenLot struct {
 func (o OpenLot) DeepCopy() *OpenLot {
 	return &OpenLot{
 		OpenLotID: o.OpenLotID,
-		TradeID:   o.TradeID,
 		LotID:     o.LotID,
 		Quantity:  o.Quantity,
 		CostBasis: o.CostBasis,
@@ -31,6 +29,10 @@ func (o OpenLot) DeepCopy() *OpenLot {
 
 func (o OpenLot) GetSymbol() string {
 	return o.Trade.Symbol
+}
+
+func (o OpenLot) TradeID() *int32 {
+	return o.Trade.TradeID
 }
 
 func (o OpenLot) GetPurchaseDate() time.Time {

@@ -21,11 +21,11 @@ import (
 // consider changing these names from "Add" to something better
 
 type TradeIngestionService interface {
-	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in ProcessBuyOrderInput) (*model.Trade, *model.OpenLot, error)
-	ProcessSellOrder(ctx context.Context, tx *sql.Tx, in ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error)
+	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, *domain.OpenLot, error)
+	ProcessSellOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, []*model.ClosedLot, error)
 	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
-	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error)
+	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID int64) (*domain.Trade, *domain.OpenLot, error)
 }
 
 type tradeIngestionHandler struct {
@@ -35,40 +35,22 @@ func NewTradeIngestionService() TradeIngestionService {
 	return tradeIngestionHandler{}
 }
 
-type ProcessTdaBuyOrderInput struct {
-	TdaTransactionID int64
-	Symbol           string
-	Quantity         decimal.Decimal
-	CostBasis        decimal.Decimal
-	Date             time.Time
-	Description      *string
-}
-
-func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
-	t := ProcessBuyOrderInput{
-		Symbol:      input.Symbol,
-		Quantity:    input.Quantity,
-		CostBasis:   input.CostBasis,
-		Date:        input.Date,
-		Description: input.Description,
-		Custodian:   model.CustodianType_Tda,
-	}
-
+func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, t domain.Trade, tdaTransactionID int64) (*domain.Trade, *domain.OpenLot, error) {
 	trade, lots, err := h.ProcessBuyOrder(ctx, tx, t)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	tdaOrder := model.TdaTrade{
-		TdaTransactionID: input.TdaTransactionID,
-		TradeID:          trade.TradeID,
+		TdaTransactionID: tdaTransactionID,
+		TradeID:          *trade.TradeID,
 	}
 
 	err = db.AddTdaTrade(tx, tdaOrder)
 	if err != nil && strings.Contains(err.Error(), `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"`) {
 		return nil, nil, hood_errors.ErrDuplicateTrade{
 			Custodian:              model.CustodianType_Tda,
-			CustodianTransactionID: input.TdaTransactionID,
+			CustodianTransactionID: tdaTransactionID,
 		}
 	} else if err != nil {
 		return nil, nil, err
@@ -77,24 +59,9 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 	return trade, lots, nil
 }
 
-type ProcessBuyOrderInput struct {
-	Symbol      string
-	Quantity    decimal.Decimal
-	CostBasis   decimal.Decimal
-	Date        time.Time
-	Description *string
-	Custodian   model.CustodianType
-}
-
-func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in ProcessBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
-	t := domain.Trade{
-		Symbol:      in.Symbol,
-		Quantity:    in.Quantity,
-		Price:       in.CostBasis,
-		Date:        in.Date,
-		Description: in.Description,
-		Custodian:   in.Custodian,
-		Action:      model.TradeActionType_Buy,
+func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, t domain.Trade) (*domain.Trade, *domain.OpenLot, error) {
+	if t.Action != model.TradeActionType_Buy {
+		return nil, nil, fmt.Errorf("failed to process buy order with action %s", t.Action.String())
 	}
 
 	insertedTrades, err := db.AddTrades(ctx, tx, []domain.Trade{t})
@@ -106,14 +73,12 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 	}
 
 	insertedTrade := insertedTrades[0]
-	newLot := model.OpenLot{
-		CostBasis:  insertedTrade.CostBasis,
-		Quantity:   insertedTrade.Quantity,
-		TradeID:    insertedTrade.TradeID,
-		CreatedAt:  time.Now().UTC(),
-		ModifiedAt: time.Now().UTC(),
+	newLot := domain.OpenLot{
+		CostBasis: insertedTrade.Price,
+		Quantity:  insertedTrade.Quantity,
+		Trade:     &insertedTrade,
 	}
-	insertedLots, err := db.AddOpenLots(ctx, tx, []model.OpenLot{newLot})
+	insertedLots, err := db.AddOpenLots(ctx, tx, []domain.OpenLot{newLot})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -125,28 +90,13 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 	return &insertedTrade, &insertedLot, nil
 }
 
-type ProcessSellOrderInput struct {
-	Symbol      string
-	Quantity    decimal.Decimal
-	CostBasis   decimal.Decimal
-	Date        time.Time
-	Description *string
-	Custodian   model.CustodianType
-}
-
-func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx, input ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error) {
-	openLots, err := db.GetOpenLots(ctx, tx, input.Symbol)
+func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx, t domain.Trade) (*domain.Trade, []*model.ClosedLot, error) {
+	if t.Action != model.TradeActionType_Sell {
+		return nil, nil, fmt.Errorf("failed to process sell order with action %s", t.Action.String())
+	}
+	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol)
 	if err != nil {
 		return nil, nil, err
-	}
-	t := domain.Trade{
-		Symbol:      input.Symbol,
-		Action:      model.TradeActionType_Sell,
-		Quantity:    input.Quantity,
-		Price:       input.CostBasis,
-		Date:        input.Date,
-		Description: input.Description,
-		Custodian:   input.Custodian,
 	}
 
 	insertedTrades, err := db.AddTrades(ctx, tx, []domain.Trade{t})
@@ -156,7 +106,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 	if len(insertedTrades) == 0 {
 		return nil, nil, nil
 	}
-	insertedTrade := insertedTrades[0]
+	t = insertedTrades[0]
 	sellOrderResult, err := PreviewSellOrder(t, openLots)
 	if err != nil {
 		return nil, nil, err
@@ -166,7 +116,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 		return nil, nil, err
 	}
 
-	return &insertedTrade, insertedClosedLots, nil
+	return &t, insertedClosedLots, nil
 }
 
 func validateTrade(t domain.Trade) error {
@@ -217,6 +167,9 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 		if lot.Quantity.LessThan(remainingSellQuantity) {
 			quantitySold = lot.Quantity
 		}
+
+		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
+
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]

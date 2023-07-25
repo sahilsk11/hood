@@ -8,6 +8,7 @@ import (
 	context "context"
 	sql "database/sql"
 	model "hood/internal/db/models/postgres/public/model"
+	domain "hood/internal/domain"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
@@ -53,11 +54,11 @@ func (mr *MockTradeIngestionServiceMockRecorder) AddAssetSplit(ctx, tx, split in
 }
 
 // ProcessBuyOrder mocks base method.
-func (m *MockTradeIngestionService) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in ProcessBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
+func (m *MockTradeIngestionService) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, *domain.OpenLot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProcessBuyOrder", ctx, tx, in)
-	ret0, _ := ret[0].(*model.Trade)
-	ret1, _ := ret[1].(*model.OpenLot)
+	ret0, _ := ret[0].(*domain.Trade)
+	ret1, _ := ret[1].(*domain.OpenLot)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -69,10 +70,10 @@ func (mr *MockTradeIngestionServiceMockRecorder) ProcessBuyOrder(ctx, tx, in int
 }
 
 // ProcessSellOrder mocks base method.
-func (m *MockTradeIngestionService) ProcessSellOrder(ctx context.Context, tx *sql.Tx, in ProcessSellOrderInput) (*model.Trade, []*model.ClosedLot, error) {
+func (m *MockTradeIngestionService) ProcessSellOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, []*model.ClosedLot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ProcessSellOrder", ctx, tx, in)
-	ret0, _ := ret[0].(*model.Trade)
+	ret0, _ := ret[0].(*domain.Trade)
 	ret1, _ := ret[1].([]*model.ClosedLot)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
@@ -85,17 +86,17 @@ func (mr *MockTradeIngestionServiceMockRecorder) ProcessSellOrder(ctx, tx, in in
 }
 
 // ProcessTdaBuyOrder mocks base method.
-func (m *MockTradeIngestionService) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input ProcessTdaBuyOrderInput) (*model.Trade, *model.OpenLot, error) {
+func (m *MockTradeIngestionService) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID int64) (*domain.Trade, *domain.OpenLot, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ProcessTdaBuyOrder", ctx, tx, input)
-	ret0, _ := ret[0].(*model.Trade)
-	ret1, _ := ret[1].(*model.OpenLot)
+	ret := m.ctrl.Call(m, "ProcessTdaBuyOrder", ctx, tx, input, tdaTxID)
+	ret0, _ := ret[0].(*domain.Trade)
+	ret1, _ := ret[1].(*domain.OpenLot)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
 
 // ProcessTdaBuyOrder indicates an expected call of ProcessTdaBuyOrder.
-func (mr *MockTradeIngestionServiceMockRecorder) ProcessTdaBuyOrder(ctx, tx, input interface{}) *gomock.Call {
+func (mr *MockTradeIngestionServiceMockRecorder) ProcessTdaBuyOrder(ctx, tx, input, tdaTxID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessTdaBuyOrder", reflect.TypeOf((*MockTradeIngestionService)(nil).ProcessTdaBuyOrder), ctx, tx, input)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProcessTdaBuyOrder", reflect.TypeOf((*MockTradeIngestionService)(nil).ProcessTdaBuyOrder), ctx, tx, input, tdaTxID)
 }

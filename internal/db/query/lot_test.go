@@ -30,20 +30,16 @@ func TestGetOpenLots(t *testing.T) {
 				Custodian: model.CustodianType_Tda,
 			},
 		}
-		insertedTrade, err := AddTrades(ctx, tx, trades)
+		trades, err = AddTrades(ctx, tx, trades)
 		require.NoError(t, err)
-
-		openLots := []model.OpenLot{
+		openLots := []domain.OpenLot{
 			{
-				TradeID:   insertedTrade[0].TradeID,
+				Trade:     &trades[0],
 				CostBasis: dec(100),
-				Quantity:  dec(1),
+				Quantity:  dec(10),
 			},
 		}
-		_, err = AddOpenLots(ctx, tx, openLots)
-		require.NoError(t, err)
-
-		lots, err := GetOpenLots(ctx, tx, "AAPL")
+		openLots, err = AddOpenLots(ctx, tx, openLots)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -53,13 +49,12 @@ func TestGetOpenLots(t *testing.T) {
 				[]domain.OpenLot{
 					{
 						CostBasis: dec(100),
-						Quantity:  dec(1),
+						Quantity:  dec(10),
 						Trade:     &trades[0],
 					},
 				},
-				lots,
+				openLots,
 				cmpopts.IgnoreFields(domain.Trade{}, "TradeID"),
-				cmpopts.IgnoreFields(domain.OpenLot{}, "TradeID"),
 				cmpopts.IgnoreFields(domain.OpenLot{}, "OpenLotID"),
 			),
 		)

@@ -15,7 +15,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]model.Trade, error) {
+func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]domain.Trade, error) {
 	// will search trades for RH trades and query
 	// for existing ones. This is how we loosely
 	// enforce a unique constraint for only RH trades
@@ -34,8 +34,17 @@ func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]model
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert trades: %w", err)
 	}
+	fmt.Println("bruh", result[0].TradeID)
 
-	return result, nil
+	return tradesFromDb(result), nil
+}
+
+func tradesFromDb(trades []model.Trade) []domain.Trade {
+	out := make([]domain.Trade, len(trades))
+	for i, t := range trades {
+		out[i] = tradeFromDb(t)
+	}
+	return out
 }
 
 func GetHistoricTrades(tx *sql.Tx) ([]model.Trade, error) {
@@ -123,6 +132,7 @@ func tradeToDb(t domain.Trade) model.Trade {
 }
 
 func tradeFromDb(t model.Trade) domain.Trade {
+	fmt.Println(t.TradeID)
 	return domain.Trade{
 		TradeID:     &t.TradeID,
 		Symbol:      t.Symbol,
