@@ -14,5 +14,3 @@ CREATE TABLE applied_asset_split (
   applied_at timestamp with time zone not null,
   UNIQUE(asset_split_id, open_lot_id)
 );
-
-drop table cash;
