@@ -150,7 +150,6 @@ type ProcessSellOrderResult struct {
 func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOrderResult, error) {
 	cashDelta := (t.Price.Mul(t.Quantity))
 	closedLots := []domain.ClosedLot{}
-	mutatedLots := []domain.OpenLot{}
 	// ensure lots are in FIFO
 	// could make this dynamic for LIFO systems
 	sort.Slice(openLots, func(i, j int) bool {
@@ -169,16 +168,12 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 		}
 
 		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
-		fmt.Println(quantitySold)
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
+		lot.OpenLotID = nil
 		openLots[0] = lot
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]
 		}
-		modifiedLot := lot.DeepCopy()
-		modifiedLot.Date = t.Date
-		mutatedLots = append(mutatedLots, *modifiedLot)
-		// p.allOpenLots = append(p.allOpenLots, *modifiedLot)
 
 		gains := (t.Price.Sub(lot.CostBasis)).Mul(quantitySold)
 		gainsType := model.GainsType_ShortTerm
