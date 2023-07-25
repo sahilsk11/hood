@@ -169,8 +169,9 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 		}
 
 		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
-
+		fmt.Println(quantitySold)
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
+		openLots[0] = lot
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]
 		}
@@ -196,6 +197,7 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 
 	return &ProcessSellOrderResult{
 		CashDelta:     cashDelta,
+		OpenLots:      openLots,
 		NewClosedLots: closedLots,
 	}, nil
 }
