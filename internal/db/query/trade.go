@@ -8,15 +8,18 @@ import (
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/db/models/postgres/public/table"
+	"hood/internal/domain"
+	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
 	_ "github.com/lib/pq"
 )
 
-func AddTrades(ctx context.Context, tx *sql.Tx, trades []*model.Trade) ([]model.Trade, error) {
+func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]model.Trade, error) {
 	// will search trades for RH trades and query
 	// for existing ones. This is how we loosely
 	// enforce a unique constraint for only RH trades
+	trades := tradesToDb(dTrades)
 	err := findDuplicateRhTrades(tx, trades)
 	if err != nil {
 		return nil, err
@@ -47,8 +50,8 @@ func GetHistoricTrades(tx *sql.Tx) ([]model.Trade, error) {
 	return out, nil
 }
 
-func findDuplicateRhTrades(tx *sql.Tx, trades []*model.Trade) error {
-	rhTrades := []*model.Trade{}
+func findDuplicateRhTrades(tx *sql.Tx, trades []model.Trade) error {
+	rhTrades := []model.Trade{}
 	for _, t := range trades {
 		if t.Custodian == model.CustodianType_Robinhood {
 			rhTrades = append(rhTrades, t)
@@ -101,4 +104,41 @@ func AddTdaTrade(tx *sql.Tx, tdaTrade model.TdaTrade) error {
 		return fmt.Errorf("failed to add TDA trade: %w", err)
 	}
 	return nil
+}
+
+// adapters
+
+func tradeToDb(t domain.Trade) model.Trade {
+	return model.Trade{
+		Symbol:      t.Symbol,
+		Quantity:    t.Quantity,
+		CostBasis:   t.Price,
+		Date:        t.Date,
+		Description: t.Description,
+		Custodian:   t.Custodian,
+		CreatedAt:   time.Now().UTC(),
+		ModifiedAt:  time.Now().UTC(),
+		Action:      t.Action,
+	}
+}
+
+func tradeFromDb(t model.Trade) domain.Trade {
+	return domain.Trade{
+		TradeID:     &t.TradeID,
+		Symbol:      t.Symbol,
+		Quantity:    t.Quantity,
+		Price:       t.CostBasis,
+		Date:        t.Date,
+		Description: t.Description,
+		Custodian:   t.Custodian,
+		Action:      t.Action,
+	}
+}
+
+func tradesToDb(t []domain.Trade) []model.Trade {
+	out := make([]model.Trade, len(t))
+	for i, d := range t {
+		out[i] = tradeToDb(d)
+	}
+	return out
 }

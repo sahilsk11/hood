@@ -3,6 +3,7 @@ package portfolio_simulation
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 	"hood/internal/trade"
 
 	db "hood/internal/db/query"
@@ -15,7 +16,7 @@ type SimulateTradeResult struct {
 	ShortTermGains decimal.Decimal
 }
 
-func SimulateTrade(ctx context.Context, t model.Trade) (*SimulateTradeResult, error) {
+func SimulateTrade(ctx context.Context, t domain.Trade) (*SimulateTradeResult, error) {
 	tx, err := db.GetTx(ctx)
 	if err != nil {
 		return nil, err

@@ -5,6 +5,7 @@ import (
 	"errors"
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 	"testing"
 	"time"
 
@@ -21,16 +22,14 @@ func Test_findDuplicateRhTrades(t *testing.T) {
 	require.NoError(t, err)
 
 	tDate := time.Now()
-	trades := []*model.Trade{
+	trades := []domain.Trade{
 		{
 			Symbol:      "AAPL",
 			Action:      "BUY",
 			Quantity:    decimal.NewFromFloat(10.5),
-			CostBasis:   decimal.NewFromFloat(100.25),
+			Price:       decimal.NewFromFloat(100.25),
 			Date:        tDate,
 			Description: nil,
-			CreatedAt:   time.Now(),
-			ModifiedAt:  time.Now(),
 			Custodian:   model.CustodianType_Robinhood,
 		},
 	}
@@ -38,6 +37,6 @@ func Test_findDuplicateRhTrades(t *testing.T) {
 	_, err = AddTrades(ctx, tx, trades)
 	require.NoError(t, err)
 
-	err = findDuplicateRhTrades(tx, trades)
+	err = findDuplicateRhTrades(tx, tradesToDb(trades))
 	require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 }

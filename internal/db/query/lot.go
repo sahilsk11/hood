@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
-	"hood/internal/db/models/postgres/public/table"
+	. "hood/internal/db/models/postgres/public/table"
 	"hood/internal/db/models/postgres/public/view"
 	"hood/internal/domain"
 	"time"
@@ -13,38 +13,36 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string) ([]*domain.OpenLot, error) {
-	query := `
-	SELECT open_lot.open_lot_id, trade.trade_id, trade.symbol, open_lot.quantity, open_lot.cost_basis, trade.date AS "purchase_date"
-	FROM open_lot
-	INNER JOIN trade on trade.trade_id = open_lot.trade_id
-	WHERE trade.symbol = $1 AND deleted_at is null
-	ORDER BY "purchase_date";
-	`
-	rows, err := tx.QueryContext(ctx, query, symbol)
+func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string) ([]domain.OpenLot, error) {
+	result := []struct {
+		model.OpenLot
+		model.Trade
+	}{}
+	query := OpenLot.SELECT(OpenLot.AllColumns, Trade.AllColumns).FROM(
+		OpenLot.INNER_JOIN(Trade, Trade.TradeID.EQ(OpenLot.TradeID)),
+	).WHERE(OpenLot.Quantity.GT(postgres.Float(0))).ORDER_BY(OpenLot.Date.ASC())
+	err := query.Query(tx, result)
 	if err != nil {
 		return nil, err
 	}
-
-	var result []*domain.OpenLot
-	for rows.Next() {
-		openLot := domain.OpenLot{}
-		err = rows.Scan(
-			&openLot.OpenLotID,
-			&openLot.TradeID,
-			&openLot.Symbol,
-			&openLot.Quantity,
-			&openLot.CostBasis,
-			&openLot.PurchaseDate,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, &openLot)
+	out := []domain.OpenLot{}
+	for _, r := range result {
+		lot := openLotFromDb(r.OpenLot)
+		lot.Trade = tradeFromDb(r.Trade).Ptr()
 	}
+	return out, nil
+}
 
-	return result, nil
+func openLotFromDb(o model.OpenLot) domain.OpenLot {
+	return domain.OpenLot{}
+}
+
+func openLotsToDb(lots []domain.OpenLot) []model.OpenLot {
+	out := make([]model.OpenLot, len(lots))
+	for i := range lots {
+		out[i] = model.OpenLot{}
+	}
+	return out
 }
 
 func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPosition, error) {
@@ -62,8 +60,7 @@ func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPos
 }
 
 func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []*model.OpenLot) ([]model.OpenLot, error) {
-
-	t := table.OpenLot
+	t := OpenLot
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(openLots).
 		RETURNING(t.AllColumns)
@@ -77,11 +74,10 @@ func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []*model.OpenLot) ([]
 	return result, nil
 }
 
-func AddClosedLots(ctx context.Context, tx *sql.Tx, lots []*model.ClosedLot) ([]*model.ClosedLot, error) {
-
-	t := table.ClosedLot
+func AddClosedLots(ctx context.Context, tx *sql.Tx, lots []domain.ClosedLot) ([]*model.ClosedLot, error) {
+	t := ClosedLot
 	stmt := t.INSERT(t.MutableColumns).
-		MODELS(lots).
+		MODELS(closedLotsToDb(lots)).
 		RETURNING(t.AllColumns)
 
 	result := []*model.ClosedLot{}
@@ -93,9 +89,24 @@ func AddClosedLots(ctx context.Context, tx *sql.Tx, lots []*model.ClosedLot) ([]
 	return result, nil
 }
 
-func UpdateOpenLotInDb(ctx context.Context, tx *sql.Tx, updatedLot model.OpenLot, columns postgres.ColumnList) (*model.OpenLot, error) {
+func closedLotsToDb(lots []domain.ClosedLot) []model.ClosedLot {
+	out := make([]model.ClosedLot, len(lots))
+	for i, lot := range lots {
+		out[i] = model.ClosedLot{
+			BuyTradeID:    *lot.OpenLot.TradeID,
+			SellTradeID:   *lot.SellTrade.TradeID,
+			Quantity:      lot.Quantity,
+			RealizedGains: lot.RealizedGains,
+			GainsType:     lot.GainsType,
+			CreatedAt:     time.Now().UTC(),
+			ModifiedAt:    time.Now().UTC(),
+		}
+	}
+	return out
+}
 
-	t := table.OpenLot
+func UpdateOpenLotInDb(ctx context.Context, tx *sql.Tx, updatedLot model.OpenLot, columns postgres.ColumnList) (*model.OpenLot, error) {
+	t := OpenLot
 	updatedLot.ModifiedAt = time.Now().UTC()
 	columns = append(columns, t.ModifiedAt)
 
