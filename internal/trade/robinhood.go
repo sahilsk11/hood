@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 
 	"os"
 	"sort"
@@ -192,25 +193,27 @@ func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h T
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
-				_, _, err := h.ProcessBuyOrder(ctx, tx, ProcessBuyOrderInput{
+				_, _, err := h.ProcessBuyOrder(ctx, tx, domain.Trade{
 					Symbol:      nextTrade.Symbol,
 					Quantity:    nextTrade.Quantity,
-					CostBasis:   nextTrade.CostBasis,
+					Price:       nextTrade.CostBasis,
 					Date:        nextTrade.Date,
 					Description: nextTrade.Description,
 					Custodian:   model.CustodianType_Robinhood,
+					Action:      model.TradeActionType_Buy,
 				})
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}
 			} else {
-				_, _, err := h.ProcessSellOrder(ctx, tx, ProcessSellOrderInput{
+				_, _, err := h.ProcessSellOrder(ctx, tx, domain.Trade{
 					Symbol:      nextTrade.Symbol,
 					Quantity:    nextTrade.Quantity,
-					CostBasis:   nextTrade.CostBasis,
+					Price:       nextTrade.CostBasis,
 					Date:        nextTrade.Date,
 					Description: nextTrade.Description,
 					Custodian:   nextTrade.Custodian,
+					Action:      model.TradeActionType_Buy,
 				})
 				if err != nil {
 					return fmt.Errorf("failed to add sell order %v: %w", *nextTrade, err)

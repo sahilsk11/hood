@@ -3,10 +3,8 @@ package metrics
 import (
 	"database/sql"
 	"fmt"
-	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	"hood/internal/trade"
 	"hood/internal/util"
 	"sort"
 	"time"
@@ -81,126 +79,6 @@ func (p Portfolio) netValue(priceMap map[string]decimal.Decimal) (decimal.Decima
 	value = value.Add(p.Transfer)
 
 	return value, nil
-}
-
-func (p *Portfolio) processTrade(t model.Trade, openLotID *int32) error {
-	if t.Action == model.TradeActionType_Buy {
-		_, ok := p.OpenLots[t.Symbol]
-		if !ok {
-			p.OpenLots[t.Symbol] = []*domain.OpenLot{}
-		}
-		p.OpenLots[t.Symbol] = append(p.OpenLots[t.Symbol], &domain.OpenLot{
-			OpenLotID: *openLotID,
-			CostBasis: t.CostBasis,
-			Quantity:  t.Quantity,
-			Trade:     &t,
-		})
-		*openLotID++
-		p.Transfer = p.Transfer.Sub(t.CostBasis.Mul(t.Quantity))
-	}
-	if t.Action == model.TradeActionType_Sell {
-		out, err := trade.PreviewSellOrder(t, p.OpenLots[t.Symbol])
-		if err != nil {
-			return err
-		}
-		p.Transfer = p.Transfer.Add(t.Quantity.Mul(t.CostBasis))
-
-		for _, l := range out.UpdatedOpenLots {
-			openLots := p.OpenLots[t.Symbol]
-			for i := len(openLots) - 1; i >= 0; i-- {
-				if l.OpenLotID == openLots[i].OpenLotID {
-					openLots[i].Quantity = l.Quantity
-
-					if l.Quantity.Equal(decimal.Zero) {
-						openLots = append(openLots[:i], openLots[i+1:]...)
-					}
-				}
-			}
-			p.OpenLots[t.Symbol] = openLots
-		}
-	}
-	return nil
-}
-
-// relies on inputs being sorted
-func CalculateDailyPortfolios(trades []model.Trade, assetSplits []model.AssetSplit, transfers []model.Transfer, startTime time.Time, endTime time.Time) (map[string]Portfolio, error) {
-	p := Portfolio{
-		OpenLots: make(map[string][]*domain.OpenLot),
-		Transfer: decimal.Zero,
-	}
-	openLotID := int32(0)
-	out := map[string]Portfolio{}
-
-	t := startTime
-
-	for t.Before(endTime) && len(trades) > 0 {
-		tomorrow := t.Add(time.Hour * 24)
-
-		// determine relevant models
-		relevantTrades := []model.Trade{}
-		for len(trades) > 0 && trades[0].Date.Before(tomorrow) {
-			relevantTrades = append(relevantTrades, trades[0])
-			trades = trades[1:]
-		}
-		// TODO - edge case of trades and asset splits on the same day
-		// we should build a session replayer
-		relevantAssetSplits := []model.AssetSplit{}
-		for len(assetSplits) > 0 && assetSplits[0].Date.Before(tomorrow) {
-			relevantAssetSplits = append(relevantAssetSplits, assetSplits[0])
-			assetSplits = assetSplits[1:]
-		}
-		relevantTransfers := []model.Transfer{}
-		for len(transfers) > 0 && transfers[0].Date.Before(tomorrow) {
-			relevantTransfers = append(relevantTransfers, transfers[0])
-			transfers = transfers[1:]
-		}
-
-		// process relevant data
-		for _, t := range relevantTransfers {
-			p.Transfer = p.Transfer.Add(t.Amount)
-			p.NetTransferFlow = p.NetTransferFlow.Add(t.Amount)
-		}
-		for _, split := range relevantAssetSplits {
-			ratio := decimal.NewFromInt32(split.Ratio)
-			for _, o := range p.OpenLots[split.Symbol] {
-				o.CostBasis = o.CostBasis.Div(ratio)
-				o.Quantity = o.Quantity.Mul(ratio)
-			}
-		}
-		for _, t := range relevantTrades {
-			p.processTrade(t, &openLotID)
-		}
-
-		// if p.Transfer.LessThan(decimal.Zero) {
-		// 	return nil, fmt.Errorf("cash below $0 (%f) on %s", p.Transfer.InexactFloat64(), t.Format("2006-01-02"))
-		// }
-
-		out[t.Format("2006-01-02")] = p.deepCopy()
-		p.NetTransferFlow = decimal.Zero
-		t = tomorrow
-	}
-
-	return out, nil
-}
-
-func CalculateNetPortfolioValues(tx *sql.Tx, portfolios map[string]Portfolio) (map[string]decimal.Decimal, error) {
-	out := map[string]decimal.Decimal{}
-	for dateStr, portfolio := range portfolios {
-		d, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			return nil, err
-		}
-		prices, err := getPricesHelper(tx, d, portfolio.symbols())
-		if err != nil {
-			return nil, err
-		}
-		value, err := portfolio.netValue(prices)
-		if err != nil {
-			return nil, err
-		}
-		out[dateStr] = value
-	}
-	return out, nil
 }
 
 func TimeWeightedReturns(dailyPortfolioValues map[string]decimal.Decimal, transfers map[string]decimal.Decimal) (map[string]decimal.Decimal, error) {

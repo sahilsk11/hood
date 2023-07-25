@@ -1,114 +1,13 @@
 package metrics
 
 import (
-	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
 	"testing"
-	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
-
-func Test_CalculateDailyPortfolioValues(t *testing.T) {
-	endTime := time.Now()
-	t.Run("single buy and sell", func(t *testing.T) {
-		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
-		trades := []model.Trade{
-			{
-				Symbol:    "AAPL",
-				Quantity:  dec(2),
-				CostBasis: dec(100),
-				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
-				Action:    model.TradeActionType_Buy,
-			},
-			{
-				Symbol:    "AAPL",
-				Quantity:  dec(1),
-				CostBasis: dec(110),
-				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
-				Action:    model.TradeActionType_Sell,
-			},
-		}
-		transfers := []model.Transfer{
-			{
-				Amount: dec(200),
-				Date:   time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
-			},
-		}
-		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolios(trades, assetSplits, transfers, startTime, endTime)
-		require.NoError(t, err)
-
-		require.Equal(t,
-			"",
-			cmp.Diff(
-				map[string]Portfolio{
-					"2020-06-19": {
-						OpenLots: map[string][]*domain.OpenLot{
-							"AAPL": {
-								{
-									OpenLotID: 0,
-									Quantity:  dec(1),
-									CostBasis: dec(100),
-									Trade:     &trades[0],
-								},
-							},
-						},
-						Transfer:        dec(110),
-						NetTransferFlow: dec(200),
-					},
-				},
-				out,
-				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
-			),
-		)
-
-		require.NoError(t, err)
-	})
-
-	t.Run("close open lot", func(t *testing.T) {
-		startTime := time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)
-		transfers := []model.Transfer{{Amount: dec(100), Date: time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC)}}
-		trades := []model.Trade{
-			{
-				Symbol:    "AAPL",
-				Quantity:  dec(1),
-				CostBasis: dec(100),
-				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
-				Action:    model.TradeActionType_Buy,
-			},
-			{
-				Symbol:    "AAPL",
-				Quantity:  dec(1),
-				CostBasis: dec(110),
-				Date:      time.Date(2020, 06, 19, 0, 0, 0, 0, time.UTC),
-				Action:    model.TradeActionType_Sell,
-			},
-		}
-		assetSplits := []model.AssetSplit{}
-		out, err := CalculateDailyPortfolios(trades, assetSplits, transfers, startTime, endTime)
-
-		require.Equal(t,
-			"",
-			cmp.Diff(
-				map[string]Portfolio{
-					"2020-06-19": {
-						OpenLots:        map[string][]*domain.OpenLot{},
-						Transfer:        dec(110),
-						NetTransferFlow: dec(100),
-					},
-				},
-				out,
-				cmpopts.IgnoreFields(domain.ClosedLot{}, "GainsType"),
-			),
-		)
-
-		require.NoError(t, err)
-	})
-}
 
 func dec(f float64) decimal.Decimal {
 	return decimal.NewFromFloat(f)

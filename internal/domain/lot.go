@@ -4,33 +4,44 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 type OpenLot struct {
-	OpenLotID    int32
-	TradeID      int32
-	Symbol       string
-	Quantity     decimal.Decimal
-	CostBasis    decimal.Decimal
-	PurchaseDate time.Time
-	Trade        *model.Trade
+	OpenLotID *int32
+	LotID     uuid.UUID
+	Quantity  decimal.Decimal
+	CostBasis decimal.Decimal
+	Trade     *Trade
+	Date      time.Time
 }
 
-func OpenLotFromVwOpenLotPosition(lot model.VwOpenLotPosition) OpenLot {
-	return OpenLot{
-		OpenLotID:    *lot.OpenLotID,
-		TradeID:      *lot.TradeID,
-		Symbol:       *lot.Symbol,
-		Quantity:     *lot.Quantity,
-		CostBasis:    *lot.CostBasis,
-		PurchaseDate: *lot.PurchaseDate,
+func (o OpenLot) DeepCopy() *OpenLot {
+	return &OpenLot{
+		OpenLotID: o.OpenLotID,
+		LotID:     o.LotID,
+		Quantity:  o.Quantity,
+		CostBasis: o.CostBasis,
+		Trade:     o.Trade.DeepCopy(),
 	}
 }
 
+func (o OpenLot) GetSymbol() string {
+	return o.Trade.Symbol
+}
+
+func (o OpenLot) TradeID() *int32 {
+	return o.Trade.TradeID
+}
+
+func (o OpenLot) GetPurchaseDate() time.Time {
+	return o.Trade.Date
+}
+
 type ClosedLot struct {
-	// BuyTrade      model.Trade // not supported yet
-	SellTrade     *model.Trade
+	OpenLot       *OpenLot // not supported yet
+	SellTrade     *Trade
 	Quantity      decimal.Decimal
 	RealizedGains decimal.Decimal
 	GainsType     model.GainsType
@@ -44,5 +55,8 @@ func (c ClosedLot) CostBasis() decimal.Decimal {
 	// (sell - buy)*quantity = gains
 	// sell - buy = gains/quantity
 	// purchase price = sell price - realized_gains/closed_lot.quantity
-	return c.SellTrade.CostBasis.Sub(c.RealizedGains.Div(c.Quantity)).Mul(c.Quantity)
+	if c.OpenLot == nil {
+		return c.SellTrade.Price.Sub(c.RealizedGains.Div(c.Quantity)).Mul(c.Quantity)
+	}
+	return c.SellTrade.Price.Sub(c.OpenLot.CostBasis).Mul(c.Quantity)
 }

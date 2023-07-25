@@ -9,6 +9,7 @@ import (
 	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
+	"hood/internal/domain"
 
 	"io"
 	"os"
@@ -108,12 +109,12 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				return nil, err
 			}
 
-			input := ProcessTdaBuyOrderInput{
-				Symbol:           record[ordering["symbol"]],
-				TdaTransactionID: transactionID,
-				Quantity:         quantity,
-				CostBasis:        price,
-				Date:             date,
+			trade := domain.Trade{
+				Symbol:   record[ordering["symbol"]],
+				Quantity: quantity,
+				Price:    price,
+				Date:     date,
+				Action:   model.TradeActionType_Buy,
 			}
 
 			savepointName, err := db.AddSavepoint(tx)
@@ -121,7 +122,7 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaBuyOrder: %w", err)
 			}
 
-			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input)
+			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, transactionID)
 			if err != nil {
 				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
 					return nil, rollbackErr

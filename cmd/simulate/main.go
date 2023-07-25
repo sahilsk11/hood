@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 	portfolio_simulation "hood/internal/simulate"
 	"log"
 
@@ -28,11 +29,11 @@ func main() {
 		tx,
 	)
 
-	result, err := portfolio_simulation.SimulateTrade(ctx, model.Trade{
-		Symbol:    "ATLASSIAN",
-		Quantity:  decimal.NewFromFloat(0.681328),
-		Action:    model.TradeActionType_Sell,
-		CostBasis: decimal.NewFromFloat(118.7),
+	result, err := portfolio_simulation.SimulateTrade(ctx, domain.Trade{
+		Symbol:   "ATLASSIAN",
+		Quantity: decimal.NewFromFloat(0.681328),
+		Action:   model.TradeActionType_Sell,
+		Price:    decimal.NewFromFloat(118.7),
 	})
 	if err != nil {
 		log.Fatal(err)

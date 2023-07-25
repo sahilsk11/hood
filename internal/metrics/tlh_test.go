@@ -14,16 +14,20 @@ func TestIdentifyTLHOptions(t *testing.T) {
 	ctx := context.Background()
 	lots := []domain.OpenLot{
 		{
-			Symbol:       "AAPL",
-			Quantity:     decimal.NewFromInt(1),
-			PurchaseDate: time.Now(),
-			CostBasis:    decimal.NewFromInt(10),
+			Quantity:  decimal.NewFromInt(1),
+			CostBasis: decimal.NewFromInt(10),
+			Trade: &domain.Trade{
+				Symbol: "AAPL",
+				Date:   time.Now(),
+			},
 		},
 		{
-			Symbol:       "AAPL",
-			Quantity:     decimal.NewFromInt(1),
-			PurchaseDate: time.Now().AddDate(1, 0, 0),
-			CostBasis:    decimal.NewFromInt(2000),
+			Quantity:  decimal.NewFromInt(1),
+			CostBasis: decimal.NewFromInt(2000),
+			Trade: &domain.Trade{
+				Symbol: "AAPL",
+				Date:   time.Now().AddDate(1, 0, 0),
+			},
 		},
 	}
 	prices := map[string]decimal.Decimal{

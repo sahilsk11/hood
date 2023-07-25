@@ -31,7 +31,7 @@ func IdentifyTLHOptions(ctx context.Context, minRequiredLoss, minBreakevenPriceC
 	tlhRecs := []TLHRecomendation{}
 	lotsByTicker := map[string][]domain.OpenLot{}
 	for _, lot := range lots {
-		ticker := lot.Symbol
+		ticker := lot.GetSymbol()
 		if _, ok := lotsByTicker[ticker]; !ok {
 			lotsByTicker[ticker] = []domain.OpenLot{}
 		}
@@ -41,7 +41,7 @@ func IdentifyTLHOptions(ctx context.Context, minRequiredLoss, minBreakevenPriceC
 	for ticker := range lotsByTicker {
 		sortedLots := lotsByTicker[ticker]
 		sort.Slice(sortedLots, func(i, j int) bool {
-			return sortedLots[i].PurchaseDate.Unix() < sortedLots[j].PurchaseDate.Unix()
+			return sortedLots[i].GetPurchaseDate().Unix() < sortedLots[j].GetPurchaseDate().Unix()
 		})
 		// use gain because the value (loss) will be negative
 		price := prices[ticker]
