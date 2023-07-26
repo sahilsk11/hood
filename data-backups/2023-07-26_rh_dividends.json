@@ -1,0 +1,218 @@
+[
+  {
+    "company": "NVDA",
+    "date": "2023-06-30",
+    "amount": 0.93,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2023-05-18",
+    "amount": 11.09,
+    "reinvested": false
+  },
+  {
+    "company": "SPY",
+    "date": "2023-04-28",
+    "amount": 15.51,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2023-03-29",
+    "amount": 1.45,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2023-02-16",
+    "amount": 10.63,
+    "reinvested": false
+  },
+  {
+    "company": "SPY",
+    "date": "2023-01-31",
+    "amount": 71.26,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2022-12-22",
+    "amount": 1.45,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2022-12-08",
+    "amount": 2.73,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2022-11-10",
+    "amount": 10.63,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2022-09-29",
+    "amount": 1.33,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2022-09-08",
+    "amount": 2.49,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2022-08-11",
+    "amount": 10.63,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2022-07-01",
+    "amount": 1.31,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2022-06-09",
+    "amount": 2.05,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2022-05-12",
+    "amount": 10.3,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2022-03-24",
+    "amount": 1.31,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2022-03-10",
+    "amount": 2.05,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2022-02-10",
+    "amount": 9.85,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2021-12-23",
+    "amount": 1.26,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2021-12-09",
+    "amount": 2.05,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2021-11-12",
+    "amount": 9.18,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2021-09-23",
+    "amount": 0.69,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2021-08-12",
+    "amount": 5.61,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2021-07-01",
+    "amount": 0.21,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2021-05-14",
+    "amount": 0.26,
+    "reinvested": false
+  },
+  {
+    "company": "NVDA",
+    "date": "2021-03-31",
+    "amount": 0.16,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2021-02-12",
+    "amount": 1.64,
+    "reinvested": true
+  },
+  {
+    "company": "NVDA",
+    "date": "2020-12-29",
+    "amount": 0.05,
+    "reinvested": false
+  },
+  {
+    "company": "MSFT",
+    "date": "2020-12-11",
+    "amount": 1.12,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2020-11-13",
+    "amount": 1.64,
+    "reinvested": true
+  },
+  {
+    "company": "MSFT",
+    "date": "2020-09-11",
+    "amount": 0.51,
+    "reinvested": false
+  },
+  {
+    "company": "AAPL",
+    "date": "2020-08-14",
+    "amount": 1.6,
+    "reinvested": false
+  },
+  {
+    "company": "SIRI",
+    "date": "2020-05-30",
+    "amount": 0.01,
+    "reinvested": false
+  },
+  {
+    "company": "SIRI",
+    "date": "2020-03-05",
+    "amount": 0.01,
+    "reinvested": false
+  },
+  {
+    "company": "SIRI",
+    "date": "2019-11-29",
+    "amount": 0.01,
+    "reinvested": false
+  },
+  {
+    "company": "SIRI",
+    "date": "2019-09-03",
+    "amount": 0.01,
+    "reinvested": false
+  }
+]

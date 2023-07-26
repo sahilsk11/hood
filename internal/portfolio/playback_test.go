@@ -35,7 +35,11 @@ func TestPlayback(t *testing.T) {
 		},
 	}
 	transfers := []Transfer{{Amount: dec(1000), Date: times[0]}}
-	out, err := Playback(trades, nil, transfers)
+	events := Events{
+		Trades:    trades,
+		Transfers: transfers,
+	}
+	out, err := Playback(events)
 	require.NoError(t, err)
 	require.Equal(
 		t,

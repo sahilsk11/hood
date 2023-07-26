@@ -21,7 +21,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	custodian := model.CustodianType_Robinhood
+	custodian := model.CustodianType_Tda
 	trades, err := db.GetHistoricTrades(tx, custodian)
 	if err != nil {
 		log.Fatal(err)
@@ -34,8 +34,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	dividends, err := db.GetHistoricDividends(tx, custodian)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	portfolio, err := portfolio.Playback(trades, assetSplits, transfers)
+	events := portfolio.Events{
+		Trades:      trades,
+		AssetSplits: assetSplits,
+		Transfers:   transfers,
+		Dividends:   dividends,
+	}
+
+	portfolio, err := portfolio.Playback(events)
 	if err != nil {
 		log.Fatal(err)
 	}

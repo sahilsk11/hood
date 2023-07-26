@@ -17,12 +17,13 @@ type dividendTable struct {
 	postgres.Table
 
 	//Columns
-	TradeID    postgres.ColumnInteger
-	Amount     postgres.ColumnFloat
-	Symbol     postgres.ColumnString
-	Date       postgres.ColumnDate
-	CreatedAt  postgres.ColumnTimestampz
-	ModifiedAt postgres.ColumnTimestampz
+	DividendID          postgres.ColumnInteger
+	Symbol              postgres.ColumnString
+	Amount              postgres.ColumnFloat
+	Date                postgres.ColumnDate
+	Custodian           postgres.ColumnString
+	ReinvestmentTradeID postgres.ColumnInteger
+	CreatedAt           postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -53,26 +54,28 @@ func newDividendTable(schemaName, tableName, alias string) *DividendTable {
 
 func newDividendTableImpl(schemaName, tableName, alias string) dividendTable {
 	var (
-		TradeIDColumn    = postgres.IntegerColumn("trade_id")
-		AmountColumn     = postgres.FloatColumn("amount")
-		SymbolColumn     = postgres.StringColumn("symbol")
-		DateColumn       = postgres.DateColumn("date")
-		CreatedAtColumn  = postgres.TimestampzColumn("created_at")
-		ModifiedAtColumn = postgres.TimestampzColumn("modified_at")
-		allColumns       = postgres.ColumnList{TradeIDColumn, AmountColumn, SymbolColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn}
-		mutableColumns   = postgres.ColumnList{AmountColumn, SymbolColumn, DateColumn, CreatedAtColumn, ModifiedAtColumn}
+		DividendIDColumn          = postgres.IntegerColumn("dividend_id")
+		SymbolColumn              = postgres.StringColumn("symbol")
+		AmountColumn              = postgres.FloatColumn("amount")
+		DateColumn                = postgres.DateColumn("date")
+		CustodianColumn           = postgres.StringColumn("custodian")
+		ReinvestmentTradeIDColumn = postgres.IntegerColumn("reinvestment_trade_id")
+		CreatedAtColumn           = postgres.TimestampzColumn("created_at")
+		allColumns                = postgres.ColumnList{DividendIDColumn, SymbolColumn, AmountColumn, DateColumn, CustodianColumn, ReinvestmentTradeIDColumn, CreatedAtColumn}
+		mutableColumns            = postgres.ColumnList{SymbolColumn, AmountColumn, DateColumn, CustodianColumn, ReinvestmentTradeIDColumn, CreatedAtColumn}
 	)
 
 	return dividendTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		TradeID:    TradeIDColumn,
-		Amount:     AmountColumn,
-		Symbol:     SymbolColumn,
-		Date:       DateColumn,
-		CreatedAt:  CreatedAtColumn,
-		ModifiedAt: ModifiedAtColumn,
+		DividendID:          DividendIDColumn,
+		Symbol:              SymbolColumn,
+		Amount:              AmountColumn,
+		Date:                DateColumn,
+		Custodian:           CustodianColumn,
+		ReinvestmentTradeID: ReinvestmentTradeIDColumn,
+		CreatedAt:           CreatedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

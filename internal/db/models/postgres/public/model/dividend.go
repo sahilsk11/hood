@@ -14,10 +14,12 @@ import (
 )
 
 type Dividend struct {
-	TradeID    int32 `sql:"primary_key"`
-	Amount     decimal.Decimal
-	Symbol     string
-	Date       time.Time
-	CreatedAt  *time.Time
-	ModifiedAt *time.Time
+	DividendID          int32 `sql:"primary_key"`
+	Symbol              string
+	Amount              decimal.Decimal
+	Date                time.Time
+	Custodian           CustodianType
+	ReinvestmentTradeID *int32
+	CreatedAt           *time.Time
 }
+

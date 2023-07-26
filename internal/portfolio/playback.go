@@ -14,11 +14,7 @@ import (
 
 // replay historic events
 
-func mergeEvents(
-	trades []Trade,
-	assetSplits []AssetSplit,
-	transfers []Transfer,
-) []TradeEvent {
+func mergeEvents(in Events) []TradeEvent {
 	out := []TradeEvent{}
 	for _, t := range trades {
 		out = append(out, t)
@@ -36,20 +32,23 @@ func mergeEvents(
 	return out
 }
 
+type Events struct {
+	Trades      []Trade
+	AssetSplits []AssetSplit
+	Transfers   []Transfer
+	Dividends   []Dividend
+}
+
 // given new data, figure out what to do
 // should be dry. can have another func
 // for committing
-func Playback(
-	trades []Trade,
-	assetSplits []AssetSplit,
-	transfers []Transfer,
-) (*Portfolio, error) {
+func Playback(in Events) (*Portfolio, error) {
 	portfolio := &Portfolio{
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
 
-	events := mergeEvents(trades, assetSplits, transfers)
+	events := mergeEvents(in)
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
