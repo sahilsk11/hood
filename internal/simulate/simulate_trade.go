@@ -22,7 +22,7 @@ func SimulateTrade(ctx context.Context, t domain.Trade) (*SimulateTradeResult, e
 		return nil, err
 	}
 
-	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol)
+	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol, t.Custodian)
 	if err != nil {
 		return nil, err
 	}

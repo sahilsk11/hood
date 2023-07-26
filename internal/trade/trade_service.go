@@ -94,7 +94,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 	if t.Action != model.TradeActionType_Sell {
 		return nil, nil, fmt.Errorf("failed to process sell order with action %s", t.Action.String())
 	}
-	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol)
+	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol, t.Custodian)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -207,10 +207,15 @@ func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, sp
 		return nil, nil, nil
 	}
 	insertedSplit := insertedSplits[0]
-	lots, err := db.GetOpenLots(ctx, tx, split.Symbol)
+	tdaLots, err := db.GetOpenLots(ctx, tx, split.Symbol, model.CustodianType_Tda)
 	if err != nil {
 		return nil, nil, err
 	}
+	rhLots, err := db.GetOpenLots(ctx, tx, split.Symbol, model.CustodianType_Robinhood)
+	if err != nil {
+		return nil, nil, err
+	}
+	lots := append(tdaLots, rhLots...)
 
 	ratio := decimal.NewFromInt32(insertedSplit.Ratio)
 	appliedSplits := []model.AppliedAssetSplit{}

@@ -7,6 +7,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	. "hood/internal/db/models/postgres/public/table"
+	"hood/internal/domain"
 )
 
 func AddAssetsSplits(ctx context.Context, tx *sql.Tx, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
@@ -41,7 +42,7 @@ func AddAppliedAssetSplits(ctx context.Context, tx *sql.Tx, appliedAssetSplits [
 	return result, nil
 }
 
-func GetHistoricAssetSplits(tx *sql.Tx) ([]model.AssetSplit, error) {
+func GetHistoricAssetSplits(tx *sql.Tx) ([]domain.AssetSplit, error) {
 	query := AssetSplit.SELECT(AssetSplit.AllColumns).
 		ORDER_BY(AssetSplit.Date.ASC())
 	out := []model.AssetSplit{}
@@ -50,5 +51,18 @@ func GetHistoricAssetSplits(tx *sql.Tx) ([]model.AssetSplit, error) {
 		return nil, err
 	}
 
-	return out, nil
+	return assetSplitsFromDb(out), nil
+}
+
+func assetSplitsFromDb(splits []model.AssetSplit) []domain.AssetSplit {
+	out := make([]domain.AssetSplit, len(splits))
+	for i, s := range splits {
+		out[i] = domain.AssetSplit{
+			AssetSplitID: &s.AssetSplitID,
+			Symbol:       s.Symbol,
+			Ratio:        s.Ratio,
+			Date:         s.Date,
+		}
+	}
+	return out
 }

@@ -13,14 +13,20 @@ import (
 	. "github.com/go-jet/jet/v2/postgres"
 )
 
-func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string) ([]domain.OpenLot, error) {
+func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string, custodian model.CustodianType) ([]domain.OpenLot, error) {
 	result := []struct {
 		model.OpenLot
 		model.Trade
 	}{}
 	query := OpenLot.SELECT(OpenLot.AllColumns, Trade.AllColumns).FROM(
 		OpenLot.INNER_JOIN(Trade, Trade.TradeID.EQ(OpenLot.TradeID)),
-	).WHERE(OpenLot.Quantity.GT(Float(0))).ORDER_BY(OpenLot.Date.ASC())
+	).WHERE(
+		AND(
+			OpenLot.Quantity.GT(Float(0)),
+			Trade.Symbol.EQ(String(symbol)),
+			Trade.Custodian.EQ(NewEnumValue(custodian.String())),
+		),
+	).ORDER_BY(OpenLot.Date.ASC())
 	err := query.Query(tx, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get open lots from db: %w", err)

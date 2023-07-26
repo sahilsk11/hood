@@ -1,4 +1,4 @@
-package trade
+package portfolio
 
 import (
 	"hood/internal/db/models/postgres/public/model"

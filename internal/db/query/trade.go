@@ -34,7 +34,6 @@ func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]domai
 	if err != nil {
 		return nil, fmt.Errorf("failed to insert trades: %w", err)
 	}
-	fmt.Println("bruh", result[0].TradeID)
 
 	return tradesFromDb(result), nil
 }
@@ -47,7 +46,7 @@ func tradesFromDb(trades []model.Trade) []domain.Trade {
 	return out
 }
 
-func GetHistoricTrades(tx *sql.Tx) ([]model.Trade, error) {
+func GetHistoricTrades(tx *sql.Tx) ([]domain.Trade, error) {
 	query := Trade.SELECT(Trade.AllColumns).
 		ORDER_BY(Trade.Date.ASC())
 	out := []model.Trade{}
@@ -56,7 +55,7 @@ func GetHistoricTrades(tx *sql.Tx) ([]model.Trade, error) {
 		return nil, err
 	}
 
-	return out, nil
+	return tradesFromDb(out), nil
 }
 
 func findDuplicateRhTrades(tx *sql.Tx, trades []model.Trade) error {
