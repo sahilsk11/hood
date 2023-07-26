@@ -117,6 +117,7 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				Action:    model.TradeActionType_Buy,
 				Custodian: model.CustodianType_Tda,
 			}
+			fmt.Println(trade)
 
 			savepointName, err := db.AddSavepoint(tx)
 			if err != nil {
