@@ -84,7 +84,7 @@ func TestPreviewSellOrder(t *testing.T) {
 			Quantity: dec(1),
 			Price:    dec(100),
 		}
-		lots := []domain.OpenLot{
+		lots := []*domain.OpenLot{
 			{
 				Trade: &domain.Trade{
 					Action:   model.TradeActionType_Buy,
@@ -122,7 +122,7 @@ func TestPreviewSellOrder(t *testing.T) {
 							GainsType:     model.GainsType_ShortTerm,
 						},
 					},
-					OpenLots: []domain.OpenLot{
+					OpenLots: []*domain.OpenLot{
 						{
 							Trade: &domain.Trade{
 								Action:   model.TradeActionType_Buy,

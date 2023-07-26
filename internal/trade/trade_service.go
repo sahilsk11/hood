@@ -107,10 +107,11 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 		return nil, nil, nil
 	}
 	t = insertedTrades[0]
-	sellOrderResult, err := PreviewSellOrder(t, openLots)
+	sellOrderResult, err := PreviewSellOrder(t, domain.OpenLots(openLots).Ptr())
 	if err != nil {
 		return nil, nil, err
 	}
+	// TODO - modify open lots
 	insertedClosedLots, err := db.AddClosedLots(ctx, tx, sellOrderResult.NewClosedLots)
 	if err != nil {
 		return nil, nil, err
@@ -135,8 +136,8 @@ func validateTrade(t domain.Trade) error {
 
 type ProcessSellOrderResult struct {
 	NewClosedLots   []domain.ClosedLot
-	OpenLots        []domain.OpenLot // current state of open lots
-	MutatedOpenLots []domain.OpenLot // lots that were changed
+	OpenLots        []*domain.OpenLot // current state of open lots
+	MutatedOpenLots []domain.OpenLot  // lots that were changed
 	CashDelta       decimal.Decimal
 }
 
@@ -147,7 +148,7 @@ type ProcessSellOrderResult struct {
 // This function does the "heavy lifting" to determine which lots should be sold
 // without actually selling them. It's only exported because we re-use this logic
 // when simulating what a sell order would do
-func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOrderResult, error) {
+func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
 	cashDelta := (t.Price.Mul(t.Quantity))
 	closedLots := []domain.ClosedLot{}
 	// ensure lots are in FIFO
@@ -169,8 +170,7 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 
 		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
-		lot.OpenLotID = nil
-		openLots[0] = lot
+		lot.OpenLotID = nil // no longer the DB model we're looking at
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]
 		}
@@ -182,7 +182,7 @@ func PreviewSellOrder(t domain.Trade, openLots []domain.OpenLot) (*ProcessSellOr
 			gainsType = model.GainsType_LongTerm
 		}
 		closedLots = append(closedLots, domain.ClosedLot{
-			OpenLot:       &lot,
+			OpenLot:       lot,
 			SellTrade:     &t,
 			Quantity:      quantitySold,
 			GainsType:     gainsType,

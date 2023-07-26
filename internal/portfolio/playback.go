@@ -45,7 +45,7 @@ func Playback(
 	transfers []Transfer,
 ) (*Portfolio, error) {
 	portfolio := &Portfolio{
-		OpenLots:   map[string][]OpenLot{},
+		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
 
@@ -80,7 +80,7 @@ func Playback(
 
 func handleBuy(t Trade, p *Portfolio) {
 	if _, ok := p.OpenLots[t.Symbol]; !ok {
-		p.OpenLots[t.Symbol] = []OpenLot{}
+		p.OpenLots[t.Symbol] = []*OpenLot{}
 	}
 	newLot := OpenLot{
 		LotID:     uuid.New(),
@@ -89,12 +89,12 @@ func handleBuy(t Trade, p *Portfolio) {
 		CostBasis: t.Price,
 		Date:      t.Date,
 	}
-	p.OpenLots[t.Symbol] = append(p.OpenLots[t.Symbol], newLot)
+	p.OpenLots[t.Symbol] = append(p.OpenLots[t.Symbol], &newLot)
 	p.Cash = p.Cash.Sub(t.Price.Mul(t.Quantity))
 }
 
 func handleSell(t Trade, p *Portfolio) error {
-	openLots := []OpenLot{}
+	openLots := []*OpenLot{}
 	if lots, ok := p.OpenLots[t.Symbol]; ok {
 		openLots = lots
 	}
@@ -106,7 +106,6 @@ func handleSell(t Trade, p *Portfolio) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(result.OpenLots)
 
 	p.Cash = p.Cash.Add(result.CashDelta)
 	p.OpenLots[t.Symbol] = result.OpenLots

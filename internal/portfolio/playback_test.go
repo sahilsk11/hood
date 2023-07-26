@@ -42,7 +42,7 @@ func TestPlayback(t *testing.T) {
 		"",
 		cmp.Diff(
 			Portfolio{
-				OpenLots: map[string][]OpenLot{},
+				OpenLots: map[string][]*OpenLot{},
 				ClosedLots: map[string][]ClosedLot{
 					"AAPL": {
 						{

@@ -48,6 +48,7 @@ func main() {
 		}
 	}
 	fmt.Println(symbolValue)
+	fmt.Println(portfolio.Cash)
 
 	// tx.Commit()
 
