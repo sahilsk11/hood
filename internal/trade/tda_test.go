@@ -24,15 +24,19 @@ func TestParseTdaTransactionFile(t *testing.T) {
 
 	tiService := NewMockTradeIngestionService(ctrl)
 
+	expectedTrade := domain.Trade{
+		Symbol:    "VTI",
+		Quantity:  decimal.NewFromFloat(2),
+		Price:     decimal.NewFromFloat(191.12),
+		Date:      time.Date(2023, 1, 6, 0, 0, 0, 0, time.UTC),
+		Action:    model.TradeActionType_Buy,
+		Custodian: model.CustodianType_Tda,
+	}
 	tiService.
 		EXPECT().
-		ProcessTdaBuyOrder(ctx, tx, domain.Trade{
-			Symbol:   "VTI",
-			Quantity: decimal.NewFromFloat(2),
-			Price:    decimal.NewFromFloat(191.12),
-			Date:     time.Date(2023, 1, 6, 0, 0, 0, 0, time.UTC),
-			Action:   model.TradeActionType_Buy,
-		}, int64(47424103872))
+		ProcessTdaBuyOrder(ctx, tx, expectedTrade, int64(47424103872)).Return(
+		&expectedTrade, nil, nil,
+	)
 
 	_, err = ParseTdaTransactionFile(ctx, tx, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
