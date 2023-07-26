@@ -21,7 +21,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	custodian := model.CustodianType_Robinhood
+	custodian := model.CustodianType_Tda
 	trades, err := db.GetHistoricTrades(tx, custodian)
 	if err != nil {
 		log.Fatal(err)
