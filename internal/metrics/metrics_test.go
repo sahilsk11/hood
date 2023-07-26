@@ -4,6 +4,8 @@ import (
 	"hood/internal/domain"
 	"testing"
 
+	. "hood/internal/domain"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -17,10 +19,10 @@ func TestPortfolio_netValue(t *testing.T) {
 	t.Run("only cash", func(t *testing.T) {
 		p := Portfolio{
 			OpenLots: map[string][]*domain.OpenLot{},
-			Transfer: dec(100),
+			Cash:     dec(100),
 		}
 		priceMap := map[string]decimal.Decimal{}
-		result, err := p.netValue(priceMap)
+		result, err := netValue(p, priceMap)
 		require.NoError(t, err)
 		require.Equal(
 			t,
