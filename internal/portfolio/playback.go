@@ -16,13 +16,16 @@ import (
 
 func mergeEvents(in Events) []TradeEvent {
 	out := []TradeEvent{}
-	for _, t := range trades {
+	for _, t := range in.Trades {
 		out = append(out, t)
 	}
-	for _, t := range assetSplits {
+	for _, t := range in.AssetSplits {
 		out = append(out, t)
 	}
-	for _, t := range transfers {
+	for _, t := range in.Transfers {
+		out = append(out, t)
+	}
+	for _, t := range in.Dividends {
 		out = append(out, t)
 	}
 
@@ -69,8 +72,9 @@ func Playback(in Events) (*Portfolio, error) {
 		case AssetSplit:
 			handleAssetSplit(e.(AssetSplit), portfolio)
 		case Transfer:
-			t := e.(Transfer)
-			portfolio.Cash = portfolio.Cash.Add(t.Amount)
+			portfolio.Cash = portfolio.Cash.Add(e.(Transfer).Amount)
+		case Dividend:
+			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
 
 	}

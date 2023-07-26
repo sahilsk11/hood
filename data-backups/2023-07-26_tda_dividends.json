@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2023-03-09",
+    "amount": 2.04,
+    "symbol": "MSFT"
+  },
+  {
+    "date": "2023-03-28",
+    "amount": 1.57,
+    "symbol": "VTI"
+  },
+  {
+    "date": "2023-03-29",
+    "amount": 0.20,
+    "symbol": "NVDA"
+  },
+  {
+    "date": "2023-05-18",
+    "amount": 2.40,
+    "symbol": "AAPL"
+  },
+  {
+    "date": "2023-06-08",
+    "amount": 5.44,
+    "symbol": "MSFT"
+  },
+  {
+    "date": "2023-06-28",
+    "amount": 1.65,
+    "symbol": "VTI"
+  },
+  {
+    "date": "2023-06-30",
+    "amount": 0.28,
+    "symbol": "NVDA"
+  },
+  {
+    "date": "2023-07-17",
+    "amount": 14.50,
+    "symbol": "SNOXX"
+  }
+]
