@@ -109,7 +109,7 @@ func DailyPortfolioValues(
 			return nil, err
 		}
 
-		out[start.Format(layout)] = value
+		out[dateStr] = value
 		currentTime = currentTime.AddDate(0, 0, 1)
 	}
 
