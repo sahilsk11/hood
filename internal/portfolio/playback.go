@@ -14,19 +14,18 @@ import (
 
 // replay historic events
 
-func mergeEvents(
-	trades []Trade,
-	assetSplits []AssetSplit,
-	transfers []Transfer,
-) []TradeEvent {
+func mergeEvents(in Events) []TradeEvent {
 	out := []TradeEvent{}
-	for _, t := range trades {
+	for _, t := range in.Trades {
 		out = append(out, t)
 	}
-	for _, t := range assetSplits {
+	for _, t := range in.AssetSplits {
 		out = append(out, t)
 	}
-	for _, t := range transfers {
+	for _, t := range in.Transfers {
+		out = append(out, t)
+	}
+	for _, t := range in.Dividends {
 		out = append(out, t)
 	}
 
@@ -36,20 +35,23 @@ func mergeEvents(
 	return out
 }
 
+type Events struct {
+	Trades      []Trade
+	AssetSplits []AssetSplit
+	Transfers   []Transfer
+	Dividends   []Dividend
+}
+
 // given new data, figure out what to do
 // should be dry. can have another func
 // for committing
-func Playback(
-	trades []Trade,
-	assetSplits []AssetSplit,
-	transfers []Transfer,
-) (*Portfolio, error) {
+func Playback(in Events) (*Portfolio, error) {
 	portfolio := &Portfolio{
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
 
-	events := mergeEvents(trades, assetSplits, transfers)
+	events := mergeEvents(in)
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
@@ -70,8 +72,9 @@ func Playback(
 		case AssetSplit:
 			handleAssetSplit(e.(AssetSplit), portfolio)
 		case Transfer:
-			t := e.(Transfer)
-			portfolio.Cash = portfolio.Cash.Add(t.Amount)
+			portfolio.Cash = portfolio.Cash.Add(e.(Transfer).Amount)
+		case Dividend:
+			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
 
 	}

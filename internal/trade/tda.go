@@ -50,7 +50,7 @@ func determineColumnOrder(headerRow []string) (map[string]int, error) {
 	return columnIndices, nil
 }
 
-func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService) ([]model.Trade, error) {
+func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService) ([]domain.Trade, error) {
 	f, err := os.Open(csvFileName)
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 		return nil, fmt.Errorf("failed to read csv file: %w", err)
 	}
 
-	orders := []model.Trade{}
+	orders := []domain.Trade{}
 
 	ordering, err := determineColumnOrder(records[0])
 	if err != nil {
@@ -110,11 +110,12 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 			}
 
 			trade := domain.Trade{
-				Symbol:   record[ordering["symbol"]],
-				Quantity: quantity,
-				Price:    price,
-				Date:     date,
-				Action:   model.TradeActionType_Buy,
+				Symbol:    record[ordering["symbol"]],
+				Quantity:  quantity,
+				Price:     price,
+				Date:      date,
+				Action:    model.TradeActionType_Buy,
+				Custodian: model.CustodianType_Tda,
 			}
 
 			savepointName, err := db.AddSavepoint(tx)
@@ -122,7 +123,7 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaBuyOrder: %w", err)
 			}
 
-			_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, trade, transactionID)
+			newTrade, _, err := tiService.ProcessTdaBuyOrder(ctx, tx, trade, transactionID)
 			if err != nil {
 				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
 					return nil, rollbackErr
@@ -134,6 +135,7 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 					return nil, err
 				}
 			}
+			orders = append(orders, *newTrade)
 		}
 	}
 
