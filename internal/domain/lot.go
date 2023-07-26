@@ -17,6 +17,16 @@ type OpenLot struct {
 	Date      time.Time
 }
 
+type OpenLots []OpenLot
+
+func (lots OpenLots) Ptr() []*OpenLot {
+	out := make([]*OpenLot, len(lots))
+	for i, o := range lots {
+		out[i] = &o
+	}
+	return out
+}
+
 func (o OpenLot) DeepCopy() *OpenLot {
 	return &OpenLot{
 		OpenLotID: o.OpenLotID,

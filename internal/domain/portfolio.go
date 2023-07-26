@@ -7,7 +7,7 @@ import (
 )
 
 type Portfolio struct {
-	OpenLots   map[string][]OpenLot
+	OpenLots   map[string][]*OpenLot
 	ClosedLots map[string][]ClosedLot
 	Cash       decimal.Decimal
 	Date       time.Time
