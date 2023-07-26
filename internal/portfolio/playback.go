@@ -1,6 +1,7 @@
 package portfolio
 
 import (
+	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/domain"
 	"hood/internal/trade"
@@ -30,7 +31,7 @@ func mergeEvents(
 	}
 
 	sort.Slice(out, func(i, j int) bool {
-		return out[i].GetDate().After(out[j].GetDate())
+		return out[i].GetDate().Before(out[j].GetDate())
 	})
 	return out
 }
@@ -42,22 +43,29 @@ func Playback(
 	trades []Trade,
 	assetSplits []AssetSplit,
 	transfers []Transfer,
-) error {
+) (*Portfolio, error) {
 	portfolio := &Portfolio{
 		OpenLots:   map[string][]OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
 
 	events := mergeEvents(trades, assetSplits, transfers)
+	if len(events) == 0 {
+		return nil, fmt.Errorf("no events found")
+	}
 
 	for _, e := range events {
+		portfolio.Date = e.GetDate()
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
 			if t.Action == model.TradeActionType_Buy {
 				handleBuy(t, portfolio)
 			} else if t.Action == model.TradeActionType_Sell {
-				handleSell(t, portfolio)
+				err := handleSell(t, portfolio)
+				if err != nil {
+					return nil, fmt.Errorf("failed to execute sell %v: %w", t, err)
+				}
 			}
 		case AssetSplit:
 			handleAssetSplit(e.(AssetSplit), portfolio)
@@ -67,7 +75,7 @@ func Playback(
 		}
 
 	}
-	return nil
+	return portfolio, nil
 }
 
 func handleBuy(t Trade, p *Portfolio) {
@@ -87,22 +95,26 @@ func handleBuy(t Trade, p *Portfolio) {
 
 func handleSell(t Trade, p *Portfolio) error {
 	openLots := []OpenLot{}
-	if lots, ok := p.OpenLots[t.Symbol]; !ok {
+	if lots, ok := p.OpenLots[t.Symbol]; ok {
 		openLots = lots
 	}
 	closedLots := []ClosedLot{}
-	if lots, ok := p.ClosedLots[t.Symbol]; !ok {
+	if lots, ok := p.ClosedLots[t.Symbol]; ok {
 		closedLots = lots
 	}
 	result, err := trade.PreviewSellOrder(t, openLots)
 	if err != nil {
 		return err
 	}
-	closedLots = append(closedLots, result.NewClosedLots...)
+	fmt.Println(result.OpenLots)
 
 	p.Cash = p.Cash.Add(result.CashDelta)
-	p.ClosedLots[t.Symbol] = closedLots
+	p.OpenLots[t.Symbol] = result.OpenLots
+	if len(p.OpenLots[t.Symbol]) == 0 {
+		delete(p.OpenLots, t.Symbol)
+	}
 
+	p.ClosedLots[t.Symbol] = append(closedLots, result.NewClosedLots...)
 	return nil
 }
 

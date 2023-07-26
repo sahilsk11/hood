@@ -5,10 +5,14 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/db/models/postgres/public/table"
 	"hood/internal/domain"
+
+	"github.com/go-jet/jet/v2/postgres"
 )
 
-func GetHistoricTransfers(tx *sql.Tx) ([]domain.Transfer, error) {
-	query := Transfer.SELECT(Transfer.AllColumns).ORDER_BY(Transfer.Date.ASC())
+func GetHistoricTransfers(tx *sql.Tx, custodian model.CustodianType) ([]domain.Transfer, error) {
+	query := Transfer.SELECT(Transfer.AllColumns).
+		WHERE(Transfer.Custodian.EQ(postgres.NewEnumValue(custodian.String()))).
+		ORDER_BY(Transfer.Date.ASC())
 	out := []model.Transfer{}
 	err := query.Query(tx, &out)
 	if err != nil {

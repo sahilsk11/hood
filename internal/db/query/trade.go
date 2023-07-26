@@ -46,8 +46,9 @@ func tradesFromDb(trades []model.Trade) []domain.Trade {
 	return out
 }
 
-func GetHistoricTrades(tx *sql.Tx) ([]domain.Trade, error) {
+func GetHistoricTrades(tx *sql.Tx, custodian model.CustodianType) ([]domain.Trade, error) {
 	query := Trade.SELECT(Trade.AllColumns).
+		WHERE(Trade.Custodian.EQ(postgres.NewEnumValue(custodian.String()))).
 		ORDER_BY(Trade.Date.ASC())
 	out := []model.Trade{}
 	err := query.Query(tx, &out)
@@ -131,7 +132,6 @@ func tradeToDb(t domain.Trade) model.Trade {
 }
 
 func tradeFromDb(t model.Trade) domain.Trade {
-	fmt.Println(t.TradeID)
 	return domain.Trade{
 		TradeID:     &t.TradeID,
 		Symbol:      t.Symbol,

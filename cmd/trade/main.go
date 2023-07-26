@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
+	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/portfolio"
 	"log"
+
+	"github.com/shopspring/decimal"
 )
 
 func main() {
@@ -17,7 +21,8 @@ func main() {
 		log.Fatal(err)
 	}
 
-	trades, err := db.GetHistoricTrades(tx)
+	custodian := model.CustodianType_Robinhood
+	trades, err := db.GetHistoricTrades(tx, custodian)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -25,16 +30,25 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	transfers, err := db.GetHistoricTransfers(tx)
+	transfers, err := db.GetHistoricTransfers(tx, custodian)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = portfolio.Playback(trades, assetSplits, transfers)
+	portfolio, err := portfolio.Playback(trades, assetSplits, transfers)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	tx.Commit()
+	symbolValue := map[string]decimal.Decimal{}
+	for symbol, lots := range portfolio.OpenLots {
+		symbolValue[symbol] = decimal.Zero
+		for _, lot := range lots {
+			symbolValue[symbol] = symbolValue[symbol].Add(lot.Quantity)
+		}
+	}
+	fmt.Println(symbolValue)
+
+	// tx.Commit()
 
 }
