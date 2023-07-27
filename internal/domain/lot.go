@@ -57,6 +57,18 @@ type ClosedLot struct {
 	GainsType     model.GainsType
 }
 
+func (c ClosedLot) DeepCopy() ClosedLot {
+	openLot := c.OpenLot.DeepCopy()
+	sellTrade := c.SellTrade.DeepCopy()
+	return ClosedLot{
+		OpenLot:       openLot,
+		SellTrade:     sellTrade,
+		Quantity:      c.Quantity,
+		RealizedGains: c.RealizedGains,
+		GainsType:     c.GainsType,
+	}
+}
+
 func (c ClosedLot) Date() time.Time {
 	return c.SellTrade.Date
 }

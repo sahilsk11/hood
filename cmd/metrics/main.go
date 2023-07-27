@@ -37,6 +37,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	transfers := e1.Transfers //append(e1.Transfers, e2.Transfers...)
 	tranfersMap := map[string]decimal.Decimal{}
 	for _, t := range transfers {
@@ -60,7 +61,6 @@ func main() {
 		&start,
 		&end,
 	)
-	// fmt.Println(values)
 
 	if err != nil {
 		log.Fatal(err)
@@ -79,7 +79,7 @@ func main() {
 	for _, d := range dateKeys {
 		fmt.Printf("%s,%f\n", d, out[d].InexactFloat64())
 	}
-	// fmt.Println(out[dateKeys[len(dateKeys)-1]].String())
+	// fmt.Println(out[dateKeys[len(dateKeys)-1]].InexactFloat64())
 
 }
 

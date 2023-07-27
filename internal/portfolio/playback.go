@@ -73,7 +73,7 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	}
 
 	for _, e := range events {
-		// portfolio.Date = e.GetDate()
+		fmt.Println(e)
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
@@ -93,7 +93,8 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
 		date := e.GetDate().Format("2006-01-02")
-		mappedPortfolio[date] = *portfolio
+		portfolio.LastAction = e.GetDate()
+		mappedPortfolio[date] = portfolio.DeepCopy()
 	}
 	return mappedPortfolio, nil
 }

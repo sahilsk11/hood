@@ -150,7 +150,10 @@ func TimeWeightedReturns(
 		netTransfers, _ := transfers[dateKeys[i]]
 
 		// https://www.investopedia.com/terms/t/time-weightedror.asp
-		twr = twr.Mul(currentValue.Div(prevValue.Add(netTransfers)))
+		x := prevValue.Add(netTransfers)
+		twr = twr.Mul(
+			((currentValue.Sub(x)).Div(x)).Add(decimal.NewFromInt(1)),
+		)
 		out[dateKeys[i]] = twr.Sub(decimal.NewFromInt(1))
 	}
 
