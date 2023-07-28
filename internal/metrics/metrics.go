@@ -4,8 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	db "hood/internal/db/query"
-	"hood/internal/domain"
-	"hood/internal/util"
+	. "hood/internal/domain"
 	"sort"
 	"time"
 
@@ -13,6 +12,112 @@ import (
 )
 
 const PortfolioInception = "2020-06-19"
+const layout = "2006-01-02"
+
+func netValue(p Portfolio, priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
+	// value = (lot quantity * price) + cash
+	value := p.Cash
+	for symbol, lots := range p.OpenLots {
+		price, ok := priceMap[symbol]
+		if !ok && symbol != "AMAG" && symbol != "ETH" && symbol != "BTC" && symbol != "DOGE" {
+			return decimal.Zero, fmt.Errorf("missing pricing for %s", symbol)
+		}
+		for _, lot := range lots {
+			if symbol == "AMAG" || symbol == "ETH" || symbol == "BTC" || symbol == "DOGE" {
+				price = lot.CostBasis
+			}
+			value = value.Add(price.Mul(lot.Quantity))
+		}
+	}
+
+	return value, nil
+}
+
+// determine what the value of the portfolio is on a given day
+func calculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
+	if len(p.GetOpenLotSymbols()) == 0 {
+		return p.Cash, nil
+	}
+	// get prices up to 3 days back
+	priceMap, err := getPricesHelper(tx, date, p.GetOpenLotSymbols())
+	if err != nil {
+		return decimal.Zero, err
+	}
+	return netValue(p, priceMap)
+}
+
+func DailyPortfolioValues(
+	tx *sql.Tx,
+	dailyPortfolios map[string]Portfolio,
+	start *time.Time,
+	end *time.Time,
+) (map[string]decimal.Decimal, error) {
+	if len(dailyPortfolios) == 0 {
+		return nil, fmt.Errorf("no portfolios given")
+	}
+	out := map[string]decimal.Decimal{}
+	dateKeys := []string{}
+
+	for dateStr := range dailyPortfolios {
+		dateKeys = append(dateKeys, dateStr)
+	}
+	sort.Strings(dateKeys)
+	minPortfolioDate, err := time.Parse(layout, dateKeys[0])
+	if err != nil {
+		return nil, err
+	}
+	maxPortfolioDate, err := time.Parse(layout, dateKeys[len(dateKeys)-1])
+	if err != nil {
+		return nil, err
+	}
+	if start == nil {
+		start = &minPortfolioDate
+	}
+	if end == nil {
+		end = &maxPortfolioDate
+	}
+
+	if start.Before(minPortfolioDate) {
+		return nil, fmt.Errorf("cannot start calculations prior to date of first portfolio value - %s vs %s", start.Format(layout), minPortfolioDate.Format(layout))
+	}
+
+	if end.Before(minPortfolioDate) {
+		return nil, fmt.Errorf("inputted end date %s is before first portfolio date %s", end.Format(layout), start.Format(layout))
+	}
+
+	// increment portfolio date until we reach
+	// start date
+	currentTime := minPortfolioDate
+	portfolio := dailyPortfolios[dateKeys[0]]
+	for currentTime.Before(*start) {
+		// if there's a newer portfolio, use it
+		if p, ok := dailyPortfolios[currentTime.Format(layout)]; ok {
+			portfolio = p
+		}
+		currentTime = currentTime.AddDate(0, 0, 1)
+	}
+
+	for currentTime.Before(*end) || currentTime.Equal(*end) {
+		dateStr := currentTime.Format(layout)
+		if p, ok := dailyPortfolios[dateStr]; ok {
+			portfolio = p
+		}
+
+		priceMap, err := getPricesHelper(tx, currentTime, portfolio.GetOpenLotSymbols())
+		if err != nil {
+			return nil, err
+		}
+		value, err := netValue(portfolio, priceMap)
+		if err != nil {
+			return nil, err
+		}
+
+		out[dateStr] = value
+		currentTime = currentTime.AddDate(0, 0, 1)
+	}
+
+	return out, nil
+}
 
 // goal is to figure out portfolio value
 // at every day from [1:] in days (2 days min)
@@ -26,119 +131,41 @@ const PortfolioInception = "2020-06-19"
 // then simple func computes on that DS using equation
 // and produces arr/map of returns on given day
 
-type Portfolio struct {
-	OpenLots        map[string][]*domain.OpenLot
-	Transfer        decimal.Decimal
-	NetTransferFlow decimal.Decimal
-}
-
-func (p Portfolio) deepCopy() Portfolio {
-	newP := Portfolio{
-		OpenLots:        make(map[string][]*domain.OpenLot),
-		Transfer:        p.Transfer,
-		NetTransferFlow: p.NetTransferFlow,
-	}
-	for k, v := range p.OpenLots {
-		for _, o := range v {
-			if _, ok := newP.OpenLots[k]; !ok {
-				newP.OpenLots[k] = []*domain.OpenLot{}
-			}
-			newP.OpenLots[k] = append(newP.OpenLots[k], &domain.OpenLot{
-				OpenLotID: o.OpenLotID,
-				Quantity:  o.Quantity,
-				CostBasis: o.CostBasis,
-				Trade:     o.Trade,
-			})
-		}
-	}
-	return newP
-}
-
-func (p Portfolio) symbols() []string {
-	symbols := []string{}
-	for symbol := range p.OpenLots {
-		symbols = append(symbols, symbol)
-	}
-	return symbols
-}
-
-func (p Portfolio) netValue(priceMap map[string]decimal.Decimal) (decimal.Decimal, error) {
-	value := decimal.Zero
-	for symbol, lots := range p.OpenLots {
-		price, ok := priceMap[symbol]
-		if !ok && symbol != "AMAG" && symbol != "ETH" && symbol != "BTC" && symbol != "DOGE" {
-			return decimal.Zero, fmt.Errorf("missing pricing for %s", symbol)
-		}
-		for _, lot := range lots {
-			if symbol == "AMAG" || symbol == "ETH" || symbol == "BTC" || symbol == "DOGE" {
-				price = lot.CostBasis
-			}
-			value = value.Add(price.Mul(lot.Quantity))
-		}
-	}
-	value = value.Add(p.Transfer)
-
-	return value, nil
-}
-
-func TimeWeightedReturns(dailyPortfolioValues map[string]decimal.Decimal, transfers map[string]decimal.Decimal) (map[string]decimal.Decimal, error) {
+func TimeWeightedReturns(
+	dailyPortfolioValues map[string]decimal.Decimal,
+	transfers map[string]decimal.Decimal,
+) (map[string]decimal.Decimal, error) {
 	if len(dailyPortfolioValues) < 2 {
 		return nil, fmt.Errorf("at least two daily portfolios required to compute TWR")
 	}
-	out := map[string]decimal.Decimal{}
-	twr := decimal.NewFromInt(1)
-
 	dateKeys := []string{}
 	for dateStr := range dailyPortfolioValues {
 		dateKeys = append(dateKeys, dateStr)
 	}
 	sort.Strings(dateKeys)
 
-	dateKeys = dateKeys[1:]
-	for _, dateStr := range dateKeys {
-		today, err := time.Parse("2006-01-02", dateStr)
-		if err != nil {
-			return nil, err
-		}
-		yday := today.AddDate(0, 0, -1)
-		end, ok := dailyPortfolioValues[dateStr]
-		if !ok {
-			return nil, fmt.Errorf("failed to calculate net value - no calculated portfolio value on %s", dateStr)
-		}
-		start, ok := dailyPortfolioValues[yday.Format("2006-01-02")]
-		if !ok {
-			return nil, fmt.Errorf("failed to calculate net value - no calculated portfolio value on %s", yday.Format("2006-01-02"))
-		}
-		netTransfers, _ := transfers[dateStr]
+	out := map[string]decimal.Decimal{}
+	twr := decimal.NewFromInt(1)
 
-		newOp := hp(start, end, netTransfers)
+	for i := 1; i < len(dateKeys); i++ {
+		prevValue := dailyPortfolioValues[dateKeys[i-1]]
+		currentValue := dailyPortfolioValues[dateKeys[i]]
+		netTransfers, _ := transfers[dateKeys[i]]
 
-		out[dateStr] = twr.Mul(newOp).Sub(decimal.NewFromInt(1))
-		twr = twr.Mul(newOp)
+		// https://www.investopedia.com/terms/t/time-weightedror.asp
+		x := prevValue.Add(netTransfers)
+		twr = twr.Mul(
+			((currentValue.Sub(x)).Div(x)).Add(decimal.NewFromInt(1)),
+		)
+		out[dateKeys[i]] = twr.Sub(decimal.NewFromInt(1))
 	}
 
 	return out, nil
 }
 
-// https://www.investopedia.com/terms/t/time-weightedror.asp
-func hp(start, end, cashFlow decimal.Decimal) decimal.Decimal {
-	numerator := end
-	denominator := start.Add(cashFlow)
-	util.Pprint(map[string]decimal.Decimal{
-		"hp":          numerator.Div(denominator),
-		"numerator":   numerator,
-		"denominator": denominator,
-		"start":       start,
-		"end":         end,
-		"cashFlows":   cashFlow,
-	})
-
-	return numerator.Div(denominator)
-}
-
 func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
 	if len(symbols) == 0 {
-		return nil, fmt.Errorf("getPricesHelper requires at least one symbol")
+		return map[string]decimal.Decimal{}, nil
 	}
 	priceMap, err := db.GetPricesOnDate(tx, date, symbols)
 	if err != nil {

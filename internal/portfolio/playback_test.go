@@ -2,6 +2,7 @@ package portfolio
 
 import (
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 	. "hood/internal/domain"
 	"testing"
 	"time"
@@ -11,6 +12,90 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
+
+func TestPlaybackDaily(t *testing.T) {
+	times := []time.Time{
+		time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
+		time.Date(2020, 1, 2, 2, 0, 0, 0, time.UTC),
+		time.Date(2020, 1, 3, 3, 0, 0, 0, time.UTC),
+	}
+	events := Events{
+		Transfers: []domain.Transfer{{
+			Amount: dec(100),
+			Date:   times[0],
+		}},
+		Trades: []domain.Trade{
+			{
+				Action:   model.TradeActionType_Buy,
+				Symbol:   "AAPL",
+				Date:     times[1],
+				Quantity: dec(1),
+				Price:    dec(50),
+			},
+			{
+				Action:   model.TradeActionType_Sell,
+				Symbol:   "AAPL",
+				Quantity: dec(1),
+				Price:    dec(50),
+				Date:     times[2],
+			},
+		},
+	}
+	dailyPortfolios, err := PlaybackDaily(events)
+	require.NoError(t, err)
+	require.Equal(
+		t,
+		"",
+		cmp.Diff(
+			map[string]Portfolio{
+				"2020-01-01": {
+					OpenLots:   map[string][]*OpenLot{},
+					ClosedLots: map[string][]ClosedLot{},
+					Cash:       dec(100),
+					LastAction: times[0],
+				},
+				"2020-01-02": {
+					OpenLots: map[string][]*OpenLot{
+						"AAPL": {
+							{
+								Quantity:  dec(1),
+								CostBasis: dec(50),
+								Trade:     &events.Trades[0],
+								Date:      times[1],
+							},
+						},
+					},
+					ClosedLots: map[string][]ClosedLot{},
+					Cash:       dec(50),
+					LastAction: times[1],
+				},
+				"2020-01-03": {
+					OpenLots: map[string][]*OpenLot{},
+					ClosedLots: map[string][]ClosedLot{
+						"AAPL": {
+							{
+								RealizedGains: dec(0),
+								GainsType:     model.GainsType_ShortTerm,
+								Quantity:      dec(1),
+								OpenLot: &domain.OpenLot{
+									Quantity:  dec(0),
+									CostBasis: dec(50),
+									Trade:     &events.Trades[0],
+									Date:      times[1],
+								},
+								SellTrade: &events.Trades[1],
+							},
+						},
+					},
+					Cash:       dec(100),
+					LastAction: times[2],
+				},
+			},
+			dailyPortfolios,
+			cmpopts.IgnoreFields(domain.OpenLot{}, "LotID"),
+		),
+	)
+}
 
 func TestPlayback(t *testing.T) {
 	times := []time.Time{
@@ -63,8 +148,8 @@ func TestPlayback(t *testing.T) {
 						},
 					},
 				},
-				Date: times[2],
-				Cash: dec(1000),
+				LastAction: times[2],
+				Cash:       dec(1000),
 			},
 			*out,
 			cmpopts.IgnoreFields(OpenLot{}, "LotID"),

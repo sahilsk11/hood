@@ -42,14 +42,30 @@ type Events struct {
 	Dividends   []Dividend
 }
 
+func Playback(in Events) (*Portfolio, error) {
+	daily, err := PlaybackDaily(in)
+	if err != nil {
+		return nil, err
+	}
+	keys := []string{}
+	for k := range daily {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	latest := daily[keys[len(keys)-1]]
+
+	return &latest, nil
+}
+
 // given new data, figure out what to do
 // should be dry. can have another func
 // for committing
-func Playback(in Events) (*Portfolio, error) {
+func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	portfolio := &Portfolio{
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
+	mappedPortfolio := map[string]Portfolio{}
 
 	events := mergeEvents(in)
 	if len(events) == 0 {
@@ -57,7 +73,6 @@ func Playback(in Events) (*Portfolio, error) {
 	}
 
 	for _, e := range events {
-		portfolio.Date = e.GetDate()
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
@@ -76,9 +91,11 @@ func Playback(in Events) (*Portfolio, error) {
 		case Dividend:
 			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
-
+		date := e.GetDate().Format("2006-01-02")
+		portfolio.LastAction = e.GetDate()
+		mappedPortfolio[date] = portfolio.DeepCopy()
 	}
-	return portfolio, nil
+	return mappedPortfolio, nil
 }
 
 func handleBuy(t Trade, p *Portfolio) {

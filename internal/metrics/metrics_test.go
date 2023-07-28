@@ -1,8 +1,13 @@
 package metrics
 
 import (
+	"context"
+	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
 	"hood/internal/domain"
+	. "hood/internal/domain"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/shopspring/decimal"
@@ -13,18 +18,46 @@ func dec(f float64) decimal.Decimal {
 	return decimal.NewFromFloat(f)
 }
 
-func TestPortfolio_netValue(t *testing.T) {
+func Test_netValue(t *testing.T) {
 	t.Run("only cash", func(t *testing.T) {
 		p := Portfolio{
 			OpenLots: map[string][]*domain.OpenLot{},
-			Transfer: dec(100),
+			Cash:     dec(100),
 		}
 		priceMap := map[string]decimal.Decimal{}
-		result, err := p.netValue(priceMap)
+		result, err := netValue(p, priceMap)
 		require.NoError(t, err)
 		require.Equal(
 			t,
 			float64(100),
+			result.InexactFloat64(),
+		)
+	})
+	t.Run("few open lots", func(t *testing.T) {
+		p := Portfolio{
+			OpenLots: map[string][]*domain.OpenLot{
+				"AAPL": {
+					{
+						Quantity: dec(100),
+					},
+				},
+				"GOOG": {
+					{
+						Quantity: dec(1),
+					},
+				},
+			},
+			Cash: dec(100),
+		}
+		priceMap := map[string]decimal.Decimal{
+			"AAPL": dec(1),
+			"GOOG": dec(500),
+		}
+		result, err := netValue(p, priceMap)
+		require.NoError(t, err)
+		require.Equal(
+			t,
+			float64(700),
 			result.InexactFloat64(),
 		)
 	})
@@ -53,13 +86,16 @@ func Test_TimeWeightedReturns(t *testing.T) {
 		)
 	})
 
-	t.Run("realized gains", func(t *testing.T) {
+	t.Run("cash outflows", func(t *testing.T) {
 		dailyPortfolio := map[string]decimal.Decimal{
 			"2023-07-18": dec(100),
-			"2023-07-19": dec(110),
+			"2023-07-19": dec(100),
+		}
+		transfers := map[string]decimal.Decimal{
+			"2023-07-19": dec(-50),
 		}
 
-		out, err := TimeWeightedReturns(dailyPortfolio, map[string]decimal.Decimal{})
+		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -67,7 +103,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 			"",
 			cmp.Diff(
 				map[string]decimal.Decimal{
-					"2023-07-19": dec(0.1),
+					"2023-07-19": dec(1),
 				},
 				out,
 			),
@@ -166,4 +202,60 @@ func Test_TimeWeightedReturns(t *testing.T) {
 		)
 	})
 
+}
+
+func TestDailyPortfolioValues(t *testing.T) {
+	ctx := context.Background()
+	dbConn, err := db.NewTest()
+	require.NoError(t, err)
+	tx, err := dbConn.Begin()
+	require.NoError(t, err)
+
+	_, err = db.AddPrices(ctx, tx, []model.Price{
+		{
+			Symbol: "AAPL",
+			Price:  dec(100),
+			Date:   time.Date(2020, 02, 02, 0, 0, 0, 0, time.UTC),
+		},
+		{
+			Symbol: "AAPL",
+			Price:  dec(200),
+			Date:   time.Date(2020, 02, 03, 0, 0, 0, 0, time.UTC),
+		},
+	})
+	require.NoError(t, err)
+
+	portfolios := map[string]Portfolio{
+		"2020-02-02": {
+			OpenLots: map[string][]*OpenLot{
+				"AAPL": {
+					{
+						Quantity: dec(10),
+					},
+				},
+			},
+			Cash: dec(200),
+		},
+	}
+
+	end := time.Date(2020, 02, 03, 0, 0, 0, 0, time.UTC)
+	values, err := DailyPortfolioValues(
+		tx,
+		portfolios,
+		nil,
+		&end,
+	)
+	require.NoError(t, err)
+
+	require.Equal(
+		t,
+		"",
+		cmp.Diff(
+			map[string]decimal.Decimal{
+				"2020-02-02": dec(1200),
+				"2020-02-03": dec(2200),
+			},
+			values,
+		),
+	)
 }
