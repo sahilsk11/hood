@@ -71,7 +71,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 			"2023-07-19": dec(110),
 		}
 
-		out, err := TimeWeightedReturns(dailyPortfolioValues, map[string]decimal.Decimal{})
+		out, err := DailyAggregateTwr(dailyPortfolioValues, map[string]decimal.Decimal{})
 		require.NoError(t, err)
 
 		require.Equal(
@@ -95,7 +95,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 			"2023-07-19": dec(-50),
 		}
 
-		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		out, err := DailyAggregateTwr(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -123,7 +123,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 			"2023-07-20": dec(100),
 		}
 
-		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		out, err := DailyAggregateTwr(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -150,7 +150,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 		}
 		transfers := map[string]decimal.Decimal{}
 
-		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		out, err := DailyAggregateTwr(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -183,7 +183,7 @@ func Test_TimeWeightedReturns(t *testing.T) {
 			"2023-07-20": dec(-50),
 		}
 
-		out, err := TimeWeightedReturns(dailyPortfolio, transfers)
+		out, err := DailyAggregateTwr(dailyPortfolio, transfers)
 		require.NoError(t, err)
 
 		require.Equal(

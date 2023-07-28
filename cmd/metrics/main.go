@@ -79,7 +79,7 @@ func main() {
 		}
 	}
 
-	out, err := metrics.TimeWeightedReturns(values, tranfersMap)
+	out, err := metrics.DailyAggregateTwr(values, tranfersMap)
 	if err != nil {
 		log.Fatal(err)
 	}

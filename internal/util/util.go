@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 )
 
@@ -44,4 +45,13 @@ func Pprint(i interface{}) {
 		}
 		fmt.Println(string(bytes))
 	}
+}
+
+func SortedMapKeys[T any](in map[string]T) []string {
+	out := make([]string, 0, len(in))
+	for s := range in {
+		out = append(out, s)
+	}
+	sort.Strings(out)
+	return out
 }

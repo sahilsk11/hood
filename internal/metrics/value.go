@@ -34,7 +34,7 @@ func netValue(p Portfolio, priceMap map[string]decimal.Decimal) (decimal.Decimal
 }
 
 // determine what the value of the portfolio is on a given day
-func calculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
+func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
 	if len(p.GetOpenLotSymbols()) == 0 {
 		return p.Cash, nil
 	}
@@ -103,11 +103,7 @@ func DailyPortfolioValues(
 			portfolio = p
 		}
 
-		priceMap, err := getPricesHelper(tx, currentTime, portfolio.GetOpenLotSymbols())
-		if err != nil {
-			return nil, err
-		}
-		value, err := netValue(portfolio, priceMap)
+		value, err := CalculatePortfolioValue(tx, portfolio, currentTime)
 		if err != nil {
 			return nil, err
 		}
@@ -130,38 +126,6 @@ func DailyPortfolioValues(
 // call that in loop, generate arr/map of days and value
 // then simple func computes on that DS using equation
 // and produces arr/map of returns on given day
-
-func TimeWeightedReturns(
-	dailyPortfolioValues map[string]decimal.Decimal,
-	transfers map[string]decimal.Decimal,
-) (map[string]decimal.Decimal, error) {
-	if len(dailyPortfolioValues) < 2 {
-		return nil, fmt.Errorf("at least two daily portfolios required to compute TWR")
-	}
-	dateKeys := []string{}
-	for dateStr := range dailyPortfolioValues {
-		dateKeys = append(dateKeys, dateStr)
-	}
-	sort.Strings(dateKeys)
-
-	out := map[string]decimal.Decimal{}
-	twr := decimal.NewFromInt(1)
-
-	for i := 1; i < len(dateKeys); i++ {
-		prevValue := dailyPortfolioValues[dateKeys[i-1]]
-		currentValue := dailyPortfolioValues[dateKeys[i]]
-		netTransfers, _ := transfers[dateKeys[i]]
-
-		// https://www.investopedia.com/terms/t/time-weightedror.asp
-		x := prevValue.Add(netTransfers)
-		twr = twr.Mul(
-			((currentValue.Sub(x)).Div(x)).Add(decimal.NewFromInt(1)),
-		)
-		out[dateKeys[i]] = twr.Sub(decimal.NewFromInt(1))
-	}
-
-	return out, nil
-}
 
 func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
 	if len(symbols) == 0 {
