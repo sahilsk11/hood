@@ -35,6 +35,9 @@ func netValue(p Portfolio, priceMap map[string]decimal.Decimal) (decimal.Decimal
 
 // determine what the value of the portfolio is on a given day
 func calculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
+	if len(p.GetOpenLotSymbols()) == 0 {
+		return p.Cash, nil
+	}
 	// get prices up to 3 days back
 	priceMap, err := getPricesHelper(tx, date, p.GetOpenLotSymbols())
 	if err != nil {
@@ -162,7 +165,7 @@ func TimeWeightedReturns(
 
 func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
 	if len(symbols) == 0 {
-		return nil, fmt.Errorf("getPricesHelper requires at least one symbol")
+		return map[string]decimal.Decimal{}, nil
 	}
 	priceMap, err := db.GetPricesOnDate(tx, date, symbols)
 	if err != nil {

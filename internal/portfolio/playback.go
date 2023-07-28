@@ -73,7 +73,6 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	}
 
 	for _, e := range events {
-		fmt.Println(e)
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)

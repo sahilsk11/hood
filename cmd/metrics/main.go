@@ -25,20 +25,18 @@ func main() {
 	}
 
 	e1 := getData(tx, model.CustodianType_Robinhood)
-	// e2 := getData(tx, model.CustodianType_Robinhood)
-	// events := portfolio.Events{
-	// 	Trades:      append(e1.Trades, e2.Trades...),
-	// 	AssetSplits: append(e1.AssetSplits, e2.AssetSplits...),
-	// 	Transfers:   append(e1.Transfers, e2.Transfers...),
-	// 	Dividends:   append(e1.Dividends, e2.Dividends...),
-	// }
-	events := e1
-	dailyPortfolio, err := portfolio.PlaybackDaily(events)
+	e2 := getData(tx, model.CustodianType_Tda)
+
+	dailyPortfolio1, err := portfolio.PlaybackDaily(e1)
+	if err != nil {
+		log.Fatal(err)
+	}
+	dailyPortfolio2, err := portfolio.PlaybackDaily(e2)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	transfers := e1.Transfers //append(e1.Transfers, e2.Transfers...)
+	transfers := append(e1.Transfers, e2.Transfers...)
 	tranfersMap := map[string]decimal.Decimal{}
 	for _, t := range transfers {
 		dateStr := t.Date.Format("2006-01-02")
@@ -57,13 +55,28 @@ func main() {
 	}
 	values, err := metrics.DailyPortfolioValues(
 		tx,
-		dailyPortfolio,
+		dailyPortfolio1,
 		&start,
 		&end,
 	)
-
 	if err != nil {
 		log.Fatal(err)
+	}
+	values2, err := metrics.DailyPortfolioValues(
+		tx,
+		dailyPortfolio2,
+		nil,
+		&end,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for k, v := range values2 {
+		if _, ok := values[k]; ok {
+			values[k] = values[k].Add(v)
+		} else {
+			values[k] = v
+		}
 	}
 
 	out, err := metrics.TimeWeightedReturns(values, tranfersMap)
