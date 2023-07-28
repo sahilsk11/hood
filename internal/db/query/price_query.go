@@ -104,3 +104,16 @@ func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[str
 
 	return priceMap, nil
 }
+
+func DistinctPriceDays(tx *sql.Tx) ([]time.Time, error) {
+	var dates []time.Time
+	query := SELECT(Price.Date).
+		FROM(Price).
+		DISTINCT().
+		ORDER_BY(Price.Date.ASC())
+	err := query.Query(tx, &dates)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch distinct dates: %w", err)
+	}
+	return dates, nil
+}

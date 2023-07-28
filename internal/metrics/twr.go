@@ -9,7 +9,7 @@ import (
 )
 
 func DailyAggregateTwr(dailyPortfolioValues map[string]decimal.Decimal, transfers map[string]decimal.Decimal) (map[string]decimal.Decimal, error) {
-	dailyTwr, err := timeWeightedReturns(dailyPortfolioValues, transfers)
+	dailyTwr, err := TimeWeightedReturns(dailyPortfolioValues, transfers)
 	if err != nil {
 		return nil, err
 	}
@@ -26,7 +26,7 @@ func DailyAggregateTwr(dailyPortfolioValues map[string]decimal.Decimal, transfer
 // calculates twr product for each day
 // in daily portfolio values. should be
 // equivalent to "daily returns"
-func timeWeightedReturns(
+func TimeWeightedReturns(
 	dailyPortfolioValues map[string]decimal.Decimal,
 	transfers map[string]decimal.Decimal,
 ) (map[string]decimal.Decimal, error) {
