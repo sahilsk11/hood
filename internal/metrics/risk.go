@@ -35,6 +35,10 @@ func tradingHolidays(tx *sql.Tx) (map[string]struct{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(priceDates) == 0 {
+		fmt.Println("no holidays found")
+		return holidays, nil
+	}
 	priceDatesSet := map[string]struct{}{}
 	for _, d := range priceDates {
 		priceDatesSet[d.Format(layout)] = struct{}{}
