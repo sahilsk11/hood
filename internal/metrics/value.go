@@ -46,6 +46,9 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 	return netValue(p, priceMap)
 }
 
+// over the given date range, determine
+// what the value of a portfolio is on every
+// day within the range
 func DailyPortfolioValues(
 	tx *sql.Tx,
 	dailyPortfolios map[string]Portfolio,
