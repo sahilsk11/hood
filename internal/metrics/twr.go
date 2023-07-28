@@ -60,11 +60,11 @@ func timeWeightedReturns(
 // https://www.investopedia.com/terms/t/time-weightedror.asp
 func hp(start, end, cashFlow decimal.Decimal) decimal.Decimal {
 	initialPlusTransfers := start.Add(cashFlow)
-	numerator := end.Sub(initialPlusTransfers)
+	numerator := end
 	denominator := initialPlusTransfers
 
 	quotient := numerator.Div(denominator)
-	hp := quotient.Add(decimal.NewFromInt(1))
+	hp := quotient
 
 	util.Pprint(map[string]decimal.Decimal{
 		"hp":          hp,
