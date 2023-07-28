@@ -34,6 +34,7 @@ func (o OpenLot) DeepCopy() *OpenLot {
 		Quantity:  o.Quantity,
 		CostBasis: o.CostBasis,
 		Trade:     o.Trade.DeepCopy(),
+		Date:      o.Date,
 	}
 }
 
