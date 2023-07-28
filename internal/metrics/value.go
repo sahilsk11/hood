@@ -51,17 +51,17 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 // day within the range
 func DailyPortfolioValues(
 	tx *sql.Tx,
-	dailyPortfolios map[string]Portfolio,
+	portfolios map[string]Portfolio,
 	start *time.Time,
 	end *time.Time,
 ) (map[string]decimal.Decimal, error) {
-	if len(dailyPortfolios) == 0 {
+	if len(portfolios) == 0 {
 		return nil, fmt.Errorf("no portfolios given")
 	}
 	out := map[string]decimal.Decimal{}
 	dateKeys := []string{}
 
-	for dateStr := range dailyPortfolios {
+	for dateStr := range portfolios {
 		dateKeys = append(dateKeys, dateStr)
 	}
 	sort.Strings(dateKeys)
@@ -91,10 +91,10 @@ func DailyPortfolioValues(
 	// increment portfolio date until we reach
 	// start date
 	currentTime := minPortfolioDate
-	portfolio := dailyPortfolios[dateKeys[0]]
+	portfolio := portfolios[dateKeys[0]]
 	for currentTime.Before(*start) {
 		// if there's a newer portfolio, use it
-		if p, ok := dailyPortfolios[currentTime.Format(layout)]; ok {
+		if p, ok := portfolios[currentTime.Format(layout)]; ok {
 			portfolio = p
 		}
 		currentTime = currentTime.AddDate(0, 0, 1)
@@ -102,7 +102,7 @@ func DailyPortfolioValues(
 
 	for currentTime.Before(*end) || currentTime.Equal(*end) {
 		dateStr := currentTime.Format(layout)
-		if p, ok := dailyPortfolios[dateStr]; ok {
+		if p, ok := portfolios[dateStr]; ok {
 			portfolio = p
 		}
 
@@ -117,18 +117,6 @@ func DailyPortfolioValues(
 
 	return out, nil
 }
-
-// goal is to figure out portfolio value
-// at every day from [1:] in days (2 days min)
-// day interval calculated as start of day being
-// t-1 close (when pricing is avail) to t close
-// which should ensure all trades are in
-// this is also a proper "trading day"
-// since market open will be at prev day close
-// some algo should calculate total value at a given day
-// call that in loop, generate arr/map of days and value
-// then simple func computes on that DS using equation
-// and produces arr/map of returns on given day
 
 func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
 	if len(symbols) == 0 {

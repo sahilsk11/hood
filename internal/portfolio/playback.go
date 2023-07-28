@@ -57,9 +57,7 @@ func Playback(in Events) (*Portfolio, error) {
 	return &latest, nil
 }
 
-// given new data, figure out what to do
-// should be dry. can have another func
-// for committing
+// given historical events, calculate all portfolios
 func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	portfolio := &Portfolio{
 		OpenLots:   map[string][]*OpenLot{},

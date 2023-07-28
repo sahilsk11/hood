@@ -27,11 +27,11 @@ func main() {
 	e1 := getData(tx, model.CustodianType_Robinhood)
 	e2 := getData(tx, model.CustodianType_Tda)
 
-	dailyPortfolio1, err := portfolio.PlaybackDaily(e1)
+	portfolios1, err := portfolio.PlaybackDaily(e1)
 	if err != nil {
 		log.Fatal(err)
 	}
-	dailyPortfolio2, err := portfolio.PlaybackDaily(e2)
+	portfolios2, err := portfolio.PlaybackDaily(e2)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -55,7 +55,7 @@ func main() {
 	}
 	values, err := metrics.DailyPortfolioValues(
 		tx,
-		dailyPortfolio1,
+		portfolios1,
 		&start,
 		&end,
 	)
@@ -64,7 +64,7 @@ func main() {
 	}
 	values2, err := metrics.DailyPortfolioValues(
 		tx,
-		dailyPortfolio2,
+		portfolios2,
 		nil,
 		&end,
 	)

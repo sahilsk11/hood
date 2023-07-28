@@ -49,29 +49,3 @@ func (p Portfolio) GetOpenLotSymbols() []string {
 	}
 	return symbols
 }
-
-type ValueType string
-
-const (
-	PortfolioValueType_Twr    ValueType = "TWR"
-	PortfolioValueType_Dollar ValueType = "DOLLAR"
-)
-
-// Anything of type "Daily_XX" is expected to contain
-// values for a particular field for every day over
-// the range INCLUDING weekends
-
-type DailyValue struct {
-	Date  time.Time
-	Value decimal.Decimal
-}
-
-type DailyValues struct {
-	values []DailyValue
-	start  time.Time
-	end    time.Time
-}
-
-func NewDailyValues(map[string]decimal.Decimal) (*DailyValues, error) {
-
-}
