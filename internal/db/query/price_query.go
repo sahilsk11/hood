@@ -141,3 +141,56 @@ func DistinctPriceDays(tx *sql.Tx) ([]time.Time, error) {
 	}
 	return dates, nil
 }
+
+func GetAssetSplits(tx *sql.Tx, symbols []string) ([]model.AssetSplit, error) {
+	symbolExpression := symbolExpression(symbols)
+	query := AssetSplit.SELECT(AssetSplit.AllColumns).
+		WHERE(AssetSplit.Symbol.IN(symbolExpression...))
+
+	result := []model.AssetSplit{}
+	err := query.Query(tx, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch prices: %w", err)
+	}
+	return result, nil
+}
+
+func symbolExpression(symbols []string) []Expression {
+	symbolExpression := []Expression{}
+	for _, s := range symbols {
+		symbolExpression = append(symbolExpression, String(s))
+	}
+	return symbolExpression
+}
+
+// prices adjusted for asset splits
+func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.Price, error) {
+	symbolExpression := symbolExpression(symbols)
+	query := Price.SELECT(Price.AllColumns).
+		WHERE(AND(
+			Price.Symbol.IN(symbolExpression...),
+			Price.Date.GT_EQ(Date(start.Date())),
+		)).
+		ORDER_BY(Price.Date.ASC())
+
+	result := []model.Price{}
+	err := query.Query(tx, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch prices: %w", err)
+	}
+
+	assetSplits, err := GetAssetSplits(tx, symbols)
+	if err != nil {
+		return nil, err
+	}
+
+	for i, r := range result {
+		for _, split := range assetSplits {
+			if r.Symbol == split.Symbol && r.Date.Before(split.Date) {
+				result[i].Price = result[i].Price.Mul(decimal.NewFromInt32(split.Ratio))
+			}
+		}
+	}
+
+	return result, nil
+}

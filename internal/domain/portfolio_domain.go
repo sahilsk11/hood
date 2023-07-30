@@ -13,6 +13,15 @@ type Portfolio struct {
 	LastAction time.Time
 }
 
+func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
+	lots := p.OpenLots[symbol]
+	totalQuantity := decimal.Zero
+	for _, lot := range lots {
+		totalQuantity = totalQuantity.Add(lot.Quantity)
+	}
+	return totalQuantity
+}
+
 func (p Portfolio) DeepCopy() Portfolio {
 	out := Portfolio{
 		OpenLots:   map[string][]*OpenLot{},
