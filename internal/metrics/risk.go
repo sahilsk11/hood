@@ -22,43 +22,13 @@ func StdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	fmt.Println(prices)
+
 	changes, err := pricesListToMappedChanges(prices)
 	if err != nil {
 		return 0, err
 	}
 	data := decListToFloat64(changes[symbol])
-	fmt.Println(data)
 	return stats.StandardDeviation(data)
-}
-
-func tradingHolidays(tx *sql.Tx) (map[string]struct{}, error) {
-	holidays := map[string]struct{}{}
-	priceDates, err := db.DistinctPriceDays(tx)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(priceDates) == 0 {
-		fmt.Println("no holidays found")
-		return holidays, nil
-	}
-	priceDatesSet := map[string]struct{}{}
-	for _, d := range priceDates {
-		priceDatesSet[d.Format(layout)] = struct{}{}
-	}
-	start := priceDates[0]
-	end := priceDates[len(priceDates)-1]
-
-	for start.Before(end) || start.Equal(end) {
-		dateStr := start.Format(layout)
-		if _, ok := priceDatesSet[dateStr]; !ok {
-			holidays[dateStr] = struct{}{}
-		}
-		start = start.AddDate(0, 0, 1)
-	}
-
-	return holidays, nil
 }
 
 func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
