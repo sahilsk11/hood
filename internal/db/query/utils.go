@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func GetTx(ctx context.Context) (*sql.Tx, error) {
@@ -44,6 +46,16 @@ func NewTest() (*sql.DB, error) {
 	}
 
 	return dbConn, nil
+}
+
+func SetupTestDb(t *testing.T) *sql.Tx {
+	dbConn, err := NewTest()
+	require.NoError(t, err)
+	tx, err := dbConn.Begin()
+	require.NoError(t, err)
+	RollbackAfterTest(t, tx)
+
+	return tx
 }
 
 func RollbackAfterTest(t *testing.T, tx *sql.Tx) {
