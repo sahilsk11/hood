@@ -20,7 +20,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println(metrics.StdevOfAsset(tx, "SPY"))
+	fmt.Println(metrics.DailyStdevOfAsset(tx, "SPY"))
 
 	// // Read values from JSON file
 	// values := make(map[string]decimal.Decimal)

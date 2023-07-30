@@ -16,7 +16,7 @@ import (
 // https://icfs.com/financial-knowledge-center/importance-standard-deviation-investment#:~:text=With%20most%20investments%2C%20including%20mutual,standard%20deviation%20would%20be%20zero.
 const stdevRange = 3 * (time.Hour * 24 * 365)
 
-func StdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
+func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 	start := time.Now().Add(-1 * stdevRange)
 	prices, err := db.GetAdjustedPrices(tx, []string{symbol}, start)
 	if err != nil {
