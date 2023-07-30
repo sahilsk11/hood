@@ -1,0 +1,1 @@
+DROP TABLE immutable_open_lot;

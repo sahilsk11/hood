@@ -51,7 +51,7 @@ func (o OpenLot) GetPurchaseDate() time.Time {
 }
 
 type ClosedLot struct {
-	OpenLot       *OpenLot // not supported yet
+	OpenLot       *OpenLot
 	SellTrade     *Trade
 	Quantity      decimal.Decimal
 	RealizedGains decimal.Decimal
