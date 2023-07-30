@@ -71,6 +71,30 @@ func GetPricesOnDate(tx *sql.Tx, date time.Time, symbols []string) (map[string]d
 	return priceMap, nil
 }
 
+func GetPricesChanges(tx *sql.Tx, symbol string) (map[string]decimal.Decimal, error) {
+	query := Price.SELECT(Price.Date, Price.Price).
+		WHERE(AND(
+			Price.Symbol.EQ(String(symbol)),
+			Price.Date.GT(Date(2023, 1, 1)),
+		)).
+		ORDER_BY(Price.Date.ASC())
+
+	result := []model.Price{}
+	err := query.Query(tx, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch prices: %w", err)
+	}
+
+	out := map[string]decimal.Decimal{}
+	for i, r := range result[1:] {
+		prevPrice := result[i].Price
+		out[r.Date.Format("2006-01-02")] = (r.Price.Sub(prevPrice)).Div(prevPrice)
+	}
+
+	return out, nil
+
+}
+
 func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, error) {
 	priceMap := map[string]decimal.Decimal{}
 	symbolSet := map[string]bool{}

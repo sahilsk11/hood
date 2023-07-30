@@ -2,13 +2,14 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/metrics"
 	"hood/internal/portfolio"
+	"io/ioutil"
 	"log"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -23,62 +24,41 @@ func main() {
 		log.Fatal(err)
 	}
 
-	e1 := getData(tx, model.CustodianType_Robinhood)
-	e2 := getData(tx, model.CustodianType_Tda)
+	fmt.Println(metrics.StdevOfAsset(tx, "NVDA"))
 
-	portfolios1, err := portfolio.PlaybackDaily(e1)
+	// Read values from JSON file
+	values := make(map[string]decimal.Decimal)
+	valuesFile, err := ioutil.ReadFile("values.json")
 	if err != nil {
 		log.Fatal(err)
 	}
-	portfolios2, err := portfolio.PlaybackDaily(e2)
+	err = json.Unmarshal(valuesFile, &values)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	transfers := append(e1.Transfers, e2.Transfers...)
-	tranfersMap := map[string]decimal.Decimal{}
-	for _, t := range transfers {
-		dateStr := t.Date.Format("2006-01-02")
-		if _, ok := tranfersMap[dateStr]; !ok {
-			tranfersMap[dateStr] = decimal.Zero
-		}
-		tranfersMap[dateStr] = tranfersMap[dateStr].Add(t.Amount)
-	}
-	start, err := time.Parse("2006-01-02", "2020-06-19")
-	if err != nil {
-		log.Fatal(err)
-	}
-	end, err := time.Parse("2006-01-02", "2023-07-15")
-	if err != nil {
-		log.Fatal(err)
-	}
-	values, err := metrics.DailyPortfolioValues(
-		tx,
-		portfolios1,
-		&start,
-		&end,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	values2, err := metrics.DailyPortfolioValues(
-		tx,
-		portfolios2,
-		nil,
-		&end,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-	for k, v := range values2 {
-		if _, ok := values[k]; ok {
-			values[k] = values[k].Add(v)
-		} else {
-			values[k] = v
-		}
 	}
 
-	out, err := metrics.TimeWeightedReturns(values, tranfersMap)
+	// Read transferMap from JSON file
+	transfersMap := make(map[string]decimal.Decimal)
+	transferMapFile, err := ioutil.ReadFile("transfersMap.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(transferMapFile, &transfersMap)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Write values to JSON file
+	valuesJson, err := json.Marshal(values)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = ioutil.WriteFile("values.json", valuesJson, 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	out, err := metrics.TimeWeightedReturns(values, transfersMap)
 	if err != nil {
 		log.Fatal(err)
 	}
