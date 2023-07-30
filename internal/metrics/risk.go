@@ -133,6 +133,10 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 		s1 := priceChangeMap[symbols[i]]
 		for j := i; j < len(symbols); j++ {
 			s2 := priceChangeMap[symbols[j]]
+			if len(s1) != len(s2) {
+				return nil, fmt.Errorf("inconsistent price days: %d for %s and %d for %s", len(s1), symbols[i], len(s2), symbols[j])
+			}
+			// https://www.investopedia.com/terms/c/covariance.asp
 			c, err := stats.Covariance(
 				decListToFloat64(s1),
 				decListToFloat64(s2),
