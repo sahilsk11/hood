@@ -21,6 +21,7 @@ type cashTable struct {
 	Amount    postgres.ColumnFloat
 	Custodian postgres.ColumnString
 	CreatedAt postgres.ColumnTimestampz
+	Date      postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -55,8 +56,9 @@ func newCashTableImpl(schemaName, tableName, alias string) cashTable {
 		AmountColumn    = postgres.FloatColumn("amount")
 		CustodianColumn = postgres.StringColumn("custodian")
 		CreatedAtColumn = postgres.TimestampzColumn("created_at")
-		allColumns      = postgres.ColumnList{CashIDColumn, AmountColumn, CustodianColumn, CreatedAtColumn}
-		mutableColumns  = postgres.ColumnList{AmountColumn, CustodianColumn, CreatedAtColumn}
+		DateColumn      = postgres.TimestampzColumn("date")
+		allColumns      = postgres.ColumnList{CashIDColumn, AmountColumn, CustodianColumn, CreatedAtColumn, DateColumn}
+		mutableColumns  = postgres.ColumnList{AmountColumn, CustodianColumn, CreatedAtColumn, DateColumn}
 	)
 
 	return cashTable{
@@ -67,6 +69,7 @@ func newCashTableImpl(schemaName, tableName, alias string) cashTable {
 		Amount:    AmountColumn,
 		Custodian: CustodianColumn,
 		CreatedAt: CreatedAtColumn,
+		Date:      DateColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

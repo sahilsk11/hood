@@ -5,7 +5,7 @@ db-models:
 db-drop-all:
 	tools/env/bin/python3.9 tools/migrations.py down
 
-db-run-all:
+migrate:
 	tools/env/bin/python3.9 tools/migrations.py up
 
 process-outfile:

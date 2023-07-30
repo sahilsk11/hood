@@ -22,4 +22,3 @@ type Dividend struct {
 	ReinvestmentTradeID *int32
 	CreatedAt           *time.Time
 }
-

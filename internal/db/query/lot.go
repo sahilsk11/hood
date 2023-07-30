@@ -44,7 +44,6 @@ func openLotFromDb(o model.OpenLot, t model.Trade) domain.OpenLot {
 	return domain.OpenLot{
 		Trade:     tradeFromDb(t).Ptr(),
 		OpenLotID: &o.OpenLotID,
-		LotID:     o.LotID,
 		Quantity:  o.Quantity,
 		CostBasis: o.CostBasis,
 		Date:      o.Date,
@@ -109,7 +108,6 @@ func openLotsToDb(lots []domain.OpenLot) []model.OpenLot {
 			TradeID:    *l.TradeID(),
 			CreatedAt:  time.Now().UTC(),
 			ModifiedAt: time.Now().UTC(),
-			LotID:      l.LotID,
 			Date:       l.Date,
 		}
 	}
@@ -165,4 +163,35 @@ func UpdateOpenLotInDb(ctx context.Context, tx *sql.Tx, updatedLot model.OpenLot
 	}
 
 	return &result, nil
+}
+
+func AddImmutableOpenLots(tx *sql.Tx, lots []domain.OpenLot) error {
+	if len(lots) == 0 {
+		return nil
+	}
+	query := ImmutableOpenLot.INSERT(ImmutableOpenLot.MutableColumns).
+		MODELS(openLotsToIDb(lots)).
+		// ON_CONFLICT(ImmutableOpenLot.OpenLotID).DO_NOTHING().
+		ON_CONFLICT().ON_CONSTRAINT("immutable_open_lot_trade_id_quantity_key").DO_NOTHING()
+
+	_, err := query.Exec(tx)
+	if err != nil {
+		fmt.Println(query.DebugSql())
+		return fmt.Errorf("failed to insert immutable open lots: %w", err)
+	}
+	return nil
+}
+
+func openLotsToIDb(lots []domain.OpenLot) []model.ImmutableOpenLot {
+	out := make([]model.ImmutableOpenLot, len(lots))
+	for i, l := range lots {
+		out[i] = model.ImmutableOpenLot{
+			CostBasis: l.CostBasis,
+			Quantity:  l.Quantity,
+			TradeID:   *l.TradeID(),
+			CreatedAt: time.Now().UTC(),
+			Date:      l.Date,
+		}
+	}
+	return out
 }

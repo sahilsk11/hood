@@ -8,7 +8,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -101,7 +100,6 @@ func handleBuy(t Trade, p *Portfolio) {
 		p.OpenLots[t.Symbol] = []*OpenLot{}
 	}
 	newLot := OpenLot{
-		LotID:     uuid.New(),
 		Trade:     &t,
 		Quantity:  t.Quantity,
 		CostBasis: t.Price,
@@ -130,6 +128,7 @@ func handleSell(t Trade, p *Portfolio) error {
 	if len(p.OpenLots[t.Symbol]) == 0 {
 		delete(p.OpenLots, t.Symbol)
 	}
+	p.NewOpenLots = result.NewOpenLots
 
 	p.ClosedLots[t.Symbol] = append(closedLots, result.NewClosedLots...)
 	return nil

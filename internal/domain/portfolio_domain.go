@@ -11,6 +11,8 @@ type Portfolio struct {
 	ClosedLots map[string][]ClosedLot
 	Cash       decimal.Decimal
 	LastAction time.Time
+
+	NewOpenLots []OpenLot
 }
 
 func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
