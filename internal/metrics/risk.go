@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
@@ -24,9 +25,12 @@ func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 		return 0, err
 	}
 
-	changes := pricesListToMappedChanges(prices)
+	changes, err := pricesListToMappedChanges(prices)
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate daily percent change of %s: %w", symbol, err)
+	}
 	data := decListToFloat64(changes)
-	return stats.StandardDeviation(data)
+	return stats.StandardDeviationSample(data)
 }
 
 func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
@@ -88,9 +92,10 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 }
 
 func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
+	ctx := context.Background()
 	symbols := p.GetOpenLotSymbols()
-	date := time.Date(2023, 7, 10, 0, 0, 0, 0, time.UTC)
-	priceMap, err := getPricesHelper(tx, date, symbols)
+
+	priceMap, err := db.GetLatestPrices(ctx, tx, symbols)
 	if err != nil {
 		return nil, err
 	}
@@ -111,15 +116,18 @@ func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
 }
 
 // assume prices is sorted by date
-func pricesListToMappedChanges(prices []model.Price) []decimal.Decimal {
+func pricesListToMappedChanges(prices []model.Price) ([]decimal.Decimal, error) {
+	if len(prices) < 2 {
+		return nil, fmt.Errorf("need at least 2 prices to calculate percent change, received %d", len(prices))
+	}
 	mappedPriceLists := []decimal.Decimal{}
 	for i, p := range prices[1:] {
 		prevPrice := prices[i].Price
-		percentChange := ((p.Price.Sub(prevPrice)).Div(prevPrice)).Mul(decimal.NewFromInt(100))
+		percentChange := (p.Price.Sub(prevPrice)).Div(prevPrice)
 		// fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
 		mappedPriceLists = append(mappedPriceLists, percentChange)
 	}
-	return mappedPriceLists
+	return mappedPriceLists, nil
 }
 
 func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]float64, error) {
@@ -145,10 +153,17 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 	sort.Strings(symbols)
 	for i := range symbols {
 		s1 := symbols[i]
-		s1PriceChanges := pricesListToMappedChanges(pricesBySymbol[s1])
+		s1PriceChanges, err := pricesListToMappedChanges(pricesBySymbol[s1])
+		if err != nil {
+			return nil, fmt.Errorf("failed to calculate daily %% change of %s: %w", s1, err)
+		}
 		for j := i + 1; j < len(symbols); j++ {
 			s2 := symbols[j]
-			s2PriceChanges := pricesListToMappedChanges(pricesBySymbol[s2])
+			s2PriceChanges, err := pricesListToMappedChanges(pricesBySymbol[s2])
+			if err != nil {
+				return nil, fmt.Errorf("failed to calculate daily %% change of %s: %w", s2, err)
+			}
+
 			setDiff := setDifference(priceDates[s1], priceDates[s2])
 			if len(s1PriceChanges) != len(s2PriceChanges) {
 				return nil, fmt.Errorf("inconsistent price days: %d for %s and %d for %s: %v", len(s1PriceChanges), symbols[i], len(s2PriceChanges), symbols[j], setDiff)
