@@ -17,7 +17,7 @@ update-prices:
 mocks:
 	mockgen -source=internal/trade/trade_service.go -self_package=hood/internal/trade -package=trade > internal/trade/trade_service_mock.go
 
-test-coverage:
+test-cov:
 	go test ./... -v -coverprofile=/var/folders/tz/f4mn6q3n3gl88p1pts49px400000gn/T/vscode-godEwM6m/go-code-cover -count=1 -coverprofile coverage.out > /dev/null
 	gocover-cobertura < coverage.out > coverage.xml
 	diff-cover coverage.xml --compare-branch=origin/master
