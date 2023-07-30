@@ -6,7 +6,6 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	. "hood/internal/domain"
-	"math"
 	"sort"
 	"time"
 
@@ -17,40 +16,20 @@ import (
 // https://icfs.com/financial-knowledge-center/importance-standard-deviation-investment#:~:text=With%20most%20investments%2C%20including%20mutual,standard%20deviation%20would%20be%20zero.
 const stdevRange = 3 * (time.Hour * 24 * 365)
 
-// functions to generate risk metrics
-func StandardDeviation(
-	tx *sql.Tx,
-	dailyChange map[string]decimal.Decimal,
-) (float64, error) {
-	holidays, err := tradingHolidays(tx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to get trading holidays")
-	}
-
-	values := stats.Float64Data{}
-	for k, v := range dailyChange {
-		_, isTradingHoliday := holidays[k]
-		if !isTradingHoliday {
-			values = append(values, v.InexactFloat64())
-		}
-	}
-
-	stdev, err := stats.StandardDeviation(values)
-	if err != nil {
-		return 0, fmt.Errorf("failed to compute stdev: %w", err)
-	}
-
-	magicNumber := math.Pow(252, 0.5)
-
-	return (stdev * magicNumber) * 100, nil
-}
-
 func StdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
-	prices, err := db.GetPricesChanges(tx, symbol)
+	start := time.Now().Add(-1 * stdevRange)
+	prices, err := db.GetAdjustedPrices(tx, []string{symbol}, start)
 	if err != nil {
 		return 0, err
 	}
-	return StandardDeviation(tx, prices)
+	fmt.Println(prices)
+	changes, err := pricesListToMappedChanges(prices)
+	if err != nil {
+		return 0, err
+	}
+	data := decListToFloat64(changes[symbol])
+	fmt.Println(data)
+	return stats.StandardDeviation(data)
 }
 
 func tradingHolidays(tx *sql.Tx) (map[string]struct{}, error) {
@@ -112,7 +91,9 @@ func pricesListToMappedChanges(prices []model.Price) (map[string][]decimal.Decim
 		if !ok {
 			mappedPriceLists[s] = []decimal.Decimal{}
 		}
-		mappedPriceLists[s] = append(changes, (p.Price.Sub(prevPrice)).Div(prevPrice))
+		percentChange := ((p.Price.Sub(prevPrice)).Div(prevPrice)).Mul(decimal.NewFromInt(100))
+		fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
+		mappedPriceLists[s] = append(changes, percentChange)
 	}
 	return mappedPriceLists, nil
 }
