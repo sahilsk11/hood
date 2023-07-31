@@ -54,7 +54,7 @@ jobs:
         pip install -r tools/requirements.txt
 
     - name: Set up Database
-      run: python3 tools/migrations.py up postgre_test
+      run: python3 tools/migrations.py up postgres_test
 
     - name: Build
       run: go build -v ./...
