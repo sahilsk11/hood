@@ -45,6 +45,9 @@ func (p Portfolio) DeepCopy() Portfolio {
 		}
 		out.ClosedLots[k] = t
 	}
+	for _, lot := range p.NewOpenLots {
+		out.NewOpenLots = append(out.NewOpenLots, lot)
+	}
 
 	return out
 }

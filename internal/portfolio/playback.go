@@ -5,6 +5,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/domain"
 	"hood/internal/trade"
+	"hood/internal/util"
 	"sort"
 	"time"
 
@@ -68,6 +69,7 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
+	util.Pprint(events)
 
 	for _, e := range events {
 		switch e.(type) {
