@@ -63,3 +63,32 @@ func (p Portfolio) GetOpenLotSymbols() []string {
 	}
 	return symbols
 }
+
+// should be used sparingly - any operations on
+// this portfolio are invalid
+func (p1 Portfolio) Add(p2 Portfolio) Portfolio {
+	p := p1.DeepCopy()
+	p.Cash = p.Cash.Add(p2.Cash)
+
+	for k, v := range p2.OpenLots {
+		if _, ok := p.OpenLots[k]; !ok {
+			p.OpenLots[k] = []*OpenLot{}
+		}
+		for _, x := range v {
+			p.OpenLots[k] = append(p.OpenLots[k], x.DeepCopy())
+		}
+	}
+	for k, v := range p.ClosedLots {
+		if _, ok := p.ClosedLots[k]; !ok {
+			p.ClosedLots[k] = []ClosedLot{}
+		}
+		for _, x := range v {
+			p.ClosedLots[k] = append(p.ClosedLots[k], x.DeepCopy())
+		}
+	}
+	for _, lot := range p.NewOpenLots {
+		p.NewOpenLots = append(p.NewOpenLots, lot)
+	}
+
+	return p
+}

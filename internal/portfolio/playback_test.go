@@ -1,7 +1,6 @@
 package portfolio
 
 import (
-	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
@@ -284,7 +283,6 @@ func Test_insertPortfolio(t *testing.T) {
 	require.NoError(t, err)
 
 	tr, err := db.GetHistoricTrades(tx, model.CustodianType_Robinhood)
-	fmt.Println(tr)
 	require.NoError(t, err)
 
 	events := Events{

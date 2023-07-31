@@ -25,7 +25,7 @@ func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 		return 0, err
 	}
 
-	changes, err := pricesListToMappedChanges(prices)
+	changes := percentChange(prices)
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate daily percent change of %s: %w", symbol, err)
 	}
@@ -43,6 +43,7 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 		}
 		mappedStdev[symbol] = decimal.NewFromFloat(stdev)
 	}
+
 	start := time.Now().Add(-1 * stdevRange)
 	covariances, err := covariances(tx, symbols, start)
 	if err != nil {
@@ -74,10 +75,11 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 			s2Stdev := mappedStdev[s2]
 			covariance := decimal.NewFromFloat(covariances[s1+"-"+s2])
 			t := two.Mul(s1Weight).Mul(s2Weight).Mul(covariance).Mul(s1Stdev).Mul(s2Stdev)
+			// fmt.Println(s1+"-"+s2, s1Weight, s2Weight, s1Stdev, s2Stdev)
 			covarianceTerms = append(covarianceTerms, t)
 		}
 	}
-	expectedCovarianceTerms := (len(symbols)*len(symbols) - 1) / 2
+	expectedCovarianceTerms := (len(symbols) * (len(symbols) - 1)) / 2
 	if len(covarianceTerms) != expectedCovarianceTerms {
 		return 0, fmt.Errorf("expected %d covariance terms, calculated %d", expectedCovarianceTerms, len(covarianceTerms))
 	}
@@ -87,7 +89,6 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 	}
 
 	x := math.Sqrt((squaredTerms.Add(covarianceTermsSum)).InexactFloat64())
-
 	return x, nil
 }
 
@@ -103,6 +104,7 @@ func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if value.Equal(decimal.Zero) {
 		return nil, fmt.Errorf("portfolio has 0 net value")
 	}
@@ -115,11 +117,14 @@ func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
 	return weights, nil
 }
 
-// assume prices is sorted by date
-func pricesListToMappedChanges(prices []model.Price) ([]decimal.Decimal, error) {
+func percentChange(prices []model.Price) []decimal.Decimal {
 	if len(prices) < 2 {
-		return nil, fmt.Errorf("need at least 2 prices to calculate percent change, received %d", len(prices))
+		fmt.Println("attempted to compute percent change with less than two values")
+		return []decimal.Decimal{}
 	}
+	sort.SliceStable(prices, func(i, j int) bool {
+		return prices[i].Date.Before(prices[j].Date)
+	})
 	mappedPriceLists := []decimal.Decimal{}
 	for i, p := range prices[1:] {
 		prevPrice := prices[i].Price
@@ -127,10 +132,13 @@ func pricesListToMappedChanges(prices []model.Price) ([]decimal.Decimal, error) 
 		// fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
 		mappedPriceLists = append(mappedPriceLists, percentChange)
 	}
-	return mappedPriceLists, nil
+	return mappedPriceLists
 }
 
 func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]float64, error) {
+	if len(symbols) < 2 {
+		return nil, fmt.Errorf("cannot calculate covariance of less than 2 symbols")
+	}
 	out := map[string]float64{}
 	prices, err := db.GetAdjustedPrices(tx, symbols, start)
 	if err != nil {
@@ -152,29 +160,17 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 
 	sort.Strings(symbols)
 	for i := range symbols {
-		s1 := symbols[i]
-		s1PriceChanges, err := pricesListToMappedChanges(pricesBySymbol[s1])
-		if err != nil {
-			return nil, fmt.Errorf("failed to calculate daily %% change of %s: %w", s1, err)
-		}
 		for j := i + 1; j < len(symbols); j++ {
+			s1 := symbols[i]
 			s2 := symbols[j]
-			s2PriceChanges, err := pricesListToMappedChanges(pricesBySymbol[s2])
-			if err != nil {
-				return nil, fmt.Errorf("failed to calculate daily %% change of %s: %w", s2, err)
-			}
-
-			setDiff := setDifference(priceDates[s1], priceDates[s2])
-			if len(s1PriceChanges) != len(s2PriceChanges) {
-				return nil, fmt.Errorf("inconsistent price days: %d for %s and %d for %s: %v", len(s1PriceChanges), symbols[i], len(s2PriceChanges), symbols[j], setDiff)
-			}
+			s1Data, s2Data := formatCovarianceData(s1, s2, pricesBySymbol)
 			// https://www.investopedia.com/terms/c/covariance.asp
 			c, err := stats.Covariance(
-				decListToFloat64(s1PriceChanges),
-				decListToFloat64(s2PriceChanges),
+				s1Data,
+				s2Data,
 			)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to calculate covariance: %w", err)
 			}
 			key := symbols[i] + "-" + symbols[j]
 			out[key] = c
@@ -209,4 +205,23 @@ func setDifference(s1, s2 map[string]struct{}) []string {
 		panic("mismatched len but could not find diff")
 	}
 	return diff
+}
+
+func formatCovarianceData(symbol1, symbol2 string, pricesBySymbol map[string][]model.Price) ([]float64, []float64) {
+	s1Data := decListToFloat64(percentChange(pricesBySymbol[symbol1]))
+	s2Data := decListToFloat64(percentChange(pricesBySymbol[symbol2]))
+	// setDiff := setDifference(priceDates[s1], priceDates[s2])
+
+	// if one asset has less values than the other,
+	// use the N most recent values
+	if len(s1Data) < len(s2Data) {
+		// fmt.Printf("removing %d values from %s's history to match %d values from %s\n", len(s2Data)-len(s1Data), symbol2, len(s1Data), symbol1)
+		s2Data = s2Data[len(s2Data)-len(s1Data):]
+	} else if len(s1Data) > len(s2Data) {
+		// fmt.Printf("removing %d values from %s's history to match %d values from %s\n", len(s1Data)-len(s2Data), symbol1, len(s2Data), symbol2)
+		s1Data = s1Data[len(s1Data)-len(s2Data):]
+
+	}
+
+	return s1Data, s2Data
 }

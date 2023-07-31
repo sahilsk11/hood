@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/db/models/postgres/public/table"
-	"hood/internal/db/models/postgres/public/view"
+	. "hood/internal/db/models/postgres/public/view"
 	"hood/internal/domain"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 )
 
 func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string, custodian model.CustodianType) ([]domain.OpenLot, error) {
@@ -52,7 +53,7 @@ func openLotFromDb(o model.OpenLot, t model.Trade) domain.OpenLot {
 
 func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPosition, error) {
 
-	v := view.VwOpenLotPosition
+	v := VwOpenLotPosition
 	query := v.SELECT(v.AllColumns)
 
 	var results []model.VwOpenLotPosition
@@ -176,7 +177,6 @@ func AddImmutableOpenLots(tx *sql.Tx, lots []domain.OpenLot) error {
 
 	_, err := query.Exec(tx)
 	if err != nil {
-		fmt.Println(query.DebugSql())
 		return fmt.Errorf("failed to insert immutable open lots: %w", err)
 	}
 	return nil
@@ -194,4 +194,47 @@ func openLotsToIDb(lots []domain.OpenLot) []model.ImmutableOpenLot {
 		}
 	}
 	return out
+}
+
+func GetCurrentOpenLots(tx *sql.Tx, custodian model.CustodianType) ([]domain.OpenLot, error) {
+	result := []struct {
+		model.CurrentOpenLot
+		model.Trade
+	}{}
+	query := CurrentOpenLot.
+		SELECT(CurrentOpenLot.AllColumns, Trade.AllColumns).
+		FROM(
+			CurrentOpenLot.INNER_JOIN(
+				Trade, CurrentOpenLot.TradeID.EQ(Trade.TradeID),
+			),
+		).
+		WHERE(Trade.Custodian.EQ(NewEnumValue(custodian.String())))
+
+	err := query.Query(tx, &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get current open lots: %w", err)
+	}
+
+	out := []domain.OpenLot{}
+	for _, r := range result {
+		out = append(out, openLotFromDb(
+			modelCurrentOpenLotToModelOpenLot(r.CurrentOpenLot),
+			r.Trade))
+	}
+
+	return out, nil
+}
+
+func modelCurrentOpenLotToModelOpenLot(lot model.CurrentOpenLot) model.OpenLot {
+	return model.OpenLot{
+		OpenLotID: *lot.OpenLotID,
+		CostBasis: *lot.CostBasis,
+		Quantity:  *lot.Quantity,
+		TradeID:   *lot.TradeID,
+		DeletedAt: nil,
+		// CreatedAt:  nil,
+		// ModifiedAt: nil,
+		LotID: uuid.Nil,
+		Date:  *lot.Date,
+	}
 }

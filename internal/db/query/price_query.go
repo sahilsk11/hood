@@ -53,7 +53,8 @@ func GetPricesOnDate(tx *sql.Tx, date time.Time, symbols []string) (map[string]d
 	results := []model.Price{}
 	err := query.Query(tx, &results)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch prices: %w", err)
+		fmt.Println(query.DebugSql())
+		return nil, fmt.Errorf("failed to execute query: %w", err)
 	}
 
 	for _, result := range results {
@@ -111,7 +112,8 @@ func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[str
 	results := []model.VwLatestPrice{}
 	err := query.Query(tx, &results)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch prices: %w", err)
+		fmt.Println(query.DebugSql())
+		return nil, fmt.Errorf("failed to execute latest price query: %w", err)
 	}
 
 	for _, result := range results {
@@ -176,6 +178,7 @@ func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.P
 	result := []model.Price{}
 	err := query.Query(tx, &result)
 	if err != nil {
+		fmt.Println(query.DebugSql())
 		return nil, fmt.Errorf("failed to fetch prices: %w", err)
 	}
 

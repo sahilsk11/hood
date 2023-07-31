@@ -43,7 +43,7 @@ func main() {
 	tx, err := dbConn.Begin()
 	e(err)
 
-	events := getData(tx, model.CustodianType_Robinhood)
+	events := getData(tx, model.CustodianType_Tda)
 	dailyPortfolios, err := portfolio.PlaybackDaily(events)
 	e(err)
 	keys := []string{}
