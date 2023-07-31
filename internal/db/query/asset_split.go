@@ -10,7 +10,7 @@ import (
 	"hood/internal/domain"
 )
 
-func AddAssetsSplits(ctx context.Context, tx *sql.Tx, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
+func AddAssetsSplits(tx *sql.Tx, splits []*model.AssetSplit) ([]model.AssetSplit, error) {
 	t := AssetSplit
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(splits).

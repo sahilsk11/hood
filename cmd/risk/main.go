@@ -24,10 +24,10 @@ func main() {
 		log.Fatal(err)
 	}
 
-	portfolioStdev, err := metrics.DailyStdevOfPortfolio(tx, *p)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// portfolioStdev, err := metrics.DailyStdevOfPortfolio(tx, *p)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	magicNumber := math.Sqrt(252)
 
@@ -41,5 +41,10 @@ func main() {
 		fmt.Println(s, stdev*magicNumber*100)
 	}
 
-	fmt.Println(portfolioStdev * magicNumber * 100)
+	stdev, err := metrics.DailyStdevOfAsset(tx, "AAPL")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(stdev * magicNumber * 100)
 }

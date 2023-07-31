@@ -16,7 +16,7 @@ func UpdatePrice(ctx context.Context, priceClient PriceIngestionClient, symbol s
 	if err != nil {
 		return err
 	}
-	_, err = db.AddPrices(ctx, tx, []model.Price{*newPrice})
+	_, err = db.AddPrices(tx, []model.Price{*newPrice})
 	if err != nil {
 		return err
 	}

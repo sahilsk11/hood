@@ -203,7 +203,7 @@ func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellO
 
 func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
 	split.CreatedAt = time.Now().UTC()
-	insertedSplits, err := db.AddAssetsSplits(ctx, tx, []*model.AssetSplit{&split})
+	insertedSplits, err := db.AddAssetsSplits(tx, []*model.AssetSplit{&split})
 	if err != nil {
 		return nil, nil, err
 	}

@@ -13,7 +13,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-func AddPrices(ctx context.Context, tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
+func AddPrices(tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
 	t := Price
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(prices).
@@ -190,7 +190,7 @@ func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.P
 	for i, r := range result {
 		for _, split := range assetSplits {
 			if r.Symbol == split.Symbol && r.Date.Before(split.Date) {
-				result[i].Price = result[i].Price.Mul(decimal.NewFromInt32(split.Ratio))
+				result[i].Price = result[i].Price.Div(decimal.NewFromInt32(split.Ratio))
 			}
 		}
 	}

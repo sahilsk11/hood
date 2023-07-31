@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"database/sql"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
@@ -16,7 +15,6 @@ import (
 )
 
 func setupHistoricPrices(t *testing.T, tx *sql.Tx) {
-	ctx := context.Background()
 	start := time.Now()
 	values := map[string][]float64{
 		"SPY": {
@@ -39,7 +37,7 @@ func setupHistoricPrices(t *testing.T, tx *sql.Tx) {
 			})
 		}
 	}
-	_, err := db.AddPrices(ctx, tx, prices)
+	_, err := db.AddPrices(tx, prices)
 	require.NoError(t, err)
 }
 

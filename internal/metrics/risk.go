@@ -24,6 +24,7 @@ func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+	// util.Pprint(prices)
 
 	changes := percentChange(prices)
 	if err != nil {

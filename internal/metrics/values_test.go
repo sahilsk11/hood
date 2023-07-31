@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
@@ -64,13 +63,12 @@ func Test_netValue(t *testing.T) {
 }
 
 func TestDailyPortfolioValues(t *testing.T) {
-	ctx := context.Background()
 	dbConn, err := db.NewTest()
 	require.NoError(t, err)
 	tx, err := dbConn.Begin()
 	require.NoError(t, err)
 
-	_, err = db.AddPrices(ctx, tx, []model.Price{
+	_, err = db.AddPrices(tx, []model.Price{
 		{
 			Symbol: "AAPL",
 			Price:  dec(100),
