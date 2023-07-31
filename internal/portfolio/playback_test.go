@@ -137,8 +137,6 @@ func TestPlaybackDaily(t *testing.T) {
 		out, err := PlaybackDaily(events)
 		require.NoError(t, err)
 
-		util.Pprint(out["2020-01-02"].NewOpenLots)
-
 		require.Equal(
 			t,
 			"",
@@ -175,9 +173,9 @@ func TestPlaybackDaily(t *testing.T) {
 				cmp.Comparer(func(x, y []ClosedLot) bool {
 					return len(x) == len(y)
 				}),
-				// cmp.Comparer(func(x, y []OpenLot) bool {
-				// 	return len(x) == len(y)
-				// }),
+				cmp.Comparer(func(x, y []OpenLot) bool {
+					return len(x) == len(y)
+				}),
 			),
 		)
 	})
