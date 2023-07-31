@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var EnableDebug = false
+var EnableDebug = true
 
 func TimePtr(t time.Time) *time.Time {
 	return &t

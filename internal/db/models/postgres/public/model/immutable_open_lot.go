@@ -13,10 +13,11 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type Cash struct {
-	CashID    int32 `sql:"primary_key"`
-	Amount    decimal.Decimal
-	Custodian CustodianType
-	CreatedAt time.Time
+type ImmutableOpenLot struct {
+	OpenLotID int32 `sql:"primary_key"`
+	CostBasis decimal.Decimal
+	Quantity  decimal.Decimal
+	TradeID   int32
 	Date      time.Time
+	CreatedAt time.Time
 }

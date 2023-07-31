@@ -1,14 +1,16 @@
 package portfolio
 
 import (
+	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
+	"hood/internal/domain"
 	. "hood/internal/domain"
 	"hood/internal/trade"
 	"sort"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -74,6 +76,7 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
+
 			if t.Action == model.TradeActionType_Buy {
 				handleBuy(t, portfolio)
 			} else if t.Action == model.TradeActionType_Sell {
@@ -91,7 +94,9 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 		}
 		date := e.GetDate().Format("2006-01-02")
 		portfolio.LastAction = e.GetDate()
+		// util.Pprint(portfolio)
 		mappedPortfolio[date] = portfolio.DeepCopy()
+		// portfolio.NewOpenLots = []domain.OpenLot{}
 	}
 	return mappedPortfolio, nil
 }
@@ -101,7 +106,6 @@ func handleBuy(t Trade, p *Portfolio) {
 		p.OpenLots[t.Symbol] = []*OpenLot{}
 	}
 	newLot := OpenLot{
-		LotID:     uuid.New(),
 		Trade:     &t,
 		Quantity:  t.Quantity,
 		CostBasis: t.Price,
@@ -112,6 +116,7 @@ func handleBuy(t Trade, p *Portfolio) {
 }
 
 func handleSell(t Trade, p *Portfolio) error {
+
 	openLots := []*OpenLot{}
 	if lots, ok := p.OpenLots[t.Symbol]; ok {
 		openLots = lots
@@ -130,6 +135,7 @@ func handleSell(t Trade, p *Portfolio) error {
 	if len(p.OpenLots[t.Symbol]) == 0 {
 		delete(p.OpenLots, t.Symbol)
 	}
+	p.NewOpenLots = append(p.NewOpenLots, result.NewOpenLots...)
 
 	p.ClosedLots[t.Symbol] = append(closedLots, result.NewClosedLots...)
 	return nil
@@ -145,4 +151,30 @@ func handleAssetSplit(s AssetSplit, p *Portfolio) {
 
 func dateStr(t time.Time) string {
 	return t.Format("2006-01-02")
+}
+
+func insertPortfolio(tx *sql.Tx, portfolio domain.Portfolio) error {
+	cash := portfolio.Cash
+	err := db.AddCash(tx, model.Cash{
+		Amount:    cash,
+		Custodian: model.CustodianType_Robinhood,
+		Date:      portfolio.LastAction,
+	})
+	if err != nil {
+		return err
+	}
+	openLots := []domain.OpenLot{}
+	for _, lots := range portfolio.OpenLots {
+		for _, lot := range lots {
+			openLots = append(openLots, *lot)
+		}
+	}
+	for _, lot := range portfolio.NewOpenLots {
+		openLots = append(openLots, lot)
+	}
+	err = db.AddImmutableOpenLots(tx, openLots)
+	if err != nil {
+		return err
+	}
+	return nil
 }

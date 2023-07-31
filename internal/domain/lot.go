@@ -4,13 +4,11 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
 type OpenLot struct {
 	OpenLotID *int32
-	LotID     uuid.UUID
 	Quantity  decimal.Decimal
 	CostBasis decimal.Decimal
 	Trade     *Trade
@@ -30,7 +28,6 @@ func (lots OpenLots) Ptr() []*OpenLot {
 func (o OpenLot) DeepCopy() *OpenLot {
 	return &OpenLot{
 		OpenLotID: o.OpenLotID,
-		LotID:     o.LotID,
 		Quantity:  o.Quantity,
 		CostBasis: o.CostBasis,
 		Trade:     o.Trade.DeepCopy(),
@@ -51,7 +48,7 @@ func (o OpenLot) GetPurchaseDate() time.Time {
 }
 
 type ClosedLot struct {
-	OpenLot       *OpenLot // not supported yet
+	OpenLot       *OpenLot
 	SellTrade     *Trade
 	Quantity      decimal.Decimal
 	RealizedGains decimal.Decimal

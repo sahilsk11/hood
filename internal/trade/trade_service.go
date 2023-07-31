@@ -135,10 +135,10 @@ func validateTrade(t domain.Trade) error {
 }
 
 type ProcessSellOrderResult struct {
-	NewClosedLots   []domain.ClosedLot
-	OpenLots        []*domain.OpenLot // current state of open lots
-	MutatedOpenLots []domain.OpenLot  // lots that were changed
-	CashDelta       decimal.Decimal
+	NewClosedLots []domain.ClosedLot
+	OpenLots      []*domain.OpenLot // current state of open lots
+	NewOpenLots   []domain.OpenLot  // lots that were changed
+	CashDelta     decimal.Decimal
 }
 
 // Selling an asset involves closing currently open lots. In doing this, we may either
@@ -151,6 +151,7 @@ type ProcessSellOrderResult struct {
 func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
 	cashDelta := (t.Price.Mul(t.Quantity))
 	closedLots := []domain.ClosedLot{}
+	newOpenLots := []domain.OpenLot{}
 	// ensure lots are in FIFO
 	// could make this dynamic for LIFO systems
 	sort.Slice(openLots, func(i, j int) bool {
@@ -171,6 +172,8 @@ func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellO
 		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		lot.OpenLotID = nil // no longer the DB model we're looking at
+		lot.Date = t.Date
+		newOpenLots = append(newOpenLots, *lot.DeepCopy())
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]
 		}
@@ -194,6 +197,7 @@ func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellO
 		CashDelta:     cashDelta,
 		OpenLots:      openLots,
 		NewClosedLots: closedLots,
+		NewOpenLots:   newOpenLots,
 	}, nil
 }
 
