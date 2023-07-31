@@ -76,6 +76,7 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
+
 			if t.Action == model.TradeActionType_Buy {
 				handleBuy(t, portfolio)
 			} else if t.Action == model.TradeActionType_Sell {
@@ -93,8 +94,9 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 		}
 		date := e.GetDate().Format("2006-01-02")
 		portfolio.LastAction = e.GetDate()
+		// util.Pprint(portfolio)
 		mappedPortfolio[date] = portfolio.DeepCopy()
-		portfolio.NewOpenLots = []domain.OpenLot{}
+		// portfolio.NewOpenLots = []domain.OpenLot{}
 	}
 	return mappedPortfolio, nil
 }
@@ -114,6 +116,7 @@ func handleBuy(t Trade, p *Portfolio) {
 }
 
 func handleSell(t Trade, p *Portfolio) error {
+
 	openLots := []*OpenLot{}
 	if lots, ok := p.OpenLots[t.Symbol]; ok {
 		openLots = lots
@@ -132,7 +135,7 @@ func handleSell(t Trade, p *Portfolio) error {
 	if len(p.OpenLots[t.Symbol]) == 0 {
 		delete(p.OpenLots, t.Symbol)
 	}
-	p.NewOpenLots = result.NewOpenLots
+	p.NewOpenLots = append(p.NewOpenLots, result.NewOpenLots...)
 
 	p.ClosedLots[t.Symbol] = append(closedLots, result.NewClosedLots...)
 	return nil

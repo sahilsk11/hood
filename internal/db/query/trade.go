@@ -56,8 +56,6 @@ func GetHistoricTrades(tx *sql.Tx, custodian model.CustodianType) ([]domain.Trad
 		return nil, err
 	}
 
-	fmt.Println(len(out))
-
 	return tradesFromDb(out), nil
 }
 

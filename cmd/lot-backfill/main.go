@@ -38,7 +38,7 @@ func getData(tx *sql.Tx, custodian model.CustodianType) portfolio.Events {
 }
 
 func main() {
-	dbConn, err := db.NewTest()
+	dbConn, err := db.New()
 	e(err)
 	tx, err := dbConn.Begin()
 	e(err)
@@ -74,25 +74,18 @@ func e(e error) {
 }
 
 func insert(tx *sql.Tx, portfolio domain.Portfolio) error {
-	cash := portfolio.Cash
-	err := db.AddCash(tx, model.Cash{
-		Amount:    cash,
-		Custodian: model.CustodianType_Robinhood,
-		Date:      portfolio.LastAction,
-	})
-	if err != nil {
-		return err
-	}
-	openLots := []domain.OpenLot{}
-	// for _, lots := range portfolio.OpenLots {
-	// 	for _, lot := range lots {
-	// 		openLots = append(openLots, *lot)
-	// 	}
+	// cash := portfolio.Cash
+	// err := db.AddCash(tx, model.Cash{
+	// 	Amount:    cash,
+	// 	Custodian: model.CustodianType_Robinhood,
+	// 	Date:      portfolio.LastAction,
+	// })
+	// if err != nil {
+	// 	return err
 	// }
-	for _, lot := range portfolio.NewOpenLots {
-		openLots = append(openLots, lot)
-	}
-	err = db.AddImmutableOpenLots(tx, openLots)
+	openLots := portfolio.NewOpenLots
+
+	err := db.AddImmutableOpenLots(tx, openLots)
 	if err != nil {
 		return err
 	}
