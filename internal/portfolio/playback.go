@@ -1,11 +1,13 @@
 package portfolio
 
 import (
+	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	db "hood/internal/db/query"
+	"hood/internal/domain"
 	. "hood/internal/domain"
 	"hood/internal/trade"
-	"hood/internal/util"
 	"sort"
 	"time"
 
@@ -69,7 +71,6 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
-	util.Pprint(events)
 
 	for _, e := range events {
 		switch e.(type) {
@@ -93,6 +94,7 @@ func PlaybackDaily(in Events) (map[string]Portfolio, error) {
 		date := e.GetDate().Format("2006-01-02")
 		portfolio.LastAction = e.GetDate()
 		mappedPortfolio[date] = portfolio.DeepCopy()
+		portfolio.NewOpenLots = []domain.OpenLot{}
 	}
 	return mappedPortfolio, nil
 }
@@ -146,4 +148,30 @@ func handleAssetSplit(s AssetSplit, p *Portfolio) {
 
 func dateStr(t time.Time) string {
 	return t.Format("2006-01-02")
+}
+
+func insertPortfolio(tx *sql.Tx, portfolio domain.Portfolio) error {
+	cash := portfolio.Cash
+	err := db.AddCash(tx, model.Cash{
+		Amount:    cash,
+		Custodian: model.CustodianType_Robinhood,
+		Date:      portfolio.LastAction,
+	})
+	if err != nil {
+		return err
+	}
+	openLots := []domain.OpenLot{}
+	for _, lots := range portfolio.OpenLots {
+		for _, lot := range lots {
+			openLots = append(openLots, *lot)
+		}
+	}
+	for _, lot := range portfolio.NewOpenLots {
+		openLots = append(openLots, lot)
+	}
+	err = db.AddImmutableOpenLots(tx, openLots)
+	if err != nil {
+		return err
+	}
+	return nil
 }

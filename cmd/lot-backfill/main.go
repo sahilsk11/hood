@@ -8,6 +8,7 @@ import (
 	"hood/internal/domain"
 	"hood/internal/portfolio"
 	"log"
+	"sort"
 )
 
 func getData(tx *sql.Tx, custodian model.CustodianType) portfolio.Events {
@@ -19,25 +20,25 @@ func getData(tx *sql.Tx, custodian model.CustodianType) portfolio.Events {
 	if err != nil {
 		log.Fatal(err)
 	}
-	transfers, err := db.GetHistoricTransfers(tx, custodian)
-	if err != nil {
-		log.Fatal(err)
-	}
-	dividends, err := db.GetHistoricDividends(tx, custodian)
-	if err != nil {
-		log.Fatal(err)
-	}
+	// transfers, err := db.GetHistoricTransfers(tx, custodian)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// dividends, err := db.GetHistoricDividends(tx, custodian)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	return portfolio.Events{
 		Trades:      trades,
 		AssetSplits: assetSplits,
-		Transfers:   transfers,
-		Dividends:   dividends,
+		// Transfers:   transfers,
+		// Dividends: dividends,
 	}
 }
 
 func main() {
-	dbConn, err := db.New()
+	dbConn, err := db.NewTest()
 	e(err)
 	tx, err := dbConn.Begin()
 	e(err)
@@ -45,6 +46,15 @@ func main() {
 	events := getData(tx, model.CustodianType_Robinhood)
 	dailyPortfolios, err := portfolio.PlaybackDaily(events)
 	e(err)
+	keys := []string{}
+	for k := range dailyPortfolios {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	// latest := dailyPortfolios[keys[len(keys)-1]]
+	// util.Pprint(latest)
+
+	// util.Pprint(dailyPortfolios)
 
 	for dateStr, portfolio := range dailyPortfolios {
 		err = insert(tx, portfolio)
@@ -74,11 +84,11 @@ func insert(tx *sql.Tx, portfolio domain.Portfolio) error {
 		return err
 	}
 	openLots := []domain.OpenLot{}
-	for _, lots := range portfolio.OpenLots {
-		for _, lot := range lots {
-			openLots = append(openLots, *lot)
-		}
-	}
+	// for _, lots := range portfolio.OpenLots {
+	// 	for _, lot := range lots {
+	// 		openLots = append(openLots, *lot)
+	// 	}
+	// }
 	for _, lot := range portfolio.NewOpenLots {
 		openLots = append(openLots, lot)
 	}

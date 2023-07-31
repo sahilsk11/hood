@@ -172,6 +172,7 @@ func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellO
 		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
 		lot.Quantity = lot.Quantity.Sub(quantitySold)
 		lot.OpenLotID = nil // no longer the DB model we're looking at
+		lot.Date = t.Date
 		newOpenLots = append(newOpenLots, *lot.DeepCopy())
 		if lot.Quantity.Equal(decimal.Zero) {
 			openLots = openLots[1:]

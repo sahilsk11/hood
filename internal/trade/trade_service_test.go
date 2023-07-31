@@ -134,6 +134,18 @@ func TestPreviewSellOrder(t *testing.T) {
 							CostBasis: dec(100),
 						},
 					},
+					NewOpenLots: []domain.OpenLot{
+						{
+							Trade: &domain.Trade{
+								Action:   model.TradeActionType_Buy,
+								Symbol:   "AAPL",
+								Quantity: dec(2),
+								Price:    dec(100),
+							},
+							Quantity:  dec(1),
+							CostBasis: dec(100),
+						},
+					},
 					CashDelta: dec(100),
 				},
 				*resp,
