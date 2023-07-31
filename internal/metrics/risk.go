@@ -36,6 +36,12 @@ func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 
 func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 	symbols := p.GetOpenLotSymbols()
+	if len(symbols) == 0 {
+		return 0, nil
+	}
+	if len(symbols) == 1 {
+		return DailyStdevOfAsset(tx, symbols[0])
+	}
 	mappedStdev := map[string]decimal.Decimal{}
 	for _, symbol := range symbols {
 		stdev, err := DailyStdevOfAsset(tx, symbol)
