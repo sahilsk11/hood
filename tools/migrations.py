@@ -3,12 +3,7 @@ import os
 import sys
 
 os.chdir("migrations")
-conn = psycopg2.connect(
-    host="localhost",
-    database="postgres",
-    user="postgres",
-    password="postgres",
-    port="5438")
+conn = None
 
 def execute_sql(sql):
   cur = conn.cursor()
@@ -112,6 +107,13 @@ if __name__ == "__main__":
     print("no command")
     exit(1)
   command = args[1]
+  db = args[2]
+  conn = psycopg2.connect(
+    host="localhost",
+    database=db,
+    user="postgres",
+    password="postgres",
+    port="5438")
   if command == "up":
     run_db()
     print("db updated")

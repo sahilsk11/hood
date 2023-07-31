@@ -6,7 +6,9 @@ db-drop-all:
 	tools/env/bin/python3.9 tools/migrations.py down
 
 migrate:
-	tools/env/bin/python3.9 tools/migrations.py up
+	tools/env/bin/python3.9 tools/migrations.py up postgres
+	tools/env/bin/python3.9 tools/migrations.py up postgres_test
+
 
 process-outfile:
 	go run cmd/trade/main.go -command=process-outfile
