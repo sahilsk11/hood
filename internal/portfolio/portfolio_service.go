@@ -1,0 +1,5 @@
+package portfolio
+
+func GetCurrentPortfolio() {
+
+}
