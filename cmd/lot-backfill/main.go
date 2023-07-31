@@ -84,6 +84,11 @@ func insert(tx *sql.Tx, portfolio domain.Portfolio) error {
 	// 	return err
 	// }
 	openLots := portfolio.NewOpenLots
+	for _, lots := range portfolio.OpenLots {
+		for _, lot := range lots {
+			openLots = append(openLots, *lot)
+		}
+	}
 
 	err := db.AddImmutableOpenLots(tx, openLots)
 	if err != nil {
