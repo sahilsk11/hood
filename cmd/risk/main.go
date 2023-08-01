@@ -31,20 +31,24 @@ func main() {
 
 	magicNumber := math.Sqrt(252)
 
-	symbols := p.GetOpenLotSymbols()
+	// symbols := p.GetOpenLotSymbols()
 
-	for _, s := range symbols {
-		stdev, err := metrics.DailyStdevOfAsset(tx, s)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(s, stdev*magicNumber*100)
-	}
+	// for _, s := range symbols {
+	// 	stdev, err := metrics.DailyStdevOfAsset(tx, s)
+	// 	if err != nil {
+	// 		log.Fatal(err)
+	// 	}
+	// 	fmt.Println(s, stdev*magicNumber*100)
+	// }
 
-	stdev, err := metrics.DailyStdevOfAsset(tx, "AAPL")
+	stdev, err := metrics.DailyStdevOfPortfolio(tx, *p)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println(stdev * magicNumber * 100)
+
+	fmt.Println(metrics.CalculateAssetSharpeRatio(tx, "SPY"))
+	fmt.Println(metrics.CalculatePortfolioSharpeRatio(tx, *p))
+
 }
