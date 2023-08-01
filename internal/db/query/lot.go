@@ -51,12 +51,12 @@ func openLotFromDb(o model.OpenLot, t model.Trade) domain.OpenLot {
 	}
 }
 
-func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.VwOpenLotPosition, error) {
+func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.LatestPrice, error) {
 
-	v := VwOpenLotPosition
+	v := LatestPrice
 	query := v.SELECT(v.AllColumns)
 
-	var results []model.VwOpenLotPosition
+	var results []model.LatestPrice
 	err := query.Query(tx, &results)
 	if err != nil {
 		return nil, err

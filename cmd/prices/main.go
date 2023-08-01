@@ -1,47 +1,41 @@
 package main
 
 import (
-	"context"
-	"database/sql"
+	"encoding/csv"
+	db "hood/internal/db/query"
 	"hood/internal/prices"
-	"hood/internal/util"
 	"log"
-	"net/http"
-
-	_ "github.com/lib/pq"
+	"os"
 )
 
 func main() {
-	connStr := "postgresql://postgres:postgres@localhost:5438/postgres?sslmode=disable"
-	db, err := sql.Open("postgres", connStr)
+	tx, err := db.NewTx()
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	tx, err := db.Begin()
+	csvFileName := "prices.csv"
+	records, err := loadCsv(csvFileName)
+	if err != nil {
+		log.Fatalf("failed to load csv: %v", err)
+	}
+	err = prices.UpdateFromCsv(tx, records)
 	if err != nil {
 		log.Fatal(err)
 	}
-	ctx := context.WithValue(
-		context.Background(),
-		"tx",
-		tx,
-	)
-	secrets, err := util.LoadSecrets()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	priceClient := prices.AlphaVantageClient{
-		HttpClient: http.DefaultClient,
-		ApiKey:     secrets.AlphaVantageKey,
-	}
-
-	err = prices.UpdateCurrentHoldingsPrices(ctx, priceClient)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	tx.Commit()
+}
 
+func loadCsv(csvFileName string) ([][]string, error) {
+	f, err := os.Open(csvFileName)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	csvFile := csv.NewReader(f)
+	records, err := csvFile.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+	return records, nil
 }

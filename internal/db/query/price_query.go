@@ -14,6 +14,9 @@ import (
 )
 
 func AddPrices(tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
+	for i := range prices {
+		prices[i].UpdatedAt = time.Now().UTC()
+	}
 	t := Price
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(prices).
@@ -105,11 +108,11 @@ func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[str
 		symbolSet[s] = false
 		postgresStr = append(postgresStr, String(s))
 	}
-	t := view.VwLatestPrice
+	t := view.LatestPrice
 	query := t.SELECT(t.AllColumns).
 		WHERE(t.Symbol.IN(postgresStr...))
 
-	results := []model.VwLatestPrice{}
+	results := []model.LatestPrice{}
 	err := query.Query(tx, &results)
 	if err != nil {
 		fmt.Println(query.DebugSql())

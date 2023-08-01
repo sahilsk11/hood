@@ -8,6 +8,7 @@ db-drop-all:
 migrate:
 	tools/env/bin/python3.9 tools/migrations.py up postgres
 	tools/env/bin/python3.9 tools/migrations.py up postgres_test
+	make db-models
 
 
 process-outfile:

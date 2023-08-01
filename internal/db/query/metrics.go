@@ -37,10 +37,10 @@ func GetTotalUnrealizedCostBasis(tx *sql.Tx) (decimal.Decimal, error) {
 
 func GetTotalUnrealizedGains(tx *sql.Tx) (decimal.Decimal, error) {
 	query := OpenLot.SELECT(SUM(
-		(VwLatestPrice.Price.SUB(OpenLot.CostBasis)).MUL(OpenLot.Quantity),
+		(LatestPrice.Price.SUB(OpenLot.CostBasis)).MUL(OpenLot.Quantity),
 	)).FROM(
 		OpenLot.INNER_JOIN(Trade, OpenLot.TradeID.EQ(Trade.TradeID)).
-			INNER_JOIN(VwLatestPrice, Trade.Symbol.EQ(VwLatestPrice.Symbol)),
+			INNER_JOIN(LatestPrice, Trade.Symbol.EQ(LatestPrice.Symbol)),
 	)
 
 	return fetchDecimal(tx, query)

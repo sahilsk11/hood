@@ -47,6 +47,7 @@ func TestGetAdjustedPrices(t *testing.T) {
 				},
 				out,
 				cmpopts.IgnoreFields(model.Price{}, "PriceID"),
+				cmpopts.IgnoreFields(model.Price{}, "UpdatedAt"),
 			),
 		)
 	})
