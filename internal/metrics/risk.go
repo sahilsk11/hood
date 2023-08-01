@@ -232,9 +232,9 @@ func annualExpectedReturn(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
 		})
 
 		diffInYears := prices[len(prices)-1].Date.Sub(prices[0].Date).Hours() / (365 * 24)
-		totalChange := (prices[len(prices)-1].Price.Sub(prices[0].Price)).Div(prices[0].Price)
+		totalChange := prices[len(prices)-1].Price.Div(prices[0].Price)
 		// fmt.Println(totalChange, diffInYears)
-		t := totalChange.Div(decimal.NewFromFloat(diffInYears))
+		t := decimal.NewFromFloat(math.Pow(totalChange.InexactFloat64(), (1.0 / diffInYears))).Sub(decimal.NewFromInt(1))
 		total = total.Add(t.Mul(weights[symbol]))
 	}
 	return total, nil
@@ -291,8 +291,9 @@ func CalculatePortfolioSharpeRatio(tx *sql.Tx, p Portfolio) (decimal.Decimal, er
 	annualStdev := decimal.NewFromFloat(portfolioStdev).Mul(magicNumber)
 
 	util.Pprint(map[string]interface{}{
-		"expectedReturn": expectedReturn,
-		"annualStdev":    annualStdev,
+		"expectedReturn":    expectedReturn,
+		"annualStdev":       annualStdev,
+		"riskFeeReturnRate": riskFreeReturn,
 	})
 
 	return (expectedReturn.Sub(riskFreeReturn)).Div(annualStdev), nil
