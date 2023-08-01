@@ -8,12 +8,15 @@
 package model
 
 import (
+	"time"
+
 	"github.com/shopspring/decimal"
 )
 
-type VwUnrealizedGain struct {
-	Symbol          *string
-	Quantity        *decimal.Decimal
-	UnrealizedGains *decimal.Decimal
-	GainsType       *string
+type LatestPrice struct {
+	PriceID   *int32
+	Symbol    *string
+	Price     *decimal.Decimal
+	UpdatedAt *time.Time
+	Date      *time.Time
 }

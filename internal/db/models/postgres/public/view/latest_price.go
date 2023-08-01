@@ -11,9 +11,9 @@ import (
 	"github.com/go-jet/jet/v2/postgres"
 )
 
-var VwLatestPrice = newVwLatestPriceTable("public", "vw_latest_price", "")
+var LatestPrice = newLatestPriceTable("public", "latest_price", "")
 
-type vwLatestPriceTable struct {
+type latestPriceTable struct {
 	postgres.Table
 
 	//Columns
@@ -27,30 +27,30 @@ type vwLatestPriceTable struct {
 	MutableColumns postgres.ColumnList
 }
 
-type VwLatestPriceTable struct {
-	vwLatestPriceTable
+type LatestPriceTable struct {
+	latestPriceTable
 
-	EXCLUDED vwLatestPriceTable
+	EXCLUDED latestPriceTable
 }
 
-// AS creates new VwLatestPriceTable with assigned alias
-func (a VwLatestPriceTable) AS(alias string) *VwLatestPriceTable {
-	return newVwLatestPriceTable(a.SchemaName(), a.TableName(), alias)
+// AS creates new LatestPriceTable with assigned alias
+func (a LatestPriceTable) AS(alias string) *LatestPriceTable {
+	return newLatestPriceTable(a.SchemaName(), a.TableName(), alias)
 }
 
-// Schema creates new VwLatestPriceTable with assigned schema name
-func (a VwLatestPriceTable) FromSchema(schemaName string) *VwLatestPriceTable {
-	return newVwLatestPriceTable(schemaName, a.TableName(), a.Alias())
+// Schema creates new LatestPriceTable with assigned schema name
+func (a LatestPriceTable) FromSchema(schemaName string) *LatestPriceTable {
+	return newLatestPriceTable(schemaName, a.TableName(), a.Alias())
 }
 
-func newVwLatestPriceTable(schemaName, tableName, alias string) *VwLatestPriceTable {
-	return &VwLatestPriceTable{
-		vwLatestPriceTable: newVwLatestPriceTableImpl(schemaName, tableName, alias),
-		EXCLUDED:           newVwLatestPriceTableImpl("", "excluded", ""),
+func newLatestPriceTable(schemaName, tableName, alias string) *LatestPriceTable {
+	return &LatestPriceTable{
+		latestPriceTable: newLatestPriceTableImpl(schemaName, tableName, alias),
+		EXCLUDED:         newLatestPriceTableImpl("", "excluded", ""),
 	}
 }
 
-func newVwLatestPriceTableImpl(schemaName, tableName, alias string) vwLatestPriceTable {
+func newLatestPriceTableImpl(schemaName, tableName, alias string) latestPriceTable {
 	var (
 		PriceIDColumn   = postgres.IntegerColumn("price_id")
 		SymbolColumn    = postgres.StringColumn("symbol")
@@ -61,7 +61,7 @@ func newVwLatestPriceTableImpl(schemaName, tableName, alias string) vwLatestPric
 		mutableColumns  = postgres.ColumnList{PriceIDColumn, SymbolColumn, PriceColumn, UpdatedAtColumn, DateColumn}
 	)
 
-	return vwLatestPriceTable{
+	return latestPriceTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
