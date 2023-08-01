@@ -105,11 +105,11 @@ func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[str
 		symbolSet[s] = false
 		postgresStr = append(postgresStr, String(s))
 	}
-	t := view.VwLatestPrice
+	t := view.LatestPrice
 	query := t.SELECT(t.AllColumns).
 		WHERE(t.Symbol.IN(postgresStr...))
 
-	results := []model.VwLatestPrice{}
+	results := []model.LatestPrice{}
 	err := query.Query(tx, &results)
 	if err != nil {
 		fmt.Println(query.DebugSql())
