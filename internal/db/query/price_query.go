@@ -14,6 +14,9 @@ import (
 )
 
 func AddPrices(tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
+	for i := range prices {
+		prices[i].UpdatedAt = time.Now().UTC()
+	}
 	t := Price
 	stmt := t.INSERT(t.MutableColumns).
 		MODELS(prices).

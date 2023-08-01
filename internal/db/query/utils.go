@@ -38,6 +38,14 @@ func New() (*sql.DB, error) {
 	return dbConn, nil
 }
 
+func NewTx() (*sql.Tx, error) {
+	dbConn, err := New()
+	if err != nil {
+		return nil, err
+	}
+	return dbConn.Begin()
+}
+
 func NewTest() (*sql.DB, error) {
 	connStr := "postgresql://postgres:postgres@localhost:5438/postgres_test?sslmode=disable"
 	dbConn, err := sql.Open("postgres", connStr)
