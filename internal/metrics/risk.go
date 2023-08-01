@@ -7,6 +7,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	. "hood/internal/domain"
+	"hood/internal/util"
 	"math"
 	"sort"
 	"time"
@@ -82,7 +83,7 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 			s2Stdev := mappedStdev[s2]
 			covariance := decimal.NewFromFloat(covariances[s1+"-"+s2])
 			t := two.Mul(s1Weight).Mul(s2Weight).Mul(covariance).Mul(s1Stdev).Mul(s2Stdev)
-			// fmt.Println(s1+"-"+s2, s1Weight, s2Weight, s1Stdev, s2Stdev)
+
 			covarianceTerms = append(covarianceTerms, t)
 		}
 	}
@@ -124,24 +125,6 @@ func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
 	return weights, nil
 }
 
-func percentChange(prices []model.Price) []decimal.Decimal {
-	if len(prices) < 2 {
-		fmt.Println("attempted to compute percent change with less than two values")
-		return []decimal.Decimal{}
-	}
-	sort.SliceStable(prices, func(i, j int) bool {
-		return prices[i].Date.Before(prices[j].Date)
-	})
-	mappedPriceLists := []decimal.Decimal{}
-	for i, p := range prices[1:] {
-		prevPrice := prices[i].Price
-		percentChange := (p.Price.Sub(prevPrice)).Div(prevPrice)
-		// fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
-		mappedPriceLists = append(mappedPriceLists, percentChange)
-	}
-	return mappedPriceLists
-}
-
 func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]float64, error) {
 	if len(symbols) < 2 {
 		return nil, fmt.Errorf("cannot calculate covariance of less than 2 symbols")
@@ -151,26 +134,17 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 	if err != nil {
 		return nil, err
 	}
-	pricesBySymbol := map[string][]model.Price{}
-	priceDates := map[string]map[string]struct{}{}
 
-	for _, p := range prices {
-		if _, ok := pricesBySymbol[p.Symbol]; !ok {
-			pricesBySymbol[p.Symbol] = []model.Price{}
-		}
-		pricesBySymbol[p.Symbol] = append(pricesBySymbol[p.Symbol], p)
-		if _, ok := priceDates[p.Symbol]; !ok {
-			priceDates[p.Symbol] = map[string]struct{}{}
-		}
-		priceDates[p.Symbol][p.Date.Format("2006-01-02")] = struct{}{}
-	}
+	dailyPercentChangeBySymbol := getDailyPercentChange(prices)
 
+	// necessary to produce the right
+	// covariance keys
 	sort.Strings(symbols)
 	for i := range symbols {
 		for j := i + 1; j < len(symbols); j++ {
 			s1 := symbols[i]
 			s2 := symbols[j]
-			s1Data, s2Data := formatCovarianceData(s1, s2, pricesBySymbol)
+			s1Data, s2Data := formatCovarianceData(s1, s2, dailyPercentChangeBySymbol)
 			// https://www.investopedia.com/terms/c/covariance.asp
 			c, err := stats.Covariance(
 				s1Data,
@@ -214,9 +188,9 @@ func setDifference(s1, s2 map[string]struct{}) []string {
 	return diff
 }
 
-func formatCovarianceData(symbol1, symbol2 string, pricesBySymbol map[string][]model.Price) ([]float64, []float64) {
-	s1Data := decListToFloat64(percentChange(pricesBySymbol[symbol1]))
-	s2Data := decListToFloat64(percentChange(pricesBySymbol[symbol2]))
+func formatCovarianceData(symbol1, symbol2 string, dailyPercentChange map[string][]decimal.Decimal) ([]float64, []float64) {
+	s1Data := decListToFloat64(dailyPercentChange[symbol1])
+	s2Data := decListToFloat64(dailyPercentChange[symbol2])
 	// setDiff := setDifference(priceDates[s1], priceDates[s2])
 
 	// if one asset has less values than the other,
@@ -227,8 +201,117 @@ func formatCovarianceData(symbol1, symbol2 string, pricesBySymbol map[string][]m
 	} else if len(s1Data) > len(s2Data) {
 		// fmt.Printf("removing %d values from %s's history to match %d values from %s\n", len(s1Data)-len(s2Data), symbol1, len(s2Data), symbol2)
 		s1Data = s1Data[len(s1Data)-len(s2Data):]
-
 	}
 
 	return s1Data, s2Data
+}
+
+func annualExpectedReturn(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
+	weights, err := assetWeights(tx, p)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	start := time.Now().Add(-1 * stdevRange)
+
+	prices, err := db.GetAdjustedPrices(tx, p.GetOpenLotSymbols(), start)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	pricesBySymbol := map[string][]model.Price{}
+	for _, price := range prices {
+		s := price.Symbol
+		if _, ok := pricesBySymbol[s]; !ok {
+			pricesBySymbol[s] = []model.Price{}
+		}
+		pricesBySymbol[s] = append(pricesBySymbol[s], price)
+	}
+	total := decimal.Zero
+	for symbol, prices := range pricesBySymbol {
+		sort.Slice(prices, func(i, j int) bool {
+			return prices[i].Date.Before(prices[j].Date)
+		})
+
+		diffInYears := prices[len(prices)-1].Date.Sub(prices[0].Date).Hours() / (365 * 24)
+		totalChange := prices[len(prices)-1].Price.Div(prices[0].Price)
+		// fmt.Println(totalChange, diffInYears)
+		t := decimal.NewFromFloat(math.Pow(totalChange.InexactFloat64(), (1.0 / diffInYears))).Sub(decimal.NewFromInt(1))
+		total = total.Add(t.Mul(weights[symbol]))
+	}
+	return total, nil
+}
+
+func getDailyPercentChange(prices []model.Price) map[string][]decimal.Decimal {
+	pricesBySymbol := map[string][]model.Price{}
+
+	for _, p := range prices {
+		if _, ok := pricesBySymbol[p.Symbol]; !ok {
+			pricesBySymbol[p.Symbol] = []model.Price{}
+		}
+		pricesBySymbol[p.Symbol] = append(pricesBySymbol[p.Symbol], p)
+	}
+
+	percentChangeBySymbol := map[string][]decimal.Decimal{}
+	for symbol, prices := range pricesBySymbol {
+		percentChangeBySymbol[symbol] = percentChange(prices)
+	}
+
+	return percentChangeBySymbol
+}
+
+func percentChange(prices []model.Price) []decimal.Decimal {
+	if len(prices) < 2 {
+		fmt.Println("attempted to compute percent change with less than two values")
+		return []decimal.Decimal{}
+	}
+	sort.SliceStable(prices, func(i, j int) bool {
+		return prices[i].Date.Before(prices[j].Date)
+	})
+	mappedPriceLists := []decimal.Decimal{}
+	for i, p := range prices[1:] {
+		prevPrice := prices[i].Price
+		percentChange := (p.Price.Sub(prevPrice)).Div(prevPrice)
+		// fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
+		mappedPriceLists = append(mappedPriceLists, percentChange)
+	}
+	return mappedPriceLists
+}
+
+func CalculatePortfolioSharpeRatio(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
+	magicNumber := decimal.NewFromFloat(math.Sqrt(252))
+	riskFreeReturn := decimal.NewFromFloat(0.05) // approx CD return
+	portfolioStdev, err := DailyStdevOfPortfolio(tx, p)
+	if err != nil {
+		return decimal.Zero, err
+	}
+	expectedReturn, err := annualExpectedReturn(tx, p)
+	if err != nil {
+		return decimal.Zero, err
+	}
+
+	annualStdev := decimal.NewFromFloat(portfolioStdev).Mul(magicNumber)
+
+	util.Pprint(map[string]interface{}{
+		"expectedReturn":    expectedReturn,
+		"annualStdev":       annualStdev,
+		"riskFeeReturnRate": riskFreeReturn,
+	})
+
+	return (expectedReturn.Sub(riskFreeReturn)).Div(annualStdev), nil
+}
+
+func CalculateAssetSharpeRatio(tx *sql.Tx, symbol string) (decimal.Decimal, error) {
+	p := Portfolio{
+		OpenLots: map[string][]*OpenLot{
+			symbol: {
+				{
+					Trade: &Trade{
+						Symbol:   symbol,
+						Quantity: decimal.NewFromInt(1),
+					},
+					Quantity: decimal.NewFromInt(1),
+				},
+			},
+		},
+	}
+	return CalculatePortfolioSharpeRatio(tx, p)
 }
