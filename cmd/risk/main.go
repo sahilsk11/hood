@@ -6,7 +6,6 @@ import (
 	"hood/internal/metrics"
 	"hood/internal/portfolio"
 	"log"
-	"math"
 )
 
 func main() {
@@ -29,8 +28,6 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	magicNumber := math.Sqrt(252)
-
 	// symbols := p.GetOpenLotSymbols()
 
 	// for _, s := range symbols {
@@ -40,13 +37,6 @@ func main() {
 	// 	}
 	// 	fmt.Println(s, stdev*magicNumber*100)
 	// }
-
-	stdev, err := metrics.DailyStdevOfPortfolio(tx, *p)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(stdev * magicNumber * 100)
 
 	fmt.Println(metrics.CalculateAssetSharpeRatio(tx, "SPY"))
 	fmt.Println(metrics.CalculatePortfolioSharpeRatio(tx, *p))
