@@ -2,6 +2,7 @@ package domain
 
 import (
 	"time"
+	"sort"
 
 	"github.com/shopspring/decimal"
 )
@@ -12,7 +13,7 @@ type Portfolio struct {
 	Cash       decimal.Decimal
 	LastAction time.Time
 
-	NewOpenLots []OpenLot
+	NewOpenLots []OpenLot // should be deprecated
 }
 
 func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
@@ -91,4 +92,38 @@ func (p1 Portfolio) Add(p2 Portfolio) Portfolio {
 	}
 
 	return p
+}
+
+type HistoricPortfolio struct {
+	portfolios []Portfolio
+}
+
+func NewHistoricPortfolio() HistoricPortfolio {
+	return HistoricPortfolio{
+		portfolios: []Portfolio{},
+	}
+}
+
+func (hp *HistoricPortfolio) sort() {
+	sort.Slice(hp.portfolios, func(i, j int) bool {
+		return hp.portfolios[i].LastAction.Before(hp.portfolios[j].LastAction)
+	})
+}
+
+func (hp HistoricPortfolio) OnDate(t time.Time) Portfolio {
+	i := 0
+	latest := hp.portfolios[i]
+	for i < len(hp.portfolios) && t.Before(hp.portfolios[i].LastAction) {
+		i += 1
+	}
+	return latest
+}
+
+func (hp *HistoricPortfolio) Append(p Portfolio) {
+	hp.portfolios = append(hp.portfolios, p)
+	hp.sort()
+}
+
+func (hp HistoricPortfolio) Latest() Portfolio {
+	return hp.portfolios[len(hp.portfolios)-1]
 }

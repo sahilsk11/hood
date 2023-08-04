@@ -44,7 +44,7 @@ func main() {
 	e(err)
 
 	events := getData(tx, model.CustodianType_Tda)
-	dailyPortfolios, err := portfolio.PlaybackDaily(events)
+	dailyPortfolios, err := portfolio.Playback(events)
 	e(err)
 	keys := []string{}
 	for k := range dailyPortfolios {

@@ -44,61 +44,38 @@ type Events struct {
 	Dividends   []Dividend
 }
 
-func Playback(in Events) (*Portfolio, error) {
-	daily, err := PlaybackDaily(in)
-	if err != nil {
-		return nil, err
-	}
-	keys := []string{}
-	for k := range daily {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	latest := daily[keys[len(keys)-1]]
-
-	return &latest, nil
-}
-
 // given historical events, calculate all portfolios
-func PlaybackDaily(in Events) (map[string]Portfolio, error) {
-	portfolio := &Portfolio{
-		OpenLots:   map[string][]*OpenLot{},
-		ClosedLots: map[string][]ClosedLot{},
-	}
-	mappedPortfolio := map[string]Portfolio{}
-
+func Playback(in Events) (*HistoricPortfolio, error) {
+	hp := NewHistoricPortfolio()
 	events := mergeEvents(in)
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
 
 	for _, e := range events {
+		portfolio := hp.Latest().DeepCopy()
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
 
 			if t.Action == model.TradeActionType_Buy {
-				handleBuy(t, portfolio)
+				handleBuy(t, &portfolio)
 			} else if t.Action == model.TradeActionType_Sell {
-				err := handleSell(t, portfolio)
+				err := handleSell(t, &portfolio)
 				if err != nil {
 					return nil, fmt.Errorf("failed to execute sell %v: %w", t, err)
 				}
 			}
 		case AssetSplit:
-			handleAssetSplit(e.(AssetSplit), portfolio)
+			handleAssetSplit(e.(AssetSplit), &portfolio)
 		case Transfer:
 			portfolio.Cash = portfolio.Cash.Add(e.(Transfer).Amount)
 		case Dividend:
 			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
-		date := e.GetDate().Format("2006-01-02")
-		portfolio.LastAction = e.GetDate()
-		// util.Pprint(portfolio)
-		mappedPortfolio[date] = portfolio.DeepCopy()
-		// portfolio.NewOpenLots = []domain.OpenLot{}
+		hp.Append(portfolio)
 	}
-	return mappedPortfolio, nil
+	return &hp, nil
 }
 
 func handleBuy(t Trade, p *Portfolio) {
