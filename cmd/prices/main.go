@@ -13,7 +13,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	csvFileName := "prices.csv"
+	csvFileName := "result.csv"
 	records, err := loadCsv(csvFileName)
 	if err != nil {
 		log.Fatalf("failed to load csv: %v", err)
@@ -22,7 +22,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tx.Commit()
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func loadCsv(csvFileName string) ([][]string, error) {

@@ -14,21 +14,35 @@ import (
 )
 
 func AddPrices(tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
-	for i := range prices {
-		prices[i].UpdatedAt = time.Now().UTC()
-	}
-	t := Price
-	stmt := t.INSERT(t.MutableColumns).
-		MODELS(prices).
-		RETURNING(t.AllColumns)
+	out := []model.Price{}
+	batchSize := 500
+	offset := 0
 
-	result := []model.Price{}
-	err := stmt.Query(tx, &result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to insert prices: %w", err)
-	}
+	for offset < len(prices) {
+		end := offset + batchSize
+		if len(prices) < end {
+			end = len(prices)
+		}
+		fmt.Println(offset, end)
+		batch := prices[offset:end]
 
-	return result, nil
+		for i := range prices {
+			prices[i].UpdatedAt = time.Now().UTC()
+		}
+		t := Price
+		stmt := t.INSERT(t.MutableColumns).
+			MODELS(batch).
+			RETURNING(t.AllColumns)
+
+		result := []model.Price{}
+		err := stmt.Query(tx, &result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert prices: %w", err)
+		}
+		out = append(out, result...)
+		offset += len(batch)
+	}
+	return out, nil
 }
 
 func GetPricesOnDate(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
@@ -189,7 +203,7 @@ func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.P
 	if err != nil {
 		return nil, err
 	}
-
+	// apply asset splits
 	for i, r := range result {
 		for _, split := range assetSplits {
 			if r.Symbol == split.Symbol && r.Date.Before(split.Date) {
