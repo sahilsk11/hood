@@ -15,6 +15,9 @@ func assetPriceChangeSince(tx *sql.Tx, symbol string, start time.Time) (decimal.
 	if err != nil {
 		return decimal.Zero, fmt.Errorf("failed to get adj prices: %w", err)
 	}
+	if len(adjPrices) < 2 {
+		return decimal.Zero, fmt.Errorf("cannot calculate change of %s and start date %s with less than two prices", symbol, start.String())
+	}
 
 	return (adjPrices[len(adjPrices)-1].Price.Div(adjPrices[0].Price)).Sub(decimal.NewFromInt(1)), nil
 }
