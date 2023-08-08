@@ -167,29 +167,33 @@ func Backtest(
 	trades := []domain.Trade{}
 	current := start
 
-	// i := 0
 	for current.Before(end) {
-		// i++
-		// if i%50 == 0 {
-		// 	fmt.Println(start, end)
-		// 	fmt.Println(*currentPortfolio.Positions["AAPL"], *currentPortfolio.Positions["MSFT"])
-		// }
+		// calculate the new target asset allocations
 		newBenchmark, err := TargetAllocation(tx, initialBenchmark, current)
 		if err != nil {
 			return nil, err
 		}
+		// figure out how to trade our way to the target
 		proposedTrades, err := transitionToTarget(tx, *currentPortfolio, newBenchmark, current)
 		if err != nil {
 			return nil, err
 		}
+		// update current metrics portfolio, which is basically
+		// a running counter of what we have
 		err = currentPortfolio.ProcessTrades(proposedTrades)
 		if err != nil {
 			return nil, err
 		}
+		// save trades so we can actually play it back over
+		// a trading portfolio, for open/closed lots etc
 		trades = append(trades, proposedTrades.ToTrades(current)...)
 		current = current.AddDate(0, 0, 30)
 	}
 
+	// playback all trades on an actual trading portfolio
+	// tbh we probably dont need this, because the metrics
+	// could just use net value over time. but it seems
+	// nice to have
 	events := Events{
 		Trades: trades,
 	}
