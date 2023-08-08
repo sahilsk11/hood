@@ -43,7 +43,7 @@ func TestPlaybackDaily(t *testing.T) {
 				},
 			},
 		}
-		dailyPortfolios, err := PlaybackDaily(events)
+		dailyPortfolios, err := Playback(events)
 		require.NoError(t, err)
 		require.Equal(
 			t,
@@ -133,7 +133,7 @@ func TestPlaybackDaily(t *testing.T) {
 				},
 			},
 		}
-		out, err := PlaybackDaily(events)
+		out, err := Playback(events)
 		require.NoError(t, err)
 
 		require.Equal(
@@ -288,11 +288,11 @@ func Test_insertPortfolio(t *testing.T) {
 	events := Events{
 		Trades: tr,
 	}
-	dailyPortfolios, err := PlaybackDaily(events)
+	dailyPortfolios, err := Playback(events)
 	require.NoError(t, err)
 	util.Pprint(dailyPortfolios)
 
-	for _, portfolio := range dailyPortfolios {
+	for _, portfolio := range dailyPortfolios.GetPortfolios() {
 		err = insertPortfolio(tx, portfolio)
 		if err != nil {
 			require.NoError(t, err)

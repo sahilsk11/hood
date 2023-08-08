@@ -1,8 +1,8 @@
 package domain
 
 import (
-	"time"
 	"sort"
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -96,6 +96,10 @@ func (p1 Portfolio) Add(p2 Portfolio) Portfolio {
 
 type HistoricPortfolio struct {
 	portfolios []Portfolio
+}
+
+func (hp HistoricPortfolio) GetPortfolios() []Portfolio {
+	return hp.portfolios
 }
 
 func NewHistoricPortfolio() HistoricPortfolio {

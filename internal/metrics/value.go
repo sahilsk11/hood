@@ -5,7 +5,6 @@ import (
 	"fmt"
 	db "hood/internal/db/query"
 	. "hood/internal/domain"
-	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -51,28 +50,17 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 // day within the range
 func DailyPortfolioValues(
 	tx *sql.Tx,
-	portfolios map[string]Portfolio,
+	portfolios HistoricPortfolio,
 	start *time.Time,
 	end *time.Time,
 ) (map[string]decimal.Decimal, error) {
-	if len(portfolios) == 0 {
+	if len(portfolios.GetPortfolios()) == 0 {
 		return nil, fmt.Errorf("no portfolios given")
 	}
 	out := map[string]decimal.Decimal{}
-	dateKeys := []string{}
 
-	for dateStr := range portfolios {
-		dateKeys = append(dateKeys, dateStr)
-	}
-	sort.Strings(dateKeys)
-	minPortfolioDate, err := time.Parse(layout, dateKeys[0])
-	if err != nil {
-		return nil, err
-	}
-	maxPortfolioDate, err := time.Parse(layout, dateKeys[len(dateKeys)-1])
-	if err != nil {
-		return nil, err
-	}
+	minPortfolioDate := portfolios.GetPortfolios()[0].LastAction
+	maxPortfolioDate := portfolios.Latest().LastAction
 	if start == nil {
 		start = &minPortfolioDate
 	}
@@ -90,29 +78,19 @@ func DailyPortfolioValues(
 
 	// increment portfolio date until we reach
 	// start date
-	currentTime := minPortfolioDate
-	portfolio := portfolios[dateKeys[0]]
-	for currentTime.Before(*start) {
-		// if there's a newer portfolio, use it
-		if p, ok := portfolios[currentTime.Format(layout)]; ok {
-			portfolio = p
-		}
-		currentTime = currentTime.AddDate(0, 0, 1)
+	i := 0
+	for portfolios.GetPortfolios()[i].LastAction.Before(*start) {
+		i++
 	}
 
-	for currentTime.Before(*end) || currentTime.Equal(*end) {
-		dateStr := currentTime.Format(layout)
-		if p, ok := portfolios[dateStr]; ok {
-			portfolio = p
-		}
+	for portfolios.GetPortfolios()[i].LastAction.Before(*end) || portfolios.GetPortfolios()[i].LastAction.Equal(*end) {
 
-		value, err := CalculatePortfolioValue(tx, portfolio, currentTime)
+		value, err := CalculatePortfolioValue(tx, portfolios.GetPortfolios()[i], portfolios.GetPortfolios()[i].LastAction)
 		if err != nil {
 			return nil, err
 		}
 
-		out[dateStr] = value
-		currentTime = currentTime.AddDate(0, 0, 1)
+		out[portfolios.GetPortfolios()[i].LastAction.Format("2006-01-02")] = value
 	}
 
 	return out, nil

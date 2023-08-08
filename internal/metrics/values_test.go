@@ -82,18 +82,17 @@ func TestDailyPortfolioValues(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	portfolios := map[string]Portfolio{
-		"2020-02-02": {
-			OpenLots: map[string][]*OpenLot{
-				"AAPL": {
-					{
-						Quantity: dec(10),
-					},
+	portfolios := HistoricPortfolio{}
+	portfolios.Append(Portfolio{
+		OpenLots: map[string][]*OpenLot{
+			"AAPL": {
+				{
+					Quantity: dec(10),
 				},
 			},
-			Cash: dec(200),
 		},
-	}
+		Cash: dec(200),
+	})
 
 	end := time.Date(2020, 02, 03, 0, 0, 0, 0, time.UTC)
 	values, err := DailyPortfolioValues(
