@@ -7,7 +7,6 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"hood/internal/metrics"
-	"hood/internal/util"
 	"time"
 
 	"github.com/montanaflynn/stats"
@@ -18,20 +17,20 @@ type benchmark map[string]decimal.Decimal
 
 // use a factor strategy and determine what the weight
 // of each asset should be
-func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
+func TargetAllocation(tx *sql.Tx, b benchmark, date time.Time) (benchmark, error) {
 	symbols := []string{}
 	momentumFactorBySymbol := map[string]decimal.Decimal{}
 	momentumFactorValues := []decimal.Decimal{}
 	for k := range b {
 		symbols = append(symbols, k)
-		mFactor, err := metrics.MomentumFactorForAsset(tx, k)
+		mFactor, err := metrics.MomentumFactorForAsset(tx, k, date)
 		if err != nil {
 			return nil, err
 		}
 		momentumFactorValues = append(momentumFactorValues, mFactor)
 		momentumFactorBySymbol[k] = mFactor
 	}
-	util.Pprint(momentumFactorBySymbol)
+
 	dataset := []float64{}
 	for _, m := range momentumFactorValues {
 		dataset = append(dataset, m.InexactFloat64())
@@ -42,7 +41,7 @@ func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
 		return nil, fmt.Errorf("failed to calculate stdev of momentum factors: %w", err)
 	}
 	mFactorsStdev := decimal.NewFromFloat(mFactorsStdevF)
-	fmt.Println(mFactorsMean, mFactorsStdev)
+
 	zScoreBySymbol := map[string]decimal.Decimal{}
 	maxScaleFactor := decimal.NewFromInt(1)
 	for symbol, mFactor := range momentumFactorBySymbol {
@@ -56,7 +55,6 @@ func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
 		}
 		zScoreBySymbol[symbol] = zScore
 	}
-	util.Pprint(zScoreBySymbol)
 
 	// set intensity of factor weight
 	scaleFactor := maxScaleFactor.Mul(decimal.NewFromFloat(0.98))
@@ -69,8 +67,8 @@ func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
 	return out, nil
 }
 
-func transitionToTarget(tx *sql.Tx, currentPortfolio domain.Portfolio, target benchmark) ([]domain.ProposedTrade, error) {
-	totalValue, err := metrics.CalculatePortfolioValue(tx, currentPortfolio, time.Now().UTC())
+func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, target benchmark) (domain.ProposedTrades, error) {
+	totalValue, err := metrics.CalculateMetricsPortfolioValue(tx, currentPortfolio, time.Now().UTC())
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +79,8 @@ func transitionToTarget(tx *sql.Tx, currentPortfolio domain.Portfolio, target be
 	}
 
 	trades := []domain.ProposedTrade{}
-	for _, symbol := range currentPortfolio.GetOpenLotSymbols() {
-		currentQuantity := currentPortfolio.GetQuantity(symbol)
-		diff := newQuantity[symbol].Sub(currentQuantity)
+	for symbol, position := range currentPortfolio.Positions {
+		diff := newQuantity[symbol].Sub(position.Quantity)
 		if !diff.Equal(decimal.Zero) {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:   symbol,
@@ -146,10 +143,34 @@ func Backtest(
 	initialPortfolio domain.MetricsPortfolio,
 	start time.Time,
 	end time.Time,
-) {
+) (*domain.HistoricPortfolio, error) {
 	initialBenchmark, err := mpToBenchmark(tx, initialPortfolio)
 	if err != nil {
 		return nil, err
 	}
 
+	currentPortfolio := &initialPortfolio
+	trades := []domain.Trade{}
+
+	for start.Before(end) {
+		newBenchmark, err := TargetAllocation(tx, initialBenchmark, start)
+		if err != nil {
+			return nil, err
+		}
+		proposedTrades, err := transitionToTarget(tx, *currentPortfolio, newBenchmark)
+		if err != nil {
+			return nil, err
+		}
+		err = currentPortfolio.ProcessTrades(proposedTrades)
+		if err != nil {
+			return nil, err
+		}
+		trades = append(trades, proposedTrades.ToTrades(start)...)
+		start = start.AddDate(0, 0, 1)
+	}
+
+	events := Events{
+		Trades: trades,
+	}
+	Playback(events)
 }

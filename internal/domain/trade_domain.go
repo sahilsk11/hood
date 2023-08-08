@@ -63,3 +63,24 @@ type ProposedTrade struct {
 	Quantity      decimal.Decimal // negative is valid and implies sell
 	ExpectedPrice decimal.Decimal
 }
+
+type ProposedTrades []ProposedTrade
+
+func (pts ProposedTrades) ToTrades(date time.Time) []Trade {
+	trades := []Trade{}
+	for _, pt := range pts {
+		quantity := pt.Quantity.Abs()
+		action := model.TradeActionType_Buy
+		if quantity.LessThan(decimal.Zero) {
+			action = model.TradeActionType_Sell
+		}
+		trades = append(trades, Trade{
+			Symbol:   pt.Symbol,
+			Quantity: pt.Quantity,
+			Price:    pt.ExpectedPrice,
+			Date:     date,
+			Action:   action,
+		})
+	}
+	return trades
+}

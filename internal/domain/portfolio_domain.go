@@ -2,6 +2,7 @@ package domain
 
 import (
 	"fmt"
+	"hood/internal/db/models/postgres/public/model"
 	"sort"
 	"time"
 
@@ -22,6 +23,24 @@ func NewEmptyPortfolio() *Portfolio {
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 	}
+}
+
+func (pt Portfolio) ToMetricsPortfolio() *MetricsPortfolio {
+	out := &MetricsPortfolio{
+		Positions: map[string]*Position{},
+		Cash:      pt.Cash,
+	}
+	for symbol, lots := range pt.OpenLots {
+		totalQuantity := decimal.Zero
+		for _, lot := range lots {
+			totalQuantity = totalQuantity.Add(lot.Quantity)
+		}
+		out.Positions[symbol] = &Position{
+			Symbol:   symbol,
+			Quantity: totalQuantity,
+		}
+	}
+	return out
 }
 
 func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
@@ -154,7 +173,7 @@ type Position struct {
 }
 
 type MetricsPortfolio struct {
-	Positions map[string]Position
+	Positions map[string]*Position
 	Cash      decimal.Decimal
 }
 
@@ -164,4 +183,47 @@ func (mp MetricsPortfolio) Symbols() []string {
 		out = append(out, symbol)
 	}
 	return out
+}
+
+func (mp MetricsPortfolio) NewPortfolio(costBasis map[string]decimal.Decimal, date time.Time) Portfolio {
+	out := Portfolio{
+		Cash:       mp.Cash,
+		OpenLots:   map[string][]*OpenLot{},
+		ClosedLots: map[string][]ClosedLot{},
+	}
+	for symbol, position := range mp.Positions {
+		cb := decimal.Zero
+		if costBasis != nil {
+			if c, ok := costBasis[symbol]; ok {
+				cb = c
+			}
+		}
+		out.OpenLots[symbol] = []*OpenLot{
+			{
+				Quantity:  position.Quantity,
+				CostBasis: cb,
+				Date:      date,
+				Trade: &Trade{
+					Symbol:   symbol,
+					Quantity: position.Quantity,
+					Price:    cb, // TODO: how to deal w asset split
+					Date:     date,
+					Action:   model.TradeActionType_Buy,
+				},
+			},
+		}
+	}
+
+	return out
+}
+
+func (mp *MetricsPortfolio) ProcessTrades(trades []ProposedTrade) error {
+	for _, t := range trades {
+		symbol := t.Symbol
+		mp.Positions[symbol].Quantity = mp.Positions[symbol].Quantity.Add(t.Quantity)
+		if mp.Positions[symbol].Quantity.LessThan(decimal.Zero) {
+			return fmt.Errorf("cannot process trade: quantity < 0")
+		}
+	}
+	return nil
 }
