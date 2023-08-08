@@ -7,6 +7,7 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"hood/internal/metrics"
+	"hood/internal/util"
 	"time"
 
 	"github.com/montanaflynn/stats"
@@ -18,6 +19,9 @@ type benchmark map[string]decimal.Decimal
 // use a factor strategy and determine what the weight
 // of each asset should be
 func TargetAllocation(tx *sql.Tx, b benchmark, date time.Time) (benchmark, error) {
+	if len(b) < 2 {
+		return nil, fmt.Errorf("cannot calculate allocation with < 2 assets")
+	}
 	symbols := []string{}
 	momentumFactorBySymbol := map[string]decimal.Decimal{}
 	momentumFactorValues := []decimal.Decimal{}
@@ -67,15 +71,27 @@ func TargetAllocation(tx *sql.Tx, b benchmark, date time.Time) (benchmark, error
 	return out, nil
 }
 
-func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, target benchmark) (domain.ProposedTrades, error) {
-	totalValue, err := metrics.CalculateMetricsPortfolioValue(tx, currentPortfolio, time.Now().UTC())
+func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, target benchmark, date time.Time) (domain.ProposedTrades, error) {
+	util.Pprint(target)
+	totalValue, err := metrics.CalculateMetricsPortfolioValue(tx, currentPortfolio, date)
 	if err != nil {
 		return nil, err
 	}
 
-	newQuantity, err := calculateQuantity(tx, target, totalValue)
+	prices, err := db.GetPricesHelper(tx, date, currentPortfolio.Symbols())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get prices: %w", err)
+	}
+
+	newQuantity, err := calculateQuantity(prices, target, totalValue)
 	if err != nil {
 		return nil, err
+	}
+	// if quantities are too low, skip trade
+	for _, v := range newQuantity {
+		if v.Abs().LessThan(decimal.NewFromFloat(0.0001)) {
+			return []domain.ProposedTrade{}, nil
+		}
 	}
 
 	trades := []domain.ProposedTrade{}
@@ -83,8 +99,9 @@ func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, ta
 		diff := newQuantity[symbol].Sub(position.Quantity)
 		if !diff.Equal(decimal.Zero) {
 			trades = append(trades, domain.ProposedTrade{
-				Symbol:   symbol,
-				Quantity: diff,
+				Symbol:        symbol,
+				Quantity:      diff,
+				ExpectedPrice: prices[symbol],
 			})
 		}
 	}
@@ -92,35 +109,34 @@ func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, ta
 	return trades, nil
 }
 
-func calculateQuantity(tx *sql.Tx, targetWeights benchmark, totalValue decimal.Decimal) (map[string]decimal.Decimal, error) {
-	ctx := context.Background()
+func calculateQuantity(priceMap map[string]decimal.Decimal, targetWeights benchmark, totalValue decimal.Decimal) (map[string]decimal.Decimal, error) {
 	symbols := []string{}
 	for s := range targetWeights {
 		symbols = append(symbols, s)
 	}
-	prices, err := db.GetLatestPrices(ctx, tx, symbols)
-	if err != nil {
-		return nil, err
-	}
+
 	valueBySymbol := map[string]decimal.Decimal{}
 	for symbol, weight := range targetWeights {
 		valueBySymbol[symbol] = totalValue.Mul(weight)
 	}
 	quantityBySymbol := map[string]decimal.Decimal{}
 	for symbol, value := range valueBySymbol {
-		quantityBySymbol[symbol] = value.Div(prices[symbol])
+		quantityBySymbol[symbol] = value.Div(priceMap[symbol])
 	}
 
 	return quantityBySymbol, nil
 }
 
 func mpToBenchmark(tx *sql.Tx, mp domain.MetricsPortfolio) (benchmark, error) {
+	if len(mp.Symbols()) == 0 {
+		return nil, fmt.Errorf("cannot convert empty metrics portfolio to benchmark")
+	}
 	out := benchmark{}
 	ctx := context.Background()
 
 	prices, err := db.GetLatestPrices(ctx, tx, mp.Symbols())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get prices for symbols %v: %w", mp.Symbols(), err)
 	}
 	valueBySymbol := map[string]decimal.Decimal{}
 	for symbol, position := range mp.Positions {
@@ -149,15 +165,22 @@ func Backtest(
 		return nil, err
 	}
 
-	currentPortfolio := &initialPortfolio
+	currentPortfolio := initialPortfolio.DeepCopy()
 	trades := []domain.Trade{}
+	current := start
 
-	for start.Before(end) {
-		newBenchmark, err := TargetAllocation(tx, initialBenchmark, start)
+	// i := 0
+	for current.Before(end) {
+		// i++
+		// if i%50 == 0 {
+		// 	fmt.Println(start, end)
+		// 	fmt.Println(*currentPortfolio.Positions["AAPL"], *currentPortfolio.Positions["MSFT"])
+		// }
+		newBenchmark, err := TargetAllocation(tx, initialBenchmark, current)
 		if err != nil {
 			return nil, err
 		}
-		proposedTrades, err := transitionToTarget(tx, *currentPortfolio, newBenchmark)
+		proposedTrades, err := transitionToTarget(tx, *currentPortfolio, newBenchmark, current)
 		if err != nil {
 			return nil, err
 		}
@@ -165,12 +188,17 @@ func Backtest(
 		if err != nil {
 			return nil, err
 		}
-		trades = append(trades, proposedTrades.ToTrades(start)...)
-		start = start.AddDate(0, 0, 1)
+		trades = append(trades, proposedTrades.ToTrades(current)...)
+		current = current.AddDate(0, 0, 30)
 	}
 
 	events := Events{
 		Trades: trades,
 	}
-	Playback(events)
+	out, err := Playback(initialPortfolio.NewPortfolio(nil, start), events)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
 }

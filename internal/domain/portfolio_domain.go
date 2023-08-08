@@ -141,9 +141,6 @@ func (hp *HistoricPortfolio) sort() {
 	sort.SliceStable(hp.portfolios, func(i, j int) bool {
 		return hp.portfolios[i].LastAction.Before(hp.portfolios[j].LastAction)
 	})
-	for _, x := range hp.portfolios {
-		fmt.Println(x.LastAction)
-	}
 }
 
 func (hp HistoricPortfolio) OnDate(t time.Time) Portfolio {
@@ -172,9 +169,27 @@ type Position struct {
 	Quantity decimal.Decimal
 }
 
+func (p Position) DeepCopy() *Position {
+	return &Position{
+		Symbol:   p.Symbol,
+		Quantity: p.Quantity,
+	}
+}
+
 type MetricsPortfolio struct {
 	Positions map[string]*Position
 	Cash      decimal.Decimal
+}
+
+func (mp MetricsPortfolio) DeepCopy() *MetricsPortfolio {
+	out := &MetricsPortfolio{
+		Positions: map[string]*Position{},
+		Cash:      mp.Cash,
+	}
+	for symbol, p := range mp.Positions {
+		out.Positions[symbol] = p.DeepCopy()
+	}
+	return out
 }
 
 func (mp MetricsPortfolio) Symbols() []string {
@@ -185,11 +200,12 @@ func (mp MetricsPortfolio) Symbols() []string {
 	return out
 }
 
-func (mp MetricsPortfolio) NewPortfolio(costBasis map[string]decimal.Decimal, date time.Time) Portfolio {
-	out := Portfolio{
+func (mp MetricsPortfolio) NewPortfolio(costBasis map[string]decimal.Decimal, date time.Time) *Portfolio {
+	out := &Portfolio{
 		Cash:       mp.Cash,
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
+		LastAction: date,
 	}
 	for symbol, position := range mp.Positions {
 		cb := decimal.Zero

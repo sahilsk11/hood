@@ -71,12 +71,12 @@ func (pts ProposedTrades) ToTrades(date time.Time) []Trade {
 	for _, pt := range pts {
 		quantity := pt.Quantity.Abs()
 		action := model.TradeActionType_Buy
-		if quantity.LessThan(decimal.Zero) {
+		if pt.Quantity.LessThan(decimal.Zero) {
 			action = model.TradeActionType_Sell
 		}
 		trades = append(trades, Trade{
 			Symbol:   pt.Symbol,
-			Quantity: pt.Quantity,
+			Quantity: quantity,
 			Price:    pt.ExpectedPrice,
 			Date:     date,
 			Action:   action,

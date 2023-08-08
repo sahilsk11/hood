@@ -23,7 +23,6 @@ func AddPrices(tx *sql.Tx, prices []model.Price) ([]model.Price, error) {
 		if len(prices) < end {
 			end = len(prices)
 		}
-		fmt.Println(offset, end)
 		batch := prices[offset:end]
 
 		for i := range prices {
@@ -89,6 +88,27 @@ func GetPricesOnDate(tx *sql.Tx, date time.Time, symbols []string) (map[string]d
 	return priceMap, nil
 }
 
+func GetPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]decimal.Decimal, error) {
+	if len(symbols) == 0 {
+		return map[string]decimal.Decimal{}, nil
+	}
+	priceMap, err := GetPricesOnDate(tx, date, symbols)
+	if err != nil {
+		e := err
+		tries := 5
+		for tries > 0 && e != nil {
+			date = date.AddDate(0, 0, -1)
+			priceMap, e = GetPricesOnDate(tx, date, symbols)
+			tries -= 1
+		}
+		if e != nil {
+			return nil, fmt.Errorf("failed to get prices: %w", err)
+		}
+	}
+
+	return priceMap, nil
+}
+
 func GetPricesChanges(tx *sql.Tx, symbol string) (map[string]decimal.Decimal, error) {
 	query := Price.SELECT(Price.Date, Price.Price).
 		WHERE(AND(
@@ -114,6 +134,9 @@ func GetPricesChanges(tx *sql.Tx, symbol string) (map[string]decimal.Decimal, er
 }
 
 func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, error) {
+	if len(symbols) == 0 {
+		return nil, fmt.Errorf("cannot query prices for 0 given symbols")
+	}
 	priceMap := map[string]decimal.Decimal{}
 	symbolSet := map[string]bool{}
 
