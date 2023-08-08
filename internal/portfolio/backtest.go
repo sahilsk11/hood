@@ -87,16 +87,14 @@ func transitionToTarget(tx *sql.Tx, currentPortfolio domain.MetricsPortfolio, ta
 	if err != nil {
 		return nil, err
 	}
-	// if quantities are too low, skip trade
-	for _, v := range newQuantity {
-		if v.Abs().LessThan(decimal.NewFromFloat(0.0001)) {
-			return []domain.ProposedTrade{}, nil
-		}
-	}
 
 	trades := []domain.ProposedTrade{}
 	for symbol, position := range currentPortfolio.Positions {
 		diff := newQuantity[symbol].Sub(position.Quantity)
+		// if quantities are too low, skip trade
+		if diff.Abs().LessThan(decimal.NewFromFloat(0.0001)) {
+			return []domain.ProposedTrade{}, nil
+		}
 		if !diff.Equal(decimal.Zero) {
 			trades = append(trades, domain.ProposedTrade{
 				Symbol:        symbol,
