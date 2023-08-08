@@ -52,14 +52,14 @@ func main() {
 	}
 
 	symbolValue := map[string]decimal.Decimal{}
-	for symbol, lots := range portfolio.OpenLots {
+	for symbol, lots := range portfolio.Latest().OpenLots {
 		symbolValue[symbol] = decimal.Zero
 		for _, lot := range lots {
 			symbolValue[symbol] = symbolValue[symbol].Add(lot.Quantity)
 		}
 	}
 	fmt.Println(symbolValue)
-	fmt.Println(portfolio.Cash)
+	fmt.Println(portfolio.Latest().Cash)
 
 	// tx.Commit()
 

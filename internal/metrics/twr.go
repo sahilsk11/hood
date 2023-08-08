@@ -66,14 +66,14 @@ func hp(start, end, cashFlow decimal.Decimal) decimal.Decimal {
 	quotient := numerator.Div(denominator)
 	hp := quotient
 
-	util.Pprint(map[string]decimal.Decimal{
-		"hp":          hp,
-		"numerator":   numerator,
-		"denominator": denominator,
-		"start":       start,
-		"end":         end,
-		"cashFlows":   cashFlow,
-	})
+	// util.Pprint(map[string]decimal.Decimal{
+	// 	"hp":          hp,
+	// 	"numerator":   numerator,
+	// 	"denominator": denominator,
+	// 	"start":       start,
+	// 	"end":         end,
+	// 	"cashFlows":   cashFlow,
+	// })
 
 	return hp
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	db "hood/internal/db/query"
 	. "hood/internal/domain"
-	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -34,6 +33,7 @@ func netValue(p Portfolio, priceMap map[string]decimal.Decimal) (decimal.Decimal
 }
 
 // determine what the value of the portfolio is on a given day
+// need seperate date param for pricing on date
 func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
 	if len(p.GetOpenLotSymbols()) == 0 {
 		return p.Cash, nil
@@ -51,30 +51,21 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 // day within the range
 func DailyPortfolioValues(
 	tx *sql.Tx,
-	portfolios map[string]Portfolio,
+	hp HistoricPortfolio,
 	start *time.Time,
 	end *time.Time,
 ) (map[string]decimal.Decimal, error) {
-	if len(portfolios) == 0 {
+	if len(hp.GetPortfolios()) == 0 {
 		return nil, fmt.Errorf("no portfolios given")
 	}
 	out := map[string]decimal.Decimal{}
-	dateKeys := []string{}
 
-	for dateStr := range portfolios {
-		dateKeys = append(dateKeys, dateStr)
-	}
-	sort.Strings(dateKeys)
-	minPortfolioDate, err := time.Parse(layout, dateKeys[0])
-	if err != nil {
-		return nil, err
-	}
-	maxPortfolioDate, err := time.Parse(layout, dateKeys[len(dateKeys)-1])
-	if err != nil {
-		return nil, err
-	}
+	minPortfolioDate := hp.GetPortfolios()[0].LastAction
+	maxPortfolioDate := hp.Latest().LastAction
 	if start == nil {
 		start = &minPortfolioDate
+	} else {
+		fmt.Println("not configured")
 	}
 	if end == nil {
 		end = &maxPortfolioDate
@@ -88,25 +79,22 @@ func DailyPortfolioValues(
 		return nil, fmt.Errorf("inputted end date %s is before first portfolio date %s", end.Format(layout), start.Format(layout))
 	}
 
-	// increment portfolio date until we reach
-	// start date
-	currentTime := minPortfolioDate
-	portfolio := portfolios[dateKeys[0]]
-	for currentTime.Before(*start) {
-		// if there's a newer portfolio, use it
-		if p, ok := portfolios[currentTime.Format(layout)]; ok {
-			portfolio = p
-		}
-		currentTime = currentTime.AddDate(0, 0, 1)
-	}
+	nextHpIndex := 1
+	currentTime := *start
+	currentPortfolio := hp.GetPortfolios()[0]
 
-	for currentTime.Before(*end) || currentTime.Equal(*end) {
+	for currentTime.Unix() <= end.Unix() {
+		if nextHpIndex < len(hp.GetPortfolios()) && (hp.GetPortfolios()[nextHpIndex].LastAction.Unix() >= currentTime.Unix()) {
+			currentPortfolio = hp.GetPortfolios()[nextHpIndex]
+			nextHpIndex++
+		}
 		dateStr := currentTime.Format(layout)
-		if p, ok := portfolios[dateStr]; ok {
-			portfolio = p
-		}
 
-		value, err := CalculatePortfolioValue(tx, portfolio, currentTime)
+		value, err := CalculatePortfolioValue(
+			tx,
+			currentPortfolio,
+			currentTime,
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -114,6 +102,13 @@ func DailyPortfolioValues(
 		out[dateStr] = value
 		currentTime = currentTime.AddDate(0, 0, 1)
 	}
+
+	// // increment portfolio date until we reach
+	// // start date
+	// i := 0
+	// for i+1 < len(portfolios.GetPortfolios()) && portfolios.GetPortfolios()[i+1].LastAction.Before(*start) {
+	// 	i++
+	// }
 
 	return out, nil
 }

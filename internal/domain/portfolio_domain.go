@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"fmt"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -12,7 +14,14 @@ type Portfolio struct {
 	Cash       decimal.Decimal
 	LastAction time.Time
 
-	NewOpenLots []OpenLot
+	NewOpenLots []OpenLot // should be deprecated
+}
+
+func NewEmptyPortfolio() *Portfolio {
+	return &Portfolio{
+		OpenLots:   map[string][]*OpenLot{},
+		ClosedLots: map[string][]ClosedLot{},
+	}
 }
 
 func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
@@ -24,8 +33,8 @@ func (p Portfolio) GetQuantity(symbol string) decimal.Decimal {
 	return totalQuantity
 }
 
-func (p Portfolio) DeepCopy() Portfolio {
-	out := Portfolio{
+func (p Portfolio) DeepCopy() *Portfolio {
+	out := &Portfolio{
 		OpenLots:   map[string][]*OpenLot{},
 		ClosedLots: map[string][]ClosedLot{},
 		Cash:       p.Cash,
@@ -90,5 +99,51 @@ func (p1 Portfolio) Add(p2 Portfolio) Portfolio {
 		p.NewOpenLots = append(p.NewOpenLots, lot)
 	}
 
-	return p
+	return *p
+}
+
+type HistoricPortfolio struct {
+	portfolios []Portfolio
+}
+
+func (hp HistoricPortfolio) GetPortfolios() []Portfolio {
+	return hp.portfolios
+}
+
+func NewHistoricPortfolio(portfolios []Portfolio) *HistoricPortfolio {
+	hp := &HistoricPortfolio{
+		portfolios: portfolios,
+	}
+	hp.sort()
+	return hp
+}
+
+func (hp *HistoricPortfolio) sort() {
+	sort.SliceStable(hp.portfolios, func(i, j int) bool {
+		return hp.portfolios[i].LastAction.Before(hp.portfolios[j].LastAction)
+	})
+	for _, x := range hp.portfolios {
+		fmt.Println(x.LastAction)
+	}
+}
+
+func (hp HistoricPortfolio) OnDate(t time.Time) Portfolio {
+	i := 0
+	latest := hp.portfolios[i]
+	for i < len(hp.portfolios) && t.Before(hp.portfolios[i].LastAction) {
+		i += 1
+	}
+	return latest
+}
+
+func (hp *HistoricPortfolio) Append(p ...Portfolio) {
+	hp.portfolios = append(hp.portfolios, p...)
+	// hp.sort()
+}
+
+func (hp HistoricPortfolio) Latest() *Portfolio {
+	if len(hp.portfolios) == 0 {
+		return nil
+	}
+	return &hp.portfolios[len(hp.portfolios)-1]
 }
