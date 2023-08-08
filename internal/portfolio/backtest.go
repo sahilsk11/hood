@@ -1,10 +1,14 @@
 package portfolio
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	db "hood/internal/db/query"
+	"hood/internal/domain"
 	"hood/internal/metrics"
 	"hood/internal/util"
+	"time"
 
 	"github.com/montanaflynn/stats"
 	"github.com/shopspring/decimal"
@@ -12,6 +16,8 @@ import (
 
 type benchmark map[string]decimal.Decimal
 
+// use a factor strategy and determine what the weight
+// of each asset should be
 func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
 	symbols := []string{}
 	momentumFactorBySymbol := map[string]decimal.Decimal{}
@@ -61,4 +67,89 @@ func TargetAllocation(tx *sql.Tx, b benchmark) (benchmark, error) {
 	}
 
 	return out, nil
+}
+
+func transitionToTarget(tx *sql.Tx, currentPortfolio domain.Portfolio, target benchmark) ([]domain.ProposedTrade, error) {
+	totalValue, err := metrics.CalculatePortfolioValue(tx, currentPortfolio, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+
+	newQuantity, err := calculateQuantity(tx, target, totalValue)
+	if err != nil {
+		return nil, err
+	}
+
+	trades := []domain.ProposedTrade{}
+	for _, symbol := range currentPortfolio.GetOpenLotSymbols() {
+		currentQuantity := currentPortfolio.GetQuantity(symbol)
+		diff := newQuantity[symbol].Sub(currentQuantity)
+		if !diff.Equal(decimal.Zero) {
+			trades = append(trades, domain.ProposedTrade{
+				Symbol:   symbol,
+				Quantity: diff,
+			})
+		}
+	}
+
+	return trades, nil
+}
+
+func calculateQuantity(tx *sql.Tx, targetWeights benchmark, totalValue decimal.Decimal) (map[string]decimal.Decimal, error) {
+	ctx := context.Background()
+	symbols := []string{}
+	for s := range targetWeights {
+		symbols = append(symbols, s)
+	}
+	prices, err := db.GetLatestPrices(ctx, tx, symbols)
+	if err != nil {
+		return nil, err
+	}
+	valueBySymbol := map[string]decimal.Decimal{}
+	for symbol, weight := range targetWeights {
+		valueBySymbol[symbol] = totalValue.Mul(weight)
+	}
+	quantityBySymbol := map[string]decimal.Decimal{}
+	for symbol, value := range valueBySymbol {
+		quantityBySymbol[symbol] = value.Div(prices[symbol])
+	}
+
+	return quantityBySymbol, nil
+}
+
+func mpToBenchmark(tx *sql.Tx, mp domain.MetricsPortfolio) (benchmark, error) {
+	out := benchmark{}
+	ctx := context.Background()
+
+	prices, err := db.GetLatestPrices(ctx, tx, mp.Symbols())
+	if err != nil {
+		return nil, err
+	}
+	valueBySymbol := map[string]decimal.Decimal{}
+	for symbol, position := range mp.Positions {
+		valueBySymbol[symbol] = position.Quantity.Mul(prices[symbol])
+	}
+	totalValue, err := metrics.CalculateMetricsPortfolioValue(tx, mp, time.Now().UTC())
+	if err != nil {
+		return nil, err
+	}
+
+	for symbol := range mp.Positions {
+		out[symbol] = valueBySymbol[symbol].Div(totalValue)
+	}
+
+	return out, nil
+}
+
+func Backtest(
+	tx *sql.Tx,
+	initialPortfolio domain.MetricsPortfolio,
+	start time.Time,
+	end time.Time,
+) {
+	initialBenchmark, err := mpToBenchmark(tx, initialPortfolio)
+	if err != nil {
+		return nil, err
+	}
+
 }

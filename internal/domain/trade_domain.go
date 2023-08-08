@@ -57,3 +57,9 @@ type Transfer struct {
 }
 
 func (t Transfer) GetDate() time.Time { return t.Date }
+
+type ProposedTrade struct {
+	Symbol        string
+	Quantity      decimal.Decimal // negative is valid and implies sell
+	ExpectedPrice decimal.Decimal
+}

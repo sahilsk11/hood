@@ -46,6 +46,23 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 	return netValue(p, priceMap)
 }
 
+// determine what the value of the portfolio is on a given day
+func CalculateMetricsPortfolioValue(tx *sql.Tx, mp MetricsPortfolio, date time.Time) (decimal.Decimal, error) {
+	if len(mp.Symbols()) == 0 {
+		return mp.Cash, nil
+	}
+	// get prices up to 3 days back
+	priceMap, err := getPricesHelper(tx, date, mp.Symbols())
+	if err != nil {
+		return decimal.Zero, err
+	}
+	out := mp.Cash
+	for symbol, p := range mp.Positions {
+		out = out.Add(p.Quantity.Mul(priceMap[symbol]))
+	}
+	return out, nil
+}
+
 // over the given date range, determine
 // what the value of a portfolio is on every
 // day within the range

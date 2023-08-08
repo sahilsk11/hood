@@ -147,3 +147,21 @@ func (hp HistoricPortfolio) Latest() *Portfolio {
 	}
 	return &hp.portfolios[len(hp.portfolios)-1]
 }
+
+type Position struct {
+	Symbol   string
+	Quantity decimal.Decimal
+}
+
+type MetricsPortfolio struct {
+	Positions map[string]Position
+	Cash      decimal.Decimal
+}
+
+func (mp MetricsPortfolio) Symbols() []string {
+	out := []string{}
+	for symbol := range mp.Positions {
+		out = append(out, symbol)
+	}
+	return out
+}
