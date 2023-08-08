@@ -3,9 +3,12 @@ package main
 import (
 	"fmt"
 	db "hood/internal/db/query"
+	"hood/internal/domain"
+	"hood/internal/metrics"
 	"hood/internal/portfolio"
-	"hood/internal/util"
 	"log"
+
+	"time"
 
 	"github.com/shopspring/decimal"
 )
@@ -20,30 +23,40 @@ func main() {
 		log.Fatal(err)
 	}
 
-	out, err := portfolio.TargetAllocation(tx, map[string]decimal.Decimal{
-		"TSLA": decimal.NewFromFloat(0.08),
-		"NVDA": decimal.NewFromFloat(0.14),
-		"AAPL": decimal.NewFromFloat(0.15),
-		"MSFT": decimal.NewFromFloat(0.10),
-		"UNH":  decimal.NewFromFloat(0.05),
-		"BRKB": decimal.NewFromFloat(0.07),
-		"GOOG": decimal.NewFromFloat(0.10),
-		"META": decimal.NewFromFloat(0.05),
-		"AMZN": decimal.NewFromFloat(0.14),
-		"CSCO": decimal.NewFromFloat(0.02),
-		"COIN": decimal.NewFromFloat(0.02),
-		"C":    decimal.NewFromFloat(0.01),
-		"KO":   decimal.NewFromFloat(0.05),
-		"SQ":   decimal.NewFromFloat(0.02),
-	})
+	start := domain.MetricsPortfolio{
+		Positions: map[string]*domain.Position{
+			"NVDA": {
+				Quantity: decimal.NewFromInt(25),
+			},
+			"CSCO": {
+				Quantity: decimal.NewFromInt(250),
+			},
+			"AAPL": {
+				Quantity: decimal.NewFromInt(60),
+			},
+		},
+	}
+
+	hp1 := domain.NewHistoricPortfolio(
+		[]domain.Portfolio{
+			*start.NewPortfolio(nil, time.Now().AddDate(-1, 0, 0)),
+		},
+	)
+
+	hp, err := portfolio.Backtest(tx, start, time.Now().AddDate(-1, 0, 0), time.Now())
 	if err != nil {
 		log.Fatal(err)
 	}
-	total := decimal.Zero
-	for _, weight := range out {
-		total = total.Add(weight)
-	}
-	fmt.Println(total)
-	util.Pprint(out)
+	fmt.Println("finished backtest")
 
+	r1, err := metrics.CalculateTotalReturn(tx, *hp)
+	if err != nil {
+		log.Fatal(err)
+	}
+	r2, err := metrics.CalculateTotalReturn(tx, *hp1)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(r2.InexactFloat64(), r1.InexactFloat64())
 }

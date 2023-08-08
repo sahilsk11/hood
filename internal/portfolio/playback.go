@@ -45,8 +45,12 @@ type Events struct {
 }
 
 // given historical events, calculate all portfolios
-func Playback(in Events) (*HistoricPortfolio, error) {
+func Playback(initialPortfolio *Portfolio, in Events) (*HistoricPortfolio, error) {
 	hp := NewHistoricPortfolio(nil)
+	if initialPortfolio != nil {
+		hp.Append(*initialPortfolio)
+	}
+
 	events := mergeEvents(in)
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")

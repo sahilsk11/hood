@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"fmt"
 	db "hood/internal/db/query"
+	"hood/internal/domain"
 	. "hood/internal/domain"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -46,6 +48,43 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 	return netValue(p, priceMap)
 }
 
+func CalculateTotalReturn(tx *sql.Tx, hp domain.HistoricPortfolio) (decimal.Decimal, error) {
+	now := time.Now()
+	portfolioValues, err := DailyPortfolioValues(tx, hp, nil, &now)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("failed to compute daily portfolio values: %w", err)
+	}
+
+	out, err := DailyAggregateTwr(portfolioValues, nil)
+	if err != nil {
+		return decimal.Zero, fmt.Errorf("failed to compute aggregrate twr: %w", err)
+	}
+	keys := []string{}
+	for k := range out {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	return out[keys[len(keys)-1]], nil
+}
+
+// determine what the value of the portfolio is on a given day
+func CalculateMetricsPortfolioValue(tx *sql.Tx, mp MetricsPortfolio, date time.Time) (decimal.Decimal, error) {
+	if len(mp.Symbols()) == 0 {
+		return mp.Cash, nil
+	}
+	// get prices up to 3 days back
+	priceMap, err := getPricesHelper(tx, date, mp.Symbols())
+	if err != nil {
+		return decimal.Zero, err
+	}
+	out := mp.Cash
+	for symbol, p := range mp.Positions {
+		out = out.Add(p.Quantity.Mul(priceMap[symbol]))
+	}
+	return out, nil
+}
+
 // over the given date range, determine
 // what the value of a portfolio is on every
 // day within the range
@@ -59,7 +98,6 @@ func DailyPortfolioValues(
 		return nil, fmt.Errorf("no portfolios given")
 	}
 	out := map[string]decimal.Decimal{}
-
 	minPortfolioDate := hp.GetPortfolios()[0].LastAction
 	maxPortfolioDate := hp.Latest().LastAction
 	if start == nil {
@@ -120,7 +158,7 @@ func getPricesHelper(tx *sql.Tx, date time.Time, symbols []string) (map[string]d
 	priceMap, err := db.GetPricesOnDate(tx, date, symbols)
 	if err != nil {
 		e := err
-		tries := 3
+		tries := 5
 		for tries > 0 && e != nil {
 			date = date.AddDate(0, 0, -1)
 			priceMap, e = db.GetPricesOnDate(tx, date, symbols)

@@ -57,3 +57,30 @@ type Transfer struct {
 }
 
 func (t Transfer) GetDate() time.Time { return t.Date }
+
+type ProposedTrade struct {
+	Symbol        string
+	Quantity      decimal.Decimal // negative is valid and implies sell
+	ExpectedPrice decimal.Decimal
+}
+
+type ProposedTrades []ProposedTrade
+
+func (pts ProposedTrades) ToTrades(date time.Time) []Trade {
+	trades := []Trade{}
+	for _, pt := range pts {
+		quantity := pt.Quantity.Abs()
+		action := model.TradeActionType_Buy
+		if pt.Quantity.LessThan(decimal.Zero) {
+			action = model.TradeActionType_Sell
+		}
+		trades = append(trades, Trade{
+			Symbol:   pt.Symbol,
+			Quantity: quantity,
+			Price:    pt.ExpectedPrice,
+			Date:     date,
+			Action:   action,
+		})
+	}
+	return trades
+}
