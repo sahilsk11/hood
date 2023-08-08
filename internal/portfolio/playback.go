@@ -46,36 +46,41 @@ type Events struct {
 
 // given historical events, calculate all portfolios
 func Playback(in Events) (*HistoricPortfolio, error) {
-	hp := NewHistoricPortfolio()
+	hp := NewHistoricPortfolio(nil)
 	events := mergeEvents(in)
 	if len(events) == 0 {
 		return nil, fmt.Errorf("no events found")
 	}
 
 	for _, e := range events {
-		portfolio := hp.Latest().DeepCopy()
+		portfolio := hp.Latest()
+		if portfolio == nil {
+			portfolio = NewEmptyPortfolio()
+		}
+		portfolio = portfolio.DeepCopy()
 		switch e.(type) {
 		case Trade:
 			t := e.(Trade)
 
 			if t.Action == model.TradeActionType_Buy {
-				handleBuy(t, &portfolio)
+				handleBuy(t, portfolio)
 			} else if t.Action == model.TradeActionType_Sell {
-				err := handleSell(t, &portfolio)
+				err := handleSell(t, portfolio)
 				if err != nil {
 					return nil, fmt.Errorf("failed to execute sell %v: %w", t, err)
 				}
 			}
 		case AssetSplit:
-			handleAssetSplit(e.(AssetSplit), &portfolio)
+			handleAssetSplit(e.(AssetSplit), portfolio)
 		case Transfer:
 			portfolio.Cash = portfolio.Cash.Add(e.(Transfer).Amount)
 		case Dividend:
 			portfolio.Cash = portfolio.Cash.Add(e.(Dividend).Amount)
 		}
-		hp.Append(portfolio)
+		portfolio.LastAction = e.GetDate()
+		hp.Append(*portfolio)
 	}
-	return &hp, nil
+	return hp, nil
 }
 
 func handleBuy(t Trade, p *Portfolio) {

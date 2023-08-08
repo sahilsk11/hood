@@ -33,6 +33,7 @@ func netValue(p Portfolio, priceMap map[string]decimal.Decimal) (decimal.Decimal
 }
 
 // determine what the value of the portfolio is on a given day
+// need seperate date param for pricing on date
 func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.Decimal, error) {
 	if len(p.GetOpenLotSymbols()) == 0 {
 		return p.Cash, nil
@@ -50,19 +51,21 @@ func CalculatePortfolioValue(tx *sql.Tx, p Portfolio, date time.Time) (decimal.D
 // day within the range
 func DailyPortfolioValues(
 	tx *sql.Tx,
-	portfolios HistoricPortfolio,
+	hp HistoricPortfolio,
 	start *time.Time,
 	end *time.Time,
 ) (map[string]decimal.Decimal, error) {
-	if len(portfolios.GetPortfolios()) == 0 {
+	if len(hp.GetPortfolios()) == 0 {
 		return nil, fmt.Errorf("no portfolios given")
 	}
 	out := map[string]decimal.Decimal{}
 
-	minPortfolioDate := portfolios.GetPortfolios()[0].LastAction
-	maxPortfolioDate := portfolios.Latest().LastAction
+	minPortfolioDate := hp.GetPortfolios()[0].LastAction
+	maxPortfolioDate := hp.Latest().LastAction
 	if start == nil {
 		start = &minPortfolioDate
+	} else {
+		fmt.Println("not configured")
 	}
 	if end == nil {
 		end = &maxPortfolioDate
@@ -76,22 +79,36 @@ func DailyPortfolioValues(
 		return nil, fmt.Errorf("inputted end date %s is before first portfolio date %s", end.Format(layout), start.Format(layout))
 	}
 
-	// increment portfolio date until we reach
-	// start date
-	i := 0
-	for portfolios.GetPortfolios()[i].LastAction.Before(*start) {
-		i++
-	}
+	nextHpIndex := 1
+	currentTime := *start
+	currentPortfolio := hp.GetPortfolios()[0]
 
-	for portfolios.GetPortfolios()[i].LastAction.Before(*end) || portfolios.GetPortfolios()[i].LastAction.Equal(*end) {
+	for currentTime.Unix() <= end.Unix() {
+		if nextHpIndex < len(hp.GetPortfolios()) && (hp.GetPortfolios()[nextHpIndex].LastAction.Unix() >= currentTime.Unix()) {
+			currentPortfolio = hp.GetPortfolios()[nextHpIndex]
+			nextHpIndex++
+		}
+		dateStr := currentTime.Format(layout)
 
-		value, err := CalculatePortfolioValue(tx, portfolios.GetPortfolios()[i], portfolios.GetPortfolios()[i].LastAction)
+		value, err := CalculatePortfolioValue(
+			tx,
+			currentPortfolio,
+			currentTime,
+		)
 		if err != nil {
 			return nil, err
 		}
 
-		out[portfolios.GetPortfolios()[i].LastAction.Format("2006-01-02")] = value
+		out[dateStr] = value
+		currentTime = currentTime.AddDate(0, 0, 1)
 	}
+
+	// // increment portfolio date until we reach
+	// // start date
+	// i := 0
+	// for i+1 < len(portfolios.GetPortfolios()) && portfolios.GetPortfolios()[i+1].LastAction.Before(*start) {
+	// 	i++
+	// }
 
 	return out, nil
 }

@@ -82,8 +82,7 @@ func TestDailyPortfolioValues(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	portfolios := HistoricPortfolio{}
-	portfolios.Append(Portfolio{
+	portfolios := NewHistoricPortfolio([]Portfolio{{
 		OpenLots: map[string][]*OpenLot{
 			"AAPL": {
 				{
@@ -91,13 +90,14 @@ func TestDailyPortfolioValues(t *testing.T) {
 				},
 			},
 		},
-		Cash: dec(200),
-	})
+		LastAction: time.Date(2020, 02, 02, 0, 0, 0, 0, time.UTC),
+		Cash:       dec(200),
+	}})
 
 	end := time.Date(2020, 02, 03, 0, 0, 0, 0, time.UTC)
 	values, err := DailyPortfolioValues(
 		tx,
-		portfolios,
+		*portfolios,
 		nil,
 		&end,
 	)
