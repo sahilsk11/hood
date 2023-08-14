@@ -102,3 +102,23 @@ func UpdateFromCsv(tx *sql.Tx, records [][]string) error {
 
 	return nil
 }
+
+func UpdateHistoric(tx *sql.Tx, priceClient PriceIngestionClient, symbols []string, start time.Time) error {
+	for _, s := range symbols {
+		savepoint := ""
+		prices, err := priceClient.GetHistoricalPrices(s, start)
+		if err != nil {
+			return db.RollbackWithError(tx, savepoint, err)
+		}
+		_, err = db.AddPrices(tx, prices)
+		if err != nil {
+			return db.RollbackWithError(tx, savepoint, err)
+		}
+		savepoint, err = db.AddSavepoint(tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

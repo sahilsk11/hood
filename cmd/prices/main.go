@@ -1,6 +1,7 @@
 package main
 
 import (
+	db "hood/internal/db/query"
 	"hood/internal/prices"
 	"hood/internal/util"
 	"log"
@@ -9,6 +10,11 @@ import (
 )
 
 func main() {
+	tx, err := db.NewTx()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
@@ -19,9 +25,11 @@ func main() {
 		ApiKey:     secrets.AlphaVantageKey,
 	}
 
-	out, err := priceClient.GetHistoricalPrices("AAPL", time.Now().AddDate(0, 0, -7))
+	err = prices.UpdateHistoric(tx, priceClient, []string{
+		"AAPL", "COIN", "AMZN", "NVDA",
+	}, time.Now().AddDate(0, 0, -14))
 	if err != nil {
 		log.Fatal(err)
 	}
-	util.Pprint(out)
+	tx.Commit()
 }

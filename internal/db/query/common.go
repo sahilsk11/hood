@@ -22,3 +22,13 @@ func RollbackToSavepoint(name string, tx *sql.Tx) error {
 	_, err := tx.Exec("ROLLBACK TO SAVEPOINT " + name)
 	return err
 }
+
+func RollbackWithError(tx *sql.Tx, savepointName string, err error) error {
+	if err != nil {
+		if savepointErr := RollbackToSavepoint(savepointName, tx); savepointErr != nil {
+			return fmt.Errorf("failed to rollback tx with err %w while handling error: %w", savepointErr, err)
+		}
+		return err
+	}
+	return nil
+}
