@@ -1,44 +1,27 @@
 package main
 
 import (
-	"encoding/csv"
-	db "hood/internal/db/query"
 	"hood/internal/prices"
+	"hood/internal/util"
 	"log"
-	"os"
+	"net/http"
+	"time"
 )
 
 func main() {
-	tx, err := db.NewTx()
+	secrets, err := util.LoadSecrets()
 	if err != nil {
 		log.Fatal(err)
 	}
-	csvFileName := "result.csv"
-	records, err := loadCsv(csvFileName)
-	if err != nil {
-		log.Fatalf("failed to load csv: %v", err)
-	}
-	err = prices.UpdateFromCsv(tx, records)
-	if err != nil {
-		log.Fatal(err)
-	}
-	err = tx.Commit()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
-func loadCsv(csvFileName string) ([][]string, error) {
-	f, err := os.Open(csvFileName)
-	if err != nil {
-		return nil, err
+	priceClient := prices.AlphaVantageClient{
+		HttpClient: http.DefaultClient,
+		ApiKey:     secrets.AlphaVantageKey,
 	}
-	defer f.Close()
 
-	csvFile := csv.NewReader(f)
-	records, err := csvFile.ReadAll()
+	out, err := priceClient.GetHistoricalPrices("AAPL", time.Now().AddDate(0, 0, -7))
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
-	return records, nil
+	util.Pprint(out)
 }
