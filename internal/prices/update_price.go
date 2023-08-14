@@ -3,6 +3,7 @@ package prices
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
@@ -111,6 +112,35 @@ func UpdateHistoric(tx *sql.Tx, priceClient PriceIngestionClient, symbols []stri
 			return db.RollbackWithError(tx, savepoint, err)
 		}
 		_, err = db.AddPrices(tx, prices)
+		if err != nil {
+			return db.RollbackWithError(tx, savepoint, err)
+		}
+		savepoint, err = db.AddSavepoint(tx)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func UpdateHistoricMetrics(tx *sql.Tx, djClient DataJockeyClient, symbols []string) error {
+	for _, s := range symbols {
+		savepoint := ""
+		metrics, err := djClient.GetAssetMetrics(s)
+		if err != nil {
+			return db.RollbackWithError(tx, savepoint, err)
+		}
+		bytes, err := json.Marshal(metrics)
+		if err != nil {
+			return db.RollbackWithError(tx, savepoint, err)
+
+		}
+		ml := model.DataJockeyAssetMetrics{
+			CreatedAt: time.Now().UTC(),
+			JSON:      string(bytes),
+		}
+		err = db.AddDjMetrics(tx, []model.DataJockeyAssetMetrics{ml})
 		if err != nil {
 			return db.RollbackWithError(tx, savepoint, err)
 		}

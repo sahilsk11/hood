@@ -237,3 +237,13 @@ func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.P
 
 	return result, nil
 }
+
+func AddDjMetrics(tx *sql.Tx, metrics []model.DataJockeyAssetMetrics) error {
+	query := DataJockeyAssetMetrics.INSERT(DataJockeyAssetMetrics.MutableColumns).MODELS(metrics)
+
+	_, err := query.Exec(tx)
+	if err != nil {
+		return err
+	}
+	return nil
+}

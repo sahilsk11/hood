@@ -1,0 +1,1 @@
+drop TABLE data_jockey_asset_metrics;
