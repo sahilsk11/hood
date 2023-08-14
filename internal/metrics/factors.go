@@ -10,6 +10,9 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+// i think gets intraday price changes, like you'd see on RH
+// basically percent change between daily values. seems like
+// something to move to another file though
 func assetPriceChangeSince(tx *sql.Tx, symbol string, start time.Time) (decimal.Decimal, error) {
 	adjPrices, err := db.GetAdjustedPrices(tx, []string{symbol}, start)
 	if err != nil {
