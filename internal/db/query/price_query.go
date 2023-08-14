@@ -10,7 +10,6 @@ import (
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
-	"github.com/go-jet/jet/v2/qrm"
 	"github.com/shopspring/decimal"
 )
 
@@ -237,16 +236,4 @@ func GetAdjustedPrices(tx *sql.Tx, symbols []string, start time.Time) ([]model.P
 	}
 
 	return result, nil
-}
-
-func AddAssetMetrics(db qrm.Executable, assetMetrics []model.AssetMetric) error {
-	query := AssetMetric.INSERT(AssetMetric.MutableColumns).
-		MODELS(assetMetrics)
-
-	_, err := query.Exec(db)
-	if err != nil {
-		fmt.Println(query.DebugSql())
-		return fmt.Errorf("failed to insert asset metrics: %w", err)
-	}
-	return nil
 }
