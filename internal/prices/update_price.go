@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/piquette/finance-go"
-	"github.com/piquette/finance-go/equity"
 	"github.com/shopspring/decimal"
 )
 
@@ -103,43 +101,4 @@ func UpdateFromCsv(tx *sql.Tx, records [][]string) error {
 	}
 
 	return nil
-}
-
-// use db bc if something fails
-// i want to commit everything
-func UpdateFromYahoo(dbThing *sql.DB) error {
-	symbols := GetUniverseAssets()
-	for _, s := range symbols {
-		q, err := equity.Get(s)
-		if err != nil {
-			return fmt.Errorf("failed to get equity data from yahoo api: %w", err)
-		}
-		err = db.AddAssetMetrics(dbThing, []model.AssetMetric{
-			dbAssetMetricFromYahoo(q),
-		})
-		if err != nil {
-			return err
-		}
-		fmt.Printf("added %s\n", s)
-	}
-
-	return nil
-}
-
-func dbAssetMetricFromYahoo(e *finance.Equity) model.AssetMetric {
-	return model.AssetMetric{
-		Symbol:                                  e.Symbol,
-		FullName:                                e.LongName,
-		Price:                                   decimal.NewFromFloat(e.RegularMarketPrice),
-		PriceUpdatedAt:                          time.Unix(int64(e.RegularMarketTime), 0),
-		EarningsPerShareAnnualTrailing:          decimal.NewFromFloat(e.EpsTrailingTwelveMonths),
-		EarningsPerShareAnnualTrailingUpdatedAt: time.Unix(int64(e.EarningsTimestamp), 0),
-		DividendYieldAnnualTrailing:             decimal.NewFromFloat(e.TrailingAnnualDividendRate),
-		DividendYieldAnnualTrailingUpdatedAt:    time.Unix(int64(e.DividendDate), 0),
-		PeRatioTrailing:                         decimal.NewFromFloat(e.TrailingPE),
-		BookValue:                               decimal.NewFromFloat(e.BookValue),
-		PriceToBookRatio:                        decimal.NewFromFloat(e.PriceToBook),
-		SharesOutstanding:                       decimal.NewFromInt(int64(e.SharesOutstanding)),
-		MarketCap:                               decimal.NewFromInt(e.MarketCap),
-	}
 }

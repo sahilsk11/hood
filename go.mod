@@ -20,5 +20,3 @@ require (
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
-
-replace github.com/piquette/finance-go => /Users/sahil/portfolio/hood/pkg/finance-go
