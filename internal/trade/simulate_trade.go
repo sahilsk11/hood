@@ -1,10 +1,9 @@
-package portfolio_simulation
+package trade
 
 import (
 	"context"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
-	"hood/internal/trade"
 
 	db "hood/internal/db/query"
 
@@ -26,7 +25,7 @@ func SimulateTrade(ctx context.Context, t domain.Trade) (*SimulateTradeResult, e
 	if err != nil {
 		return nil, err
 	}
-	sellResult, err := trade.PreviewSellOrder(t, domain.OpenLots(openLots).Ptr())
+	sellResult, err := PreviewSellOrder(t, domain.OpenLots(openLots).Ptr())
 	if err != nil {
 		return nil, err
 	}
