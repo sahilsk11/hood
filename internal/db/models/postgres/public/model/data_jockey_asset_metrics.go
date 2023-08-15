@@ -13,6 +13,7 @@ import (
 
 type DataJockeyAssetMetrics struct {
 	ID        int32 `sql:"primary_key"`
+	Symbol    string
 	JSON      string
 	CreatedAt time.Time
 }

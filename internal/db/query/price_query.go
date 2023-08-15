@@ -247,3 +247,19 @@ func AddDjMetrics(tx *sql.Tx, metrics []model.DataJockeyAssetMetrics) error {
 	}
 	return nil
 }
+
+func GetDjMetrics(tx *sql.Tx, symbol string) (*model.DataJockeyAssetMetrics, error) {
+	query := DataJockeyAssetMetrics.
+		SELECT(DataJockeyAssetMetrics.AllColumns).
+		WHERE(DataJockeyAssetMetrics.Symbol.EQ(String(symbol))).
+		ORDER_BY(DataJockeyAssetMetrics.CreatedAt).
+		LIMIT(1)
+
+	out := &model.DataJockeyAssetMetrics{}
+	err := query.Query(tx, out)
+	if err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}

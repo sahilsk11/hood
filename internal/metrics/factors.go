@@ -49,3 +49,13 @@ func MomentumFactorForAsset(tx *sql.Tx, symbol string, date time.Time) (decimal.
 
 	return decimal.Avg(threeMonthReturns, oneWeekReturns).Div(stdev), nil
 }
+
+func getDjField(in map[string]int64) int64 {
+	m := ""
+	for k := range in {
+		if k > m {
+			m = k
+		}
+	}
+	return in[m]
+}

@@ -18,6 +18,7 @@ type dataJockeyAssetMetricsTable struct {
 
 	//Columns
 	ID        postgres.ColumnInteger
+	Symbol    postgres.ColumnString
 	JSON      postgres.ColumnString
 	CreatedAt postgres.ColumnTimestampz
 
@@ -51,10 +52,11 @@ func newDataJockeyAssetMetricsTable(schemaName, tableName, alias string) *DataJo
 func newDataJockeyAssetMetricsTableImpl(schemaName, tableName, alias string) dataJockeyAssetMetricsTable {
 	var (
 		IDColumn        = postgres.IntegerColumn("id")
+		SymbolColumn    = postgres.StringColumn("symbol")
 		JSONColumn      = postgres.StringColumn("json")
 		CreatedAtColumn = postgres.TimestampzColumn("created_at")
-		allColumns      = postgres.ColumnList{IDColumn, JSONColumn, CreatedAtColumn}
-		mutableColumns  = postgres.ColumnList{JSONColumn, CreatedAtColumn}
+		allColumns      = postgres.ColumnList{IDColumn, SymbolColumn, JSONColumn, CreatedAtColumn}
+		mutableColumns  = postgres.ColumnList{SymbolColumn, JSONColumn, CreatedAtColumn}
 	)
 
 	return dataJockeyAssetMetricsTable{
@@ -62,6 +64,7 @@ func newDataJockeyAssetMetricsTableImpl(schemaName, tableName, alias string) dat
 
 		//Columns
 		ID:        IDColumn,
+		Symbol:    SymbolColumn,
 		JSON:      JSONColumn,
 		CreatedAt: CreatedAtColumn,
 
