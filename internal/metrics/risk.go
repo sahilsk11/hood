@@ -268,6 +268,10 @@ func CalculateAssetSharpeRatio(tx *sql.Tx, symbol string) (decimal.Decimal, erro
 //
 // anyways inputs are intraday price changes (%)
 func Correlation(dailyChangePricesA domain.PercentData, dailyChangePricesB domain.PercentData) (float64, error) {
+	if len(dailyChangePricesA) != len(dailyChangePricesB) {
+		return 0, fmt.Errorf("datasets must be same length to calculate correlation - received %d and %d", len(dailyChangePricesA), len(dailyChangePricesB))
+	}
+
 	corr, err := stats.Correlation(
 		dailyChangePricesA.ToStatsData(),
 		dailyChangePricesB.ToStatsData(),

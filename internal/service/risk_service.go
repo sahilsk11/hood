@@ -36,7 +36,18 @@ func PortfolioCorrelation(tx *sql.Tx, symbols []string) ([]AssetCorrelation, err
 	for i, s1 := range symbols {
 		for j := i + 1; j < len(symbols); j++ {
 			s2 := symbols[j]
-			corr, err := metrics.Correlation(dailyPercentChanges[s1], dailyPercentChanges[s2])
+
+			// there appear to be some duplicate values n shit. the inputs should actually be cleaned
+			// better so days line up and we do best approx with days we have. for now this is ok.
+			firstN := len(dailyPercentChanges[s1])
+			if len(dailyPercentChanges[s2]) < firstN {
+				firstN = len(dailyPercentChanges[s2])
+			}
+
+			corr, err := metrics.Correlation(
+				dailyPercentChanges[s1][:firstN],
+				dailyPercentChanges[s2][:firstN],
+			)
 			if err != nil {
 				return nil, err
 			}
