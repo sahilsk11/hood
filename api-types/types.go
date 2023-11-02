@@ -7,10 +7,12 @@ type PortfolioCorrelationRequest struct {
 	Symbols []string `json:"symbols"`
 }
 
+type Correlation struct {
+	AssetOne    string  `json:"assetOne"`
+	AssetTwo    string  `json:"assetTwo"`
+	Correlation float64 `json:"correlation"`
+}
+
 type PortfolioCorrelationResponse struct {
-	Correlations []struct {
-		AssetOne    string  `json:"assetOne"`
-		AssetTwo    string  `json:"assetTwo"`
-		Correlation float64 `json:"correlation"`
-	}
+	Correlations []Correlation `json:"correlations"`
 }

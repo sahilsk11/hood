@@ -11,10 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ApiHandler struct {
-}
-
-func (m ApiHandler) StartApi(port int) error {
+func StartApi(port int, r resolver.Resolver) error {
 	router := gin.Default()
 
 	router.Use(blockBots)
@@ -31,10 +28,12 @@ func (m ApiHandler) StartApi(port int) error {
 			return
 		}
 
-		resp, err := resolver.PortfolioCorrelation(req)
+		resp, err := r.PortfolioCorrelation(req)
 		if err != nil {
 			returnErrorJson(err, ctx)
+			return
 		}
+
 		ctx.JSON(200, resp)
 	})
 
