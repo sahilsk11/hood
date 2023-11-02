@@ -5,6 +5,7 @@ import (
 	"fmt"
 	api "hood/api-types"
 	"hood/internal/service"
+	"sort"
 )
 
 type Resolver struct {
@@ -34,6 +35,10 @@ func (r Resolver) PortfolioCorrelation(req api.PortfolioCorrelationRequest) (*ap
 			Correlation: c.Correlation,
 		})
 	}
+
+	sort.Slice(outputCorrs, func(i, j int) bool {
+		return outputCorrs[i].Correlation > outputCorrs[j].Correlation
+	})
 
 	err = tx.Rollback()
 	if err != nil {

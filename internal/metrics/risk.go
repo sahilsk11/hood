@@ -212,7 +212,7 @@ func annualExpectedReturn(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
 
 		diffInYears := prices[len(prices)-1].Date.Sub(prices[0].Date).Hours() / (365 * 24)
 		totalChange := prices[len(prices)-1].Price.Div(prices[0].Price)
-		// fmt.Println(totalChange, diffInYears)
+
 		t := decimal.NewFromFloat(math.Pow(totalChange.InexactFloat64(), (1.0 / diffInYears))).Sub(decimal.NewFromInt(1))
 		total = total.Add(t.Mul(weights[symbol]))
 	}
