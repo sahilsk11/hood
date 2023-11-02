@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
+	"hood/internal/domain"
 	. "hood/internal/domain"
 	"math"
 	"reflect"
@@ -201,4 +202,43 @@ func dmean(data []decimal.Decimal) decimal.Decimal {
 		sum = sum.Add(num)
 	}
 	return sum.Div(decimal.NewFromInt(int64(len(data))))
+}
+
+func TestCorrelation(t *testing.T) {
+	type args struct {
+		dailyChangePricesA domain.PercentData
+		dailyChangePricesB domain.PercentData
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    float64
+		wantErr bool
+	}{
+		{
+			name: "simple couple of numbers",
+			args: args{
+				dailyChangePricesA: []domain.Percent{
+					1, 2, 3,
+				},
+				dailyChangePricesB: []domain.Percent{
+					1, 2, 3,
+				},
+			},
+			wantErr: false,
+			want:    1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Correlation(tt.args.dailyChangePricesA, tt.args.dailyChangePricesB)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("Correlation() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("Correlation() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

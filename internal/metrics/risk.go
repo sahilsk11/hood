@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
+	"hood/internal/domain"
 	. "hood/internal/domain"
 	"hood/internal/util"
 	"math"
@@ -25,14 +26,16 @@ func DailyStdevOfAsset(tx *sql.Tx, symbol string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
-	// util.Pprint(prices)
 
-	changes := percentChange(prices)
+	changes, err := PercentChange(prices)
+	if err != nil {
+		return 0, err
+	}
+
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate daily percent change of %s: %w", symbol, err)
 	}
-	data := decListToFloat64(changes)
-	return stats.StandardDeviationSample(data)
+	return stats.StandardDeviationSample(changes.ToStatsData())
 }
 
 func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
@@ -135,7 +138,10 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 		return nil, err
 	}
 
-	dailyPercentChangeBySymbol := getDailyPercentChange(prices)
+	dailyPercentChangeBySymbol, err := CalculateDailyPercentChange(prices)
+	if err != nil {
+		return nil, err
+	}
 
 	// necessary to produce the right
 	// covariance keys
@@ -144,11 +150,10 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 		for j := i + 1; j < len(symbols); j++ {
 			s1 := symbols[i]
 			s2 := symbols[j]
-			s1Data, s2Data := formatCovarianceData(s1, s2, dailyPercentChangeBySymbol)
 			// https://www.investopedia.com/terms/c/covariance.asp
 			c, err := stats.Covariance(
-				s1Data,
-				s2Data,
+				dailyPercentChangeBySymbol[s1].ToStatsData(),
+				dailyPercentChangeBySymbol[s2].ToStatsData(),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("failed to calculate covariance: %w", err)
@@ -159,14 +164,6 @@ func covariances(tx *sql.Tx, symbols []string, start time.Time) (map[string]floa
 	}
 
 	return out, nil
-}
-
-func decListToFloat64(data []decimal.Decimal) stats.Float64Data {
-	out := []float64{}
-	for _, d := range data {
-		out = append(out, d.InexactFloat64())
-	}
-	return out
 }
 
 func setDifference(s1, s2 map[string]struct{}) []string {
@@ -186,24 +183,6 @@ func setDifference(s1, s2 map[string]struct{}) []string {
 		panic("mismatched len but could not find diff")
 	}
 	return diff
-}
-
-func formatCovarianceData(symbol1, symbol2 string, dailyPercentChange map[string][]decimal.Decimal) ([]float64, []float64) {
-	s1Data := decListToFloat64(dailyPercentChange[symbol1])
-	s2Data := decListToFloat64(dailyPercentChange[symbol2])
-	// setDiff := setDifference(priceDates[s1], priceDates[s2])
-
-	// if one asset has less values than the other,
-	// use the N most recent values
-	if len(s1Data) < len(s2Data) {
-		// fmt.Printf("removing %d values from %s's history to match %d values from %s\n", len(s2Data)-len(s1Data), symbol2, len(s1Data), symbol1)
-		s2Data = s2Data[len(s2Data)-len(s1Data):]
-	} else if len(s1Data) > len(s2Data) {
-		// fmt.Printf("removing %d values from %s's history to match %d values from %s\n", len(s1Data)-len(s2Data), symbol1, len(s2Data), symbol2)
-		s1Data = s1Data[len(s1Data)-len(s2Data):]
-	}
-
-	return s1Data, s2Data
 }
 
 func annualExpectedReturn(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
@@ -238,42 +217,6 @@ func annualExpectedReturn(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
 		total = total.Add(t.Mul(weights[symbol]))
 	}
 	return total, nil
-}
-
-func getDailyPercentChange(prices []model.Price) map[string][]decimal.Decimal {
-	pricesBySymbol := map[string][]model.Price{}
-
-	for _, p := range prices {
-		if _, ok := pricesBySymbol[p.Symbol]; !ok {
-			pricesBySymbol[p.Symbol] = []model.Price{}
-		}
-		pricesBySymbol[p.Symbol] = append(pricesBySymbol[p.Symbol], p)
-	}
-
-	percentChangeBySymbol := map[string][]decimal.Decimal{}
-	for symbol, prices := range pricesBySymbol {
-		percentChangeBySymbol[symbol] = percentChange(prices)
-	}
-
-	return percentChangeBySymbol
-}
-
-func percentChange(prices []model.Price) []decimal.Decimal {
-	if len(prices) < 2 {
-		fmt.Println("attempted to compute percent change with less than two values")
-		return []decimal.Decimal{}
-	}
-	sort.SliceStable(prices, func(i, j int) bool {
-		return prices[i].Date.Before(prices[j].Date)
-	})
-	mappedPriceLists := []decimal.Decimal{}
-	for i, p := range prices[1:] {
-		prevPrice := prices[i].Price
-		percentChange := (p.Price.Sub(prevPrice)).Div(prevPrice)
-		// fmt.Printf("%s %f-%f/%f = %f\n", p.Date.Format("2006-01-02"), p.Price.InexactFloat64(), prevPrice.InexactFloat64(), prevPrice.InexactFloat64(), percentChange.InexactFloat64())
-		mappedPriceLists = append(mappedPriceLists, percentChange)
-	}
-	return mappedPriceLists
 }
 
 func CalculatePortfolioSharpeRatio(tx *sql.Tx, p Portfolio) (decimal.Decimal, error) {
@@ -314,4 +257,24 @@ func CalculateAssetSharpeRatio(tx *sql.Tx, symbol string) (decimal.Decimal, erro
 		},
 	}
 	return CalculatePortfolioSharpeRatio(tx, p)
+}
+
+// making two design decisions here:
+// 1. this layer should not have any external deps. all stateful data
+// like prices and assets should be provided
+// 2. it's insane to use decimal in this layer. these are all calculations
+// and approximations. using decimal makes sense when dealing with specific
+// amounts that we really care about. shouldn't matter for stats
+//
+// anyways inputs are intraday price changes (%)
+func Correlation(dailyChangePricesA domain.PercentData, dailyChangePricesB domain.PercentData) (float64, error) {
+	corr, err := stats.Correlation(
+		dailyChangePricesA.ToStatsData(),
+		dailyChangePricesB.ToStatsData(),
+	)
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate correlation: %w", err)
+	}
+
+	return corr, nil
 }
