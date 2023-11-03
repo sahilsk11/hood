@@ -12,7 +12,7 @@ type Resolver struct {
 	Db *sql.DB
 }
 
-func (r Resolver) PortfolioCorrelation(req api.PortfolioCorrelationRequest) (*api.PortfolioCorrelationResponse, error) {
+func (r Resolver) PortfolioCorrelation(req api.CorrelationMatrixRequest) (*api.CorrelationMatrixResponse, error) {
 	tx, err := r.Db.Begin()
 	if err != nil {
 		return nil, err
@@ -45,7 +45,15 @@ func (r Resolver) PortfolioCorrelation(req api.PortfolioCorrelationRequest) (*ap
 		return nil, err
 	}
 
-	return &api.PortfolioCorrelationResponse{
+	return &api.CorrelationMatrixResponse{
 		Correlations: outputCorrs,
 	}, nil
+}
+
+func (r Resolver) CorrelationAllocation(req api.CorrelationAllocationRequest) (*api.CorrelationAllocationResponse, error) {
+	// tx, err := r.Db.Begin()
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return nil, nil
 }

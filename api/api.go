@@ -22,13 +22,29 @@ func StartApi(port int, r resolver.Resolver) error {
 	})
 
 	router.POST("/portfolioCorrelation", func(ctx *gin.Context) {
-		var req types.PortfolioCorrelationRequest
+		var req types.CorrelationMatrixRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), ctx)
 			return
 		}
 
 		resp, err := r.PortfolioCorrelation(req)
+		if err != nil {
+			returnErrorJson(err, ctx)
+			return
+		}
+
+		ctx.JSON(200, resp)
+	})
+
+	router.POST("/portfolioCorrelation", func(ctx *gin.Context) {
+		var req types.CorrelationAllocationRequest
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), ctx)
+			return
+		}
+
+		resp, err := r.CorrelationAllocation(req)
 		if err != nil {
 			returnErrorJson(err, ctx)
 			return

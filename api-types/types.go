@@ -1,6 +1,6 @@
 package types
 
-type PortfolioCorrelationRequest struct {
+type CorrelationMatrixRequest struct {
 	// eventually will make this portfolio ID
 	UseMyPortfolio bool `json:"useMyPortfolio"`
 	// optional - use only if flag is false
@@ -13,6 +13,18 @@ type Correlation struct {
 	Correlation float64 `json:"correlation"`
 }
 
-type PortfolioCorrelationResponse struct {
+type CorrelationMatrixResponse struct {
 	Correlations []Correlation `json:"correlations"`
+}
+
+type HoldingsPosition struct {
+	Symbol   string  `json:"symbol"`
+	Quantity float64 `json:"quantity"`
+}
+
+type CorrelationAllocationRequest struct {
+	Holdings []HoldingsPosition `json:"holdings"`
+}
+
+type CorrelationAllocationResponse struct {
 }
