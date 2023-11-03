@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
@@ -133,7 +132,7 @@ func GetPricesChanges(tx *sql.Tx, symbol string) (map[string]decimal.Decimal, er
 
 }
 
-func GetLatestPrices(ctx context.Context, tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, error) {
+func GetLatestPrices(tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, error) {
 	if len(symbols) == 0 {
 		return nil, fmt.Errorf("cannot query prices for 0 given symbols")
 	}

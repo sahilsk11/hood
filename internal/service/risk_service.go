@@ -84,57 +84,63 @@ type node struct {
 	Neighbors map[string]nodeNeighbor
 }
 
-func CalculateCorrelationAllocation(tx *sql.Tx, portfolio domain.MetricsPortfolio) ([]CorrelationAllocation, error) {
-	// start := time.Now().Add(-1 * stdevRange)
-	// prices, err := db.GetAdjustedPrices(tx, portfolio.Symbols(), start)
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// correlations, err := calculatePortfolioCorrelationWithPrices(prices, portfolio.Symbols())
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// nodes := correl  /ationsToGraph(correlations)
-	return nil, nil
+type CorrelatedAssetGroup struct {
+	Symbols    []string
+	TotalValue float64
 }
 
-func correlationsToGraph(correlations []AssetCorrelation) []node {
-	mappedNodes := map[string]node{}
+func CalculateCorrelatedAssetGroups(tx *sql.Tx, portfolio domain.MetricsPortfolio) (map[float64][]CorrelatedAssetGroup, error) {
+	start := time.Now().Add(-1 * stdevRange)
+	prices, err := db.GetAdjustedPrices(tx, portfolio.Symbols(), start)
+	if err != nil {
+		return nil, err
+	}
+
+	latestPrices, err := db.GetLatestPrices(tx, portfolio.Symbols())
+	if err != nil {
+		return nil, err
+	}
+
+	correlations, err := calculatePortfolioCorrelationWithPrices(prices, portfolio.Symbols())
+	if err != nil {
+		return nil, err
+	}
+
+	valueBySymbol := map[string]float64{}
+	for _, p := range portfolio.Positions {
+		valueBySymbol[p.Symbol] = latestPrices[p.Symbol].InexactFloat64() * p.Quantity.InexactFloat64()
+	}
+
+	out := map[float64][]CorrelatedAssetGroup{}
+	for t := 0.1; t < 1; t += 0.1 {
+		out[t] = groupCorrelatedAssets(correlations, 0.7, valueBySymbol)
+	}
+
+	return out, nil
+}
+
+func groupCorrelatedAssets(correlations []AssetCorrelation, threshold float64, valueBySymbol map[string]float64) []CorrelatedAssetGroup {
+	graph := correlationsToGraph(correlations)
+	groupsWithDuplicateSymbols := createGroupsWithThreshold(graph, threshold)
+
+	return keepLargestGroups(groupsWithDuplicateSymbols, valueBySymbol)
+}
+
+func correlationsToGraph(correlations []AssetCorrelation) graph {
+	graph := graph{}
 	for _, c := range correlations {
-		// add to node map
-		{
-			if _, ok := mappedNodes[c.AssetOne]; !ok {
-				mappedNodes[c.AssetOne] = node{
-					Name:      c.AssetOne,
-					Neighbors: map[string]nodeNeighbor{},
-				}
-			}
-			if _, ok := mappedNodes[c.AssetTwo]; !ok {
-				mappedNodes[c.AssetTwo] = node{
-					Name:      c.AssetTwo,
-					Neighbors: map[string]nodeNeighbor{},
-				}
-			}
+		if _, ok := graph[c.AssetOne]; !ok {
+			graph[c.AssetOne] = map[string]float64{}
+		}
+		if _, ok := graph[c.AssetTwo]; !ok {
+			graph[c.AssetTwo] = map[string]float64{}
 		}
 
-		mappedNodes[c.AssetOne].Neighbors[c.AssetTwo] = nodeNeighbor{
-			Node:   mappedNodes[c.AssetTwo],
-			Length: c.Correlation,
-		}
-		mappedNodes[c.AssetTwo].Neighbors[c.AssetOne] = nodeNeighbor{
-			Node:   mappedNodes[c.AssetOne],
-			Length: c.Correlation,
-		}
+		graph[c.AssetOne][c.AssetTwo] = c.Correlation
+		graph[c.AssetTwo][c.AssetOne] = c.Correlation
 	}
 
-	nodes := []node{}
-	for _, v := range mappedNodes {
-		nodes = append(nodes, v)
-	}
-
-	return nodes
+	return graph
 }
 
 type graph map[string]map[string]float64
@@ -175,32 +181,31 @@ func createGroupsWithThreshold(graph graph, correlationThreshold float64) [][]st
 	return out
 }
 
-func keepLargestGroups(groups [][]string, valueBySymbol map[string]float64) [][]string {
+func keepLargestGroups(groups [][]string, valueBySymbol map[string]float64) []CorrelatedAssetGroup {
 	// if a symbol exists in more than one group,
 	// only keep the group which has the highest value
 	used := util.NewSet()
-	type node struct {
-		symbols []string
-		value   float64
-	}
-	nodes := []node{}
+	assetGroups := []CorrelatedAssetGroup{}
 	for _, group := range groups {
 		value := 0.0
 		for _, symbol := range group {
 			value += valueBySymbol[symbol]
 		}
-		nodes = append(nodes, node{
-			symbols: group,
-			value:   value,
-		})
+		// ensure groups have more than one element
+		if len(group) > 1 {
+			assetGroups = append(assetGroups, CorrelatedAssetGroup{
+				Symbols:    group,
+				TotalValue: value,
+			})
+		}
 	}
-	sort.Slice(nodes, func(i, j int) bool {
-		return nodes[i].value > nodes[j].value
+	sort.Slice(assetGroups, func(i, j int) bool {
+		return assetGroups[i].TotalValue > assetGroups[j].TotalValue
 	})
-	out := [][]string{}
-	for _, node := range nodes {
+	out := []CorrelatedAssetGroup{}
+	for _, ag := range assetGroups {
 		groupUsed := false
-		for _, symbol := range node.symbols {
+		for _, symbol := range ag.Symbols {
 			if !used.Contains(symbol) {
 				used.Add(symbol)
 			} else {
@@ -208,7 +213,7 @@ func keepLargestGroups(groups [][]string, valueBySymbol map[string]float64) [][]
 			}
 		}
 		if !groupUsed {
-			out = append(out, node.symbols)
+			out = append(out, ag)
 		}
 	}
 

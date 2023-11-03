@@ -1,7 +1,6 @@
 package portfolio
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	db "hood/internal/db/query"
@@ -130,9 +129,8 @@ func mpToBenchmark(tx *sql.Tx, mp domain.MetricsPortfolio) (benchmark, error) {
 		return nil, fmt.Errorf("cannot convert empty metrics portfolio to benchmark")
 	}
 	out := benchmark{}
-	ctx := context.Background()
 
-	prices, err := db.GetLatestPrices(ctx, tx, mp.Symbols())
+	prices, err := db.GetLatestPrices(tx, mp.Symbols())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get prices for symbols %v: %w", mp.Symbols(), err)
 	}

@@ -1,7 +1,6 @@
 package metrics
 
 import (
-	"context"
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
@@ -104,10 +103,9 @@ func DailyStdevOfPortfolio(tx *sql.Tx, p Portfolio) (float64, error) {
 }
 
 func assetWeights(tx *sql.Tx, p Portfolio) (map[string]decimal.Decimal, error) {
-	ctx := context.Background()
 	symbols := p.GetOpenLotSymbols()
 
-	priceMap, err := db.GetLatestPrices(ctx, tx, symbols)
+	priceMap, err := db.GetLatestPrices(tx, symbols)
 	if err != nil {
 		return nil, err
 	}

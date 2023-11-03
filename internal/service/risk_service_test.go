@@ -44,3 +44,52 @@ func Test_keepLargestGroups(t *testing.T) {
 		out,
 	)
 }
+
+func Test_groupCorrelatedAssets(t *testing.T) {
+	groups := groupCorrelatedAssets(
+		[]AssetCorrelation{
+			{
+				AssetOne:    "MSFT",
+				AssetTwo:    "GOOG",
+				Correlation: 0.7,
+			},
+			{
+				AssetOne:    "DIS",
+				AssetTwo:    "NFLX",
+				Correlation: 0.7,
+			},
+			{
+				AssetOne:    "MSFT",
+				AssetTwo:    "DIS",
+				Correlation: 0.1,
+			},
+			{
+				AssetOne:    "MSFT",
+				AssetTwo:    "NFLX",
+				Correlation: 0.1,
+			},
+			{
+				AssetOne:    "GOOG",
+				AssetTwo:    "DIS",
+				Correlation: 0.1,
+			},
+			{
+				AssetOne:    "GOOG",
+				AssetTwo:    "NFLX",
+				Correlation: 0.1,
+			},
+		},
+		0.7,
+		map[string]float64{
+			"GOOG": 1000,
+			"MSFT": 1000,
+			"NFLX": 1000,
+			"DIS":  1000,
+		},
+	)
+
+	require.Equal(t, [][]string{
+		{"DIS", "NFLX"},
+		{"GOOG", "MSFT"},
+	}, groups)
+}
