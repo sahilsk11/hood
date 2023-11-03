@@ -37,14 +37,14 @@ func StartApi(port int, r resolver.Resolver) error {
 		ctx.JSON(200, resp)
 	})
 
-	router.POST("/portfolioCorrelation", func(ctx *gin.Context) {
-		var req types.CorrelationAllocationRequest
+	router.POST("/correlatedAssetGroups", func(ctx *gin.Context) {
+		var req types.CorrelatedAssetGroupsRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), ctx)
 			return
 		}
 
-		resp, err := r.CorrelationAllocation(req)
+		resp, err := r.CorrelatedAssetGroups(req)
 		if err != nil {
 			returnErrorJson(err, ctx)
 			return

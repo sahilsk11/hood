@@ -12,6 +12,10 @@ func NewSet() *Set {
 	}
 }
 
+func (s Set) Length() int {
+	return len(s.data)
+}
+
 func (s *Set) Add(item string) {
 	s.data[item] = struct{}{}
 }

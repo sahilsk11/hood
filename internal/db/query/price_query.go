@@ -6,6 +6,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	. "hood/internal/db/models/postgres/public/table"
 	"hood/internal/db/models/postgres/public/view"
+	"hood/internal/util"
 	"time"
 
 	. "github.com/go-jet/jet/v2/postgres"
@@ -137,11 +138,11 @@ func GetLatestPrices(tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, 
 		return nil, fmt.Errorf("cannot query prices for 0 given symbols")
 	}
 	priceMap := map[string]decimal.Decimal{}
-	symbolSet := map[string]bool{}
+	symbolSet := util.NewSet()
 
 	postgresStr := []Expression{}
 	for _, s := range symbols {
-		symbolSet[s] = false
+		symbolSet.Add(s)
 		postgresStr = append(postgresStr, String(s))
 	}
 	t := view.LatestPrice
@@ -157,14 +158,12 @@ func GetLatestPrices(tx *sql.Tx, symbols []string) (map[string]decimal.Decimal, 
 
 	for _, result := range results {
 		priceMap[*result.Symbol] = *result.Price
-		symbolSet[*result.Symbol] = true
+		symbolSet.Remove(*result.Symbol)
 	}
 
 	// ensure result map has all requested symbols
-	for _, s := range symbols {
-		if !symbolSet[s] {
-			return nil, fmt.Errorf("symbol %s does not have latest price updated", s)
-		}
+	if symbolSet.Length() > 0 {
+		return nil, fmt.Errorf("missing %v from latest price query", symbolSet.List())
 	}
 
 	return priceMap, nil

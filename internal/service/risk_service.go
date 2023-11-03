@@ -2,6 +2,7 @@ package service
 
 import (
 	"database/sql"
+	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
@@ -111,9 +112,12 @@ func CalculateCorrelatedAssetGroups(tx *sql.Tx, portfolio domain.MetricsPortfoli
 		valueBySymbol[p.Symbol] = latestPrices[p.Symbol].InexactFloat64() * p.Quantity.InexactFloat64()
 	}
 
+	fmt.Println(correlations)
+	fmt.Println(valueBySymbol)
+
 	out := map[float64][]CorrelatedAssetGroup{}
-	for t := 0.1; t < 1; t += 0.1 {
-		out[t] = groupCorrelatedAssets(correlations, 0.7, valueBySymbol)
+	for t := 0.0; t < 1.0; t += 0.1 {
+		out[t] = groupCorrelatedAssets(correlations, t, valueBySymbol)
 	}
 
 	return out, nil

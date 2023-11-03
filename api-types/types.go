@@ -22,9 +22,14 @@ type HoldingsPosition struct {
 	Quantity float64 `json:"quantity"`
 }
 
-type CorrelationAllocationRequest struct {
+type CorrelatedAssetGroupsRequest struct {
 	Holdings []HoldingsPosition `json:"holdings"`
 }
 
-type CorrelationAllocationResponse struct {
+type CorrelatedAssetGroup struct {
+	Symbols    []string `json:"symbols"`
+	TotalValue float64  `json:"totalValue"`
+}
+type CorrelatedAssetGroupsResponse struct {
+	GroupsByCorrelation map[string][]CorrelatedAssetGroup `json:"groupsByCorrelation"`
 }

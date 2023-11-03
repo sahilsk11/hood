@@ -4,8 +4,11 @@ import (
 	"database/sql"
 	"fmt"
 	api "hood/api-types"
+	"hood/internal/domain"
 	"hood/internal/service"
 	"sort"
+
+	"github.com/shopspring/decimal"
 )
 
 type Resolver struct {
@@ -50,10 +53,45 @@ func (r Resolver) PortfolioCorrelation(req api.CorrelationMatrixRequest) (*api.C
 	}, nil
 }
 
-func (r Resolver) CorrelationAllocation(req api.CorrelationAllocationRequest) (*api.CorrelationAllocationResponse, error) {
-	// tx, err := r.Db.Begin()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	return nil, nil
+func (r Resolver) CorrelatedAssetGroups(req api.CorrelatedAssetGroupsRequest) (*api.CorrelatedAssetGroupsResponse, error) {
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(req.Holdings) < 2 {
+		return nil, fmt.Errorf("cannot calculated correlated asset groups with < 2 positions")
+	}
+
+	portfolio := domain.MetricsPortfolio{
+		Positions: make(map[string]*domain.Position),
+	}
+	for _, holding := range req.Holdings {
+		portfolio.Positions[holding.Symbol] = &domain.Position{
+			Symbol:   holding.Symbol,
+			Quantity: decimal.NewFromFloat(holding.Quantity),
+		}
+	}
+
+	assetGroups, err := service.CalculateCorrelatedAssetGroups(tx, portfolio)
+	if err != nil {
+		return nil, err
+	}
+
+	out := api.CorrelatedAssetGroupsResponse{
+		GroupsByCorrelation: make(map[string][]api.CorrelatedAssetGroup),
+	}
+
+	for k, v := range assetGroups {
+		key := fmt.Sprintf("%0.2f", k)
+		out.GroupsByCorrelation[key] = []api.CorrelatedAssetGroup{}
+		for _, ag := range v {
+			out.GroupsByCorrelation[key] = append(out.GroupsByCorrelation[key], api.CorrelatedAssetGroup{
+				Symbols:    ag.Symbols,
+				TotalValue: ag.TotalValue,
+			})
+		}
+	}
+
+	return &out, nil
 }
