@@ -7,7 +7,7 @@ import (
 	"hood/internal/service"
 	"sort"
 
-	api "github.com/sahilsk11/ace-common/types"
+	api "github.com/sahilsk11/ace-common/types/hood"
 
 	"github.com/shopspring/decimal"
 )

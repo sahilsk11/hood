@@ -6,7 +6,7 @@ import (
 	"hood/internal/resolver"
 	"net/http"
 
-	api "github.com/sahilsk11/ace-common/types"
+	api "github.com/sahilsk11/ace-common/types/hood"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"

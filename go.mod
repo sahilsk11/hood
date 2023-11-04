@@ -1,6 +1,6 @@
 module hood
 
-go 1.19
+go 1.20
 
 require (
 	github.com/gin-contrib/cors v1.4.0
@@ -11,9 +11,9 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/lib/pq v1.10.5
 	github.com/montanaflynn/stats v0.7.1
+	github.com/sahilsk11/ace-common v1.0.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.8.3
-	github.com/sahilsk11/ace-common v1.0.0
 )
 
 require (
