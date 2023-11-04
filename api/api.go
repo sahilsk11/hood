@@ -3,9 +3,10 @@ package api
 import (
 	"bytes"
 	"fmt"
-	types "hood/api-types"
 	"hood/internal/resolver"
 	"net/http"
+
+	api "github.com/sahilsk11/ace-common/types"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -22,7 +23,7 @@ func StartApi(port int, r resolver.Resolver) error {
 	})
 
 	router.POST("/portfolioCorrelation", func(ctx *gin.Context) {
-		var req types.CorrelationMatrixRequest
+		var req api.CorrelationMatrixRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), ctx)
 			return
@@ -38,7 +39,7 @@ func StartApi(port int, r resolver.Resolver) error {
 	})
 
 	router.POST("/correlatedAssetGroups", func(ctx *gin.Context) {
-		var req types.CorrelatedAssetGroupsRequest
+		var req api.CorrelatedAssetGroupsRequest
 		if err := ctx.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), ctx)
 			return

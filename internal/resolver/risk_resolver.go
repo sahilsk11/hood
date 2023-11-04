@@ -3,10 +3,11 @@ package resolver
 import (
 	"database/sql"
 	"fmt"
-	api "hood/api-types"
 	"hood/internal/domain"
 	"hood/internal/service"
 	"sort"
+
+	api "github.com/sahilsk11/ace-common/types"
 
 	"github.com/shopspring/decimal"
 )

@@ -13,6 +13,7 @@ require (
 	github.com/montanaflynn/stats v0.7.1
 	github.com/shopspring/decimal v1.3.1
 	github.com/stretchr/testify v1.8.3
+	github.com/sahilsk11/ace-common v1.0.0
 )
 
 require (
@@ -43,3 +44,5 @@ require (
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/sahilsk11/ace-common => /Users/sahil/portfolio/ace/types
