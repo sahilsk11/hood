@@ -2,15 +2,18 @@ package service
 
 import (
 	"database/sql"
-	"hood/internal/db/models/postgres/public/model"
-	db "hood/internal/db/query"
+	"fmt"
 	"hood/internal/domain"
 	"hood/internal/metrics"
+	"hood/internal/repository"
 	"hood/internal/util"
 	"sort"
 	"strings"
 
 	"time"
+
+	"github.com/sahilsk11/ace-common/types/date"
+	api "github.com/sahilsk11/ace-common/types/mds"
 )
 
 // https://icfs.com/financial-knowledge-center/importance-standard-deviation-investment#:~:text=With%20most%20investments%2C%20including%20mutual,standard%20deviation%20would%20be%20zero.
@@ -23,19 +26,33 @@ type AssetCorrelation struct {
 }
 
 func PortfolioCorrelation(tx *sql.Tx, symbols []string) ([]AssetCorrelation, error) {
-	start := time.Now().Add(-1 * stdevRange)
-	prices, err := db.GetAdjustedPrices(tx, symbols, start)
+	resp, err := repository.GetPricePercentChanges(api.GetPricePercentChangesRequest{
+		Symbols: symbols,
+		Start:   date.ProtoDateFromT(time.Now().UTC().Add(-stdevRange)),
+		End:     date.ProtoDateFromT(time.Now().UTC()),
+	})
 	if err != nil {
 		return nil, err
 	}
+	if len(resp.MissingDataSymbols) > 0 {
+		return nil, fmt.Errorf("cannot calculate correlation - missing price data for %v", resp.MissingDataSymbols)
+	}
 
-	return calculatePortfolioCorrelationWithPrices(prices, symbols)
+	mappedPercentChanges := map[string]domain.PercentData{}
+	for k, v := range resp.PercentChangesBySymbol {
+		mappedPercentChanges[k] = domain.PercentData{}
+		for _, x := range v {
+			mappedPercentChanges[k] = append(mappedPercentChanges[k], domain.Percent(x.PercentChange))
+		}
+	}
+
+	return calculatePortfolioCorrelationWithPrices(mappedPercentChanges)
 }
 
-func calculatePortfolioCorrelationWithPrices(prices []model.Price, symbols []string) ([]AssetCorrelation, error) {
-	dailyPercentChanges, err := metrics.CalculateDailyPercentChange(prices)
-	if err != nil {
-		return nil, err
+func calculatePortfolioCorrelationWithPrices(dailyPercentChanges map[string]domain.PercentData) ([]AssetCorrelation, error) {
+	symbols := []string{}
+	for k := range dailyPercentChanges {
+		symbols = append(symbols, k)
 	}
 
 	sort.Strings(symbols)
@@ -76,40 +93,51 @@ type CorrelationAllocation struct {
 	ValueBySymbol map[string]float64
 }
 
-type nodeNeighbor struct {
-	Node   node
-	Length float64
-}
-type node struct {
-	Name      string
-	Neighbors map[string]nodeNeighbor
-}
-
 type CorrelatedAssetGroup struct {
 	Symbols    []string
 	TotalValue float64
 }
 
 func CalculateCorrelatedAssetGroups(tx *sql.Tx, portfolio domain.MetricsPortfolio) (map[float64][]CorrelatedAssetGroup, error) {
-	start := time.Now().Add(-1 * stdevRange)
-	prices, err := db.GetAdjustedPrices(tx, portfolio.Symbols(), start)
+	priceChangesResponse, err := repository.GetPricePercentChanges(api.GetPricePercentChangesRequest{
+		Symbols: portfolio.Symbols(),
+		Start:   date.ProtoDateFromT(time.Now().UTC().Add(-stdevRange)),
+		End:     date.ProtoDateFromT(time.Now().UTC()),
+	})
 	if err != nil {
 		return nil, err
 	}
+	if len(priceChangesResponse.MissingDataSymbols) > 0 {
+		return nil, fmt.Errorf("cannot calculated correlated asset groups - missing price data for %v", priceChangesResponse.MissingDataSymbols)
+	}
 
-	latestPrices, err := db.GetLatestPrices(tx, portfolio.Symbols())
+	latestSymbolsResponse, err := repository.LatestPrices(api.LatestPricesRequest{
+		Symbols: portfolio.Symbols(),
+	})
 	if err != nil {
 		return nil, err
 	}
+	if len(latestSymbolsResponse.MissingDataSymbols) > 0 {
+		return nil, fmt.Errorf("cannot calculate correlated asset groups - missing latest price for %v", latestSymbolsResponse.MissingDataSymbols)
+	}
+	latestPrices := latestSymbolsResponse.PricesBySymbol
 
-	correlations, err := calculatePortfolioCorrelationWithPrices(prices, portfolio.Symbols())
+	mappedPercentChanges := map[string]domain.PercentData{}
+	for k, v := range priceChangesResponse.PercentChangesBySymbol {
+		mappedPercentChanges[k] = domain.PercentData{}
+		for _, x := range v {
+			mappedPercentChanges[k] = append(mappedPercentChanges[k], domain.Percent(x.PercentChange))
+		}
+	}
+
+	correlations, err := calculatePortfolioCorrelationWithPrices(mappedPercentChanges)
 	if err != nil {
 		return nil, err
 	}
 
 	valueBySymbol := map[string]float64{}
 	for _, p := range portfolio.Positions {
-		valueBySymbol[p.Symbol] = latestPrices[p.Symbol].InexactFloat64() * p.Quantity.InexactFloat64()
+		valueBySymbol[p.Symbol] = latestPrices[p.Symbol] * p.Quantity.InexactFloat64()
 	}
 
 	out := map[float64][]CorrelatedAssetGroup{}

@@ -7,3 +7,4 @@ __pycache__/
 secrets/
 new.json
 secrets.json
+*/.DS_Store
