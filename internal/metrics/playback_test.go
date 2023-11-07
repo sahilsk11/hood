@@ -1,16 +1,13 @@
-package portfolio
+package metrics
 
 import (
 	"hood/internal/db/models/postgres/public/model"
-	db "hood/internal/db/query"
 	"hood/internal/domain"
 	. "hood/internal/domain"
-	"hood/internal/util"
 	"testing"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -201,61 +198,4 @@ func TestPlayback(t *testing.T) {
 		)
 	})
 
-}
-
-func Test_insertPortfolio(t *testing.T) {
-	dbConn, err := db.NewTest()
-	require.NoError(t, err)
-	tx, err := dbConn.Begin()
-	require.NoError(t, err)
-
-	times := []time.Time{
-		time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC),
-		time.Date(2020, 1, 2, 2, 0, 0, 0, time.UTC),
-		time.Date(2020, 1, 3, 3, 0, 0, 0, time.UTC),
-	}
-
-	trades := []domain.Trade{
-		{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(50),
-			Price:     decimal.NewFromFloat(100),
-			Date:      times[0],
-			Custodian: model.CustodianType_Robinhood,
-			Action:    model.TradeActionType_Buy,
-		},
-		{
-			Symbol:    "AAPL",
-			Quantity:  decimal.NewFromFloat(50),
-			Price:     decimal.NewFromFloat(100),
-			Date:      times[1],
-			Custodian: model.CustodianType_Robinhood,
-			Action:    model.TradeActionType_Sell,
-		},
-	}
-	_, err = db.AddTrades(nil, tx, trades)
-	require.NoError(t, err)
-
-	tr, err := db.GetHistoricTrades(tx, model.CustodianType_Robinhood)
-	require.NoError(t, err)
-
-	events := Events{
-		Trades: tr,
-	}
-	dailyPortfolios, err := Playback(nil, events)
-	require.NoError(t, err)
-	util.Pprint(dailyPortfolios)
-
-	for _, portfolio := range dailyPortfolios.GetPortfolios() {
-		err = insertPortfolio(tx, portfolio)
-		if err != nil {
-			require.NoError(t, err)
-		}
-	}
-
-	// tx.Commit()
-}
-
-func dec(f float64) decimal.Decimal {
-	return decimal.NewFromFloat(f)
 }
