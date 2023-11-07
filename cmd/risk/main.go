@@ -4,7 +4,7 @@ import (
 	"fmt"
 	db "hood/internal/db/query"
 	"hood/internal/metrics"
-	"hood/internal/portfolio"
+	"hood/internal/service"
 	"log"
 )
 
@@ -18,7 +18,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	p, err := portfolio.GetAggregatePortfolio(tx)
+	p, err := service.GetAggregatePortfolio(tx)
 	if err != nil {
 		log.Fatal(err)
 	}

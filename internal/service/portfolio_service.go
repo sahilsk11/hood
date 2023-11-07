@@ -1,4 +1,4 @@
-package portfolio
+package service
 
 import (
 	"database/sql"
