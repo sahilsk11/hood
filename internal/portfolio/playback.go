@@ -7,7 +7,7 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	. "hood/internal/domain"
-	"hood/internal/trade"
+	"hood/internal/service"
 	"sort"
 	"time"
 
@@ -111,7 +111,7 @@ func handleSell(t Trade, p *Portfolio) error {
 	if lots, ok := p.ClosedLots[t.Symbol]; ok {
 		closedLots = lots
 	}
-	result, err := trade.PreviewSellOrder(t, openLots)
+	result, err := service.PreviewSellOrder(t, openLots)
 	if err != nil {
 		return err
 	}

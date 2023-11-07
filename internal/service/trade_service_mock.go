@@ -2,7 +2,7 @@
 // Source: internal/trade/trade_service.go
 
 // Package trade is a generated GoMock package.
-package trade
+package service
 
 import (
 	context "context"
