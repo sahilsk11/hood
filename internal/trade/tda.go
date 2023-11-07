@@ -11,9 +11,7 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 
-	"io"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -23,8 +21,7 @@ import (
 func determineColumnOrder(headerRow []string) (map[string]int, error) {
 	requiredColumns := []string{
 		"date",
-		"description",
-		"transaction_id",
+		"action",
 		"quantity",
 		"symbol",
 		"price",
@@ -50,28 +47,12 @@ func determineColumnOrder(headerRow []string) (map[string]int, error) {
 	return columnIndices, nil
 }
 
-func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService) ([]domain.Trade, error) {
+func ParseSchwabTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService) ([]domain.Trade, error) {
 	f, err := os.Open(csvFileName)
 	if err != nil {
 		return nil, err
 	}
-
-	bytes, err := io.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-	f.Close()
-
-	revisedFile := strings.ReplaceAll(string(bytes), "\n***END OF FILE***", "")
-	err = os.WriteFile(csvFileName, []byte(revisedFile), 0644)
-	if err != nil {
-		return nil, err
-	}
-
-	f, err = os.Open(csvFileName)
-	if err != nil {
-		return nil, err
-	}
+	defer f.Close()
 
 	csvFile := csv.NewReader(f)
 	records, err := csvFile.ReadAll()
@@ -87,24 +68,19 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 	}
 
 	for _, record := range records[1:] {
-		descriptionStr := strings.ToLower(record[ordering["description"]])
-		if strings.Contains(descriptionStr, "bought") {
-			quantity, err := decimal.NewFromString(record[ordering["quantity"]])
+		actionStr := strings.ToLower(record[ordering["action"]])
+		if strings.Contains(actionStr, "buy") || strings.Contains(actionStr, "reinvest shares") {
+			quantity, err := numberStrToDecimal(record[ordering["quantity"]])
 			if err != nil {
 				return nil, err
 			}
 
-			price, err := decimal.NewFromString(record[ordering["price"]])
+			price, err := numberStrToDecimal(record[ordering["price"]])
 			if err != nil {
 				return nil, err
 			}
 
 			date, err := time.Parse("01/02/2006", record[ordering["date"]])
-			if err != nil {
-				return nil, err
-			}
-
-			transactionID, err := strconv.ParseInt(record[ordering["transaction_id"]], 10, 64)
 			if err != nil {
 				return nil, err
 			}
@@ -123,7 +99,52 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaBuyOrder: %w", err)
 			}
 
-			newTrade, _, err := tiService.ProcessTdaBuyOrder(ctx, tx, trade, transactionID)
+			// still adding tda transactions
+			newTrade, _, err := tiService.ProcessTdaBuyOrder(ctx, tx, trade, nil)
+			if err != nil {
+				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
+					return nil, rollbackErr
+				}
+
+				if errors.As(err, &hood_errors.ErrDuplicateTrade{}) {
+					fmt.Printf("skipping duplicate trade: %s\n", err.Error())
+				} else {
+					return nil, err
+				}
+			}
+			orders = append(orders, *newTrade)
+		} else if strings.Contains(actionStr, "sell") {
+			quantity, err := numberStrToDecimal(record[ordering["quantity"]])
+			if err != nil {
+				return nil, err
+			}
+
+			price, err := numberStrToDecimal(record[ordering["price"]])
+			if err != nil {
+				return nil, err
+			}
+
+			date, err := time.Parse("01/02/2006", record[ordering["date"]])
+			if err != nil {
+				return nil, err
+			}
+
+			trade := domain.Trade{
+				Symbol:    record[ordering["symbol"]],
+				Quantity:  quantity,
+				Price:     price,
+				Date:      date,
+				Action:    model.TradeActionType_Sell,
+				Custodian: model.CustodianType_Tda,
+			}
+
+			savepointName, err := db.AddSavepoint(tx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create savepoint for ProcessTdaSellOrder: %w", err)
+			}
+
+			// still adding tda transactions
+			newTrade, _, err := tiService.ProcessTdaSellOrder(ctx, tx, trade, nil)
 			if err != nil {
 				if rollbackErr := db.RollbackToSavepoint(savepointName, tx); rollbackErr != nil {
 					return nil, rollbackErr
@@ -140,4 +161,10 @@ func ParseTdaTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string
 	}
 
 	return orders, nil
+}
+
+func numberStrToDecimal(in string) (decimal.Decimal, error) {
+	s := strings.ReplaceAll(in, "$", "")
+	s = strings.ReplaceAll(s, ",", "")
+	return decimal.NewFromString(s)
 }

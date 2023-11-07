@@ -38,10 +38,11 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 			Action:      model.TradeActionType_Buy,
 			Custodian:   model.CustodianType_Tda,
 		}
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input, 1)
+		id := int64(1)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input, &id)
 		require.NoError(t, err)
 
-		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input, 1)
+		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input, &id)
 
 		require.True(t, errors.As(err, &hood_errors.ErrDuplicateTrade{}), err)
 	})

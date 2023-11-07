@@ -5,13 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	hood_errors "hood/internal"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
@@ -25,7 +23,8 @@ type TradeIngestionService interface {
 	ProcessSellOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, []*model.ClosedLot, error)
 	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
-	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID int64) (*domain.Trade, *domain.OpenLot, error)
+	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID *int64) (*domain.Trade, *domain.OpenLot, error)
+	ProcessTdaSellOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID *int64) (*domain.Trade, []*model.ClosedLot, error)
 }
 
 type tradeIngestionHandler struct {
@@ -35,7 +34,7 @@ func NewTradeIngestionService() TradeIngestionService {
 	return tradeIngestionHandler{}
 }
 
-func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, t domain.Trade, tdaTransactionID int64) (*domain.Trade, *domain.OpenLot, error) {
+func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, t domain.Trade, tdaTransactionID *int64) (*domain.Trade, *domain.OpenLot, error) {
 	trade, lots, err := h.ProcessBuyOrder(ctx, tx, t)
 	if err != nil {
 		return nil, nil, err
@@ -47,12 +46,26 @@ func (h tradeIngestionHandler) ProcessTdaBuyOrder(ctx context.Context, tx *sql.T
 	}
 
 	err = db.AddTdaTrade(tx, tdaOrder)
-	if err != nil && strings.Contains(err.Error(), `pq: duplicate key value violates unique constraint "tda_trade_tda_transaction_id_key"`) {
-		return nil, nil, hood_errors.ErrDuplicateTrade{
-			Custodian:              model.CustodianType_Tda,
-			CustodianTransactionID: tdaTransactionID,
-		}
-	} else if err != nil {
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return trade, lots, nil
+}
+
+func (h tradeIngestionHandler) ProcessTdaSellOrder(ctx context.Context, tx *sql.Tx, t domain.Trade, tdaTransactionID *int64) (*domain.Trade, []*model.ClosedLot, error) {
+	trade, lots, err := h.ProcessSellOrder(ctx, tx, t)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	tdaOrder := model.TdaTrade{
+		TdaTransactionID: tdaTransactionID,
+		TradeID:          *trade.TradeID,
+	}
+
+	err = db.AddTdaTrade(tx, tdaOrder)
+	if err != nil {
 		return nil, nil, err
 	}
 

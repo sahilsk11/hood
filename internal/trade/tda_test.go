@@ -38,6 +38,6 @@ func TestParseTdaTransactionFile(t *testing.T) {
 		&expectedTrade, nil, nil,
 	)
 
-	_, err = ParseTdaTransactionFile(ctx, tx, "testdata/transactions.csv", tiService)
+	_, err = ParseSchwabTransactionFile(ctx, tx, "testdata/transactions.csv", tiService)
 	require.NoError(t, err)
 }

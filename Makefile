@@ -28,3 +28,6 @@ test-cov:
 	diff-cover coverage.xml --compare-branch=origin/master
 	rm coverage.out
 	rm coverage.xml
+
+migration:
+	migrate create -ext sql -dir migrations/ -seq $(name)
