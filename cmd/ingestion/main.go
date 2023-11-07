@@ -5,7 +5,8 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	"hood/internal/trade"
+	"hood/internal/service"
+
 	"log"
 	"time"
 
@@ -24,7 +25,7 @@ func main() {
 	}
 	defer tx.Rollback()
 
-	tiService := trade.NewTradeIngestionService()
+	tiService := service.NewTradeIngestionService()
 
 	quantity, err := decimal.NewFromString("10.299953")
 	if err != nil {
