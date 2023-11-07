@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hood/internal/domain"
 	"hood/internal/service"
+	"log"
 	"sort"
 
 	api "github.com/sahilsk11/ace-common/types/hood"
@@ -21,6 +22,12 @@ func (r Resolver) PortfolioCorrelation(req api.CorrelationMatrixRequest) (*api.C
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = tx.Rollback()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if len(req.Symbols) < 2 {
 		return nil, fmt.Errorf("must provide more than two symbols")
@@ -44,11 +51,6 @@ func (r Resolver) PortfolioCorrelation(req api.CorrelationMatrixRequest) (*api.C
 		return outputCorrs[i].Correlation > outputCorrs[j].Correlation
 	})
 
-	err = tx.Rollback()
-	if err != nil {
-		return nil, err
-	}
-
 	return &api.CorrelationMatrixResponse{
 		Correlations: outputCorrs,
 	}, nil
@@ -59,6 +61,12 @@ func (r Resolver) CorrelatedAssetGroups(req api.CorrelatedAssetGroupsRequest) (*
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		err = tx.Rollback()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	if len(req.Holdings) < 2 {
 		return nil, fmt.Errorf("cannot calculated correlated asset groups with < 2 positions")
