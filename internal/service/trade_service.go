@@ -9,10 +9,11 @@ import (
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
-	"hood/internal/metrics"
+	"sort"
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -21,7 +22,7 @@ import (
 type TradeIngestionService interface {
 	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, *domain.OpenLot, error)
 	ProcessSellOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, []*model.ClosedLot, error)
-	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error)
+	AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit, tradingAccountID uuid.UUID) (*model.AssetSplit, []model.AppliedAssetSplit, error)
 
 	ProcessTdaBuyOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID *int64) (*domain.Trade, *domain.OpenLot, error)
 	ProcessTdaSellOrder(ctx context.Context, tx *sql.Tx, input domain.Trade, tdaTxID *int64) (*domain.Trade, []*model.ClosedLot, error)
@@ -107,7 +108,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 	if t.Action != model.TradeActionType_Sell {
 		return nil, nil, fmt.Errorf("failed to process sell order with action %s", t.Action.String())
 	}
-	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol, t.Custodian)
+	openLots, err := db.GetOpenLots(ctx, tx, t.Symbol, t.TradingAccountID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -120,7 +121,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 		return nil, nil, nil
 	}
 	t = insertedTrades[0]
-	sellOrderResult, err := metrics.PreviewSellOrder(t, domain.OpenLots(openLots).Ptr())
+	sellOrderResult, err := PreviewSellOrder(t, domain.OpenLots(openLots).Ptr())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -147,7 +148,7 @@ func validateTrade(t domain.Trade) error {
 	return nil
 }
 
-func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
+func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, split model.AssetSplit, tradingAccountID uuid.UUID) (*model.AssetSplit, []model.AppliedAssetSplit, error) {
 	split.CreatedAt = time.Now().UTC()
 	insertedSplits, err := db.AddAssetsSplits(tx, []*model.AssetSplit{&split})
 	if err != nil {
@@ -157,11 +158,11 @@ func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, sp
 		return nil, nil, nil
 	}
 	insertedSplit := insertedSplits[0]
-	tdaLots, err := db.GetOpenLots(ctx, tx, split.Symbol, model.CustodianType_Tda)
+	tdaLots, err := db.GetOpenLots(ctx, tx, split.Symbol, tradingAccountID)
 	if err != nil {
 		return nil, nil, err
 	}
-	rhLots, err := db.GetOpenLots(ctx, tx, split.Symbol, model.CustodianType_Robinhood)
+	rhLots, err := db.GetOpenLots(ctx, tx, split.Symbol, tradingAccountID)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -193,4 +194,71 @@ func (h tradeIngestionHandler) AddAssetSplit(ctx context.Context, tx *sql.Tx, sp
 	}
 
 	return &insertedSplit, insertedAppliedSplits, nil
+}
+
+type ProcessSellOrderResult struct {
+	NewClosedLots []domain.ClosedLot
+	OpenLots      []*domain.OpenLot // current state of open lots
+	NewOpenLots   []domain.OpenLot  // lots that were changed
+	CashDelta     decimal.Decimal
+}
+
+// Selling an asset involves closing currently open lots. In doing this, we may either
+// close all open lots for the asset, or close some. The latter requires us to modify
+// the existing open lot. Actually, both require us to modify the open lot
+//
+// This function does the "heavy lifting" to determine which lots should be sold
+// without actually selling them. It's only exported because we re-use this logic
+// when simulating what a sell order would do
+func PreviewSellOrder(t domain.Trade, openLots []*domain.OpenLot) (*ProcessSellOrderResult, error) {
+	cashDelta := (t.Price.Mul(t.Quantity))
+	closedLots := []domain.ClosedLot{}
+	newOpenLots := []domain.OpenLot{}
+	// ensure lots are in FIFO
+	// could make this dynamic for LIFO systems
+	sort.Slice(openLots, func(i, j int) bool {
+		return openLots[i].GetPurchaseDate().Before(openLots[j].GetPurchaseDate())
+	})
+
+	remainingSellQuantity := t.Quantity
+	for remainingSellQuantity.GreaterThan(decimal.Zero) {
+		if len(openLots) == 0 {
+			return nil, fmt.Errorf("no remaining open lots to execute trade id %d; %f shares outstanding", t.TradeID, remainingSellQuantity.InexactFloat64())
+		}
+		lot := openLots[0]
+		quantitySold := remainingSellQuantity
+		if lot.Quantity.LessThan(remainingSellQuantity) {
+			quantitySold = lot.Quantity
+		}
+
+		remainingSellQuantity = remainingSellQuantity.Sub(quantitySold)
+		lot.Quantity = lot.Quantity.Sub(quantitySold)
+		lot.OpenLotID = nil // no longer the DB model we're looking at
+		lot.Date = t.Date
+		newOpenLots = append(newOpenLots, *lot.DeepCopy())
+		if lot.Quantity.Equal(decimal.Zero) {
+			openLots = openLots[1:]
+		}
+
+		gains := (t.Price.Sub(lot.CostBasis)).Mul(quantitySold)
+		gainsType := model.GainsType_ShortTerm
+		daysBetween := t.Date.Sub(lot.GetPurchaseDate())
+		if daysBetween.Hours()/24 >= 365 {
+			gainsType = model.GainsType_LongTerm
+		}
+		closedLots = append(closedLots, domain.ClosedLot{
+			OpenLot:       lot,
+			SellTrade:     &t,
+			Quantity:      quantitySold,
+			GainsType:     gainsType,
+			RealizedGains: gains,
+		})
+	}
+
+	return &ProcessSellOrderResult{
+		CashDelta:     cashDelta,
+		OpenLots:      openLots,
+		NewClosedLots: closedLots,
+		NewOpenLots:   newOpenLots,
+	}, nil
 }

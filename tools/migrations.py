@@ -23,7 +23,7 @@ def get_schema_version():
     return result[0]
   except psycopg2.errors.UndefinedTable as e:
     execute_sql("ROLLBACK TO schema;")
-    f = open("0000_schema_version.sql")
+    f = open("000000_schema_version.sql")
     i = f.read()
     execute_sql(i)
     return get_schema_version()
@@ -38,7 +38,7 @@ def update_schema_version(num):
 
 def pad_number(num):
   num = str(num)
-  while len(num) < 4:
+  while len(num) < 6:
     num = "0"+num
   return num
 

@@ -8,20 +8,21 @@
 package model
 
 import (
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 type Trade struct {
-	TradeID     int32 `sql:"primary_key"`
-	Symbol      string
-	Action      TradeActionType
-	Quantity    decimal.Decimal
-	CostBasis   decimal.Decimal
-	Date        time.Time
-	Description *string
-	CreatedAt   time.Time
-	ModifiedAt  time.Time
-	Custodian   CustodianType
+	TradeID          int32 `sql:"primary_key"`
+	Symbol           string
+	Action           TradeActionType
+	Quantity         decimal.Decimal
+	CostBasis        decimal.Decimal
+	Date             time.Time
+	Description      *string
+	CreatedAt        time.Time
+	ModifiedAt       time.Time
+	TradingAccountID uuid.UUID
 }

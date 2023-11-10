@@ -12,7 +12,9 @@ import "github.com/go-jet/jet/v2/postgres"
 var CustodianType = &struct {
 	Robinhood postgres.StringExpression
 	Tda       postgres.StringExpression
+	Schwab    postgres.StringExpression
 }{
 	Robinhood: postgres.NewEnumValue("ROBINHOOD"),
 	Tda:       postgres.NewEnumValue("TDA"),
+	Schwab:    postgres.NewEnumValue("SCHWAB"),
 }

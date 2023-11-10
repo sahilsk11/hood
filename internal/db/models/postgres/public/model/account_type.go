@@ -9,15 +9,15 @@ package model
 
 import "errors"
 
-type CustodianType string
+type AccountType string
 
 const (
-	CustodianType_Robinhood CustodianType = "ROBINHOOD"
-	CustodianType_Tda       CustodianType = "TDA"
-	CustodianType_Schwab    CustodianType = "SCHWAB"
+	AccountType_Individual AccountType = "INDIVIDUAL"
+	AccountType_Ira        AccountType = "IRA"
+	AccountType_RothIra    AccountType = "ROTH_IRA"
 )
 
-func (e *CustodianType) Scan(value interface{}) error {
+func (e *AccountType) Scan(value interface{}) error {
 	var enumValue string
 	switch val := value.(type) {
 	case string:
@@ -29,19 +29,19 @@ func (e *CustodianType) Scan(value interface{}) error {
 	}
 
 	switch enumValue {
-	case "ROBINHOOD":
-		*e = CustodianType_Robinhood
-	case "TDA":
-		*e = CustodianType_Tda
-	case "SCHWAB":
-		*e = CustodianType_Schwab
+	case "INDIVIDUAL":
+		*e = AccountType_Individual
+	case "IRA":
+		*e = AccountType_Ira
+	case "ROTH_IRA":
+		*e = AccountType_RothIra
 	default:
-		return errors.New("jet: Invalid scan value '" + enumValue + "' for CustodianType enum")
+		return errors.New("jet: Invalid scan value '" + enumValue + "' for AccountType enum")
 	}
 
 	return nil
 }
 
-func (e CustodianType) String() string {
+func (e AccountType) String() string {
 	return string(e)
 }

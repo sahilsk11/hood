@@ -2,10 +2,10 @@ package service
 
 import (
 	"database/sql"
-	"hood/internal/db/models/postgres/public/model"
 	db "hood/internal/db/query"
 	. "hood/internal/domain"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -13,17 +13,18 @@ import (
 const rhCashOverride = 130
 const tdaCashOverride = 5000
 
-func GetCurrentPortfolio(tx *sql.Tx, custodian model.CustodianType) (*Portfolio, error) {
-	openLots, err := db.GetCurrentOpenLots(tx, custodian)
+var cashOverrides = map[string]float64{}
+
+func GetCurrentPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*Portfolio, error) {
+	openLots, err := db.GetCurrentOpenLots(tx, tradingAccountID)
 	if err != nil {
 		return nil, err
 	}
 
-	var cash decimal.Decimal
-	if custodian == model.CustodianType_Tda {
-		cash = decimal.NewFromFloat(rhCashOverride)
-	} else {
-		cash = decimal.NewFromFloat(tdaCashOverride)
+	// TODO - fix
+	cashOverride := decimal.Zero
+	if override, ok := cashOverrides[tradingAccountID.String()]; ok {
+		cashOverride = decimal.NewFromFloat(override)
 	}
 
 	mappedOpenLots := map[string][]*OpenLot{}
@@ -37,21 +38,13 @@ func GetCurrentPortfolio(tx *sql.Tx, custodian model.CustodianType) (*Portfolio,
 
 	return &Portfolio{
 		OpenLots: mappedOpenLots,
-		Cash:     cash,
+		Cash:     cashOverride,
 		// LastAction: , TODO - how to populate this field
 	}, nil
 }
 
-func GetAggregatePortfolio(tx *sql.Tx) (*Portfolio, error) {
-	tdaPortfolio, err := GetCurrentPortfolio(tx, model.CustodianType_Tda)
-	if err != nil {
-		return nil, err
-	}
-	rhPortfolio, err := GetCurrentPortfolio(tx, model.CustodianType_Robinhood)
-	if err != nil {
-		return nil, err
-	}
+func GetAggregatePortfolio(tx *sql.Tx, userID uuid.UUID) (*Portfolio, error) {
+	// add queries
 
-	combinedPortfolio := tdaPortfolio.Add(*rhPortfolio)
-	return &combinedPortfolio, nil
+	return nil, nil
 }

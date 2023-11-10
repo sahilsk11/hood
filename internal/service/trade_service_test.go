@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
@@ -29,13 +30,13 @@ func Test_tradeIngestionHandler_ProcessTdaBuyOrder(t *testing.T) {
 		tiService := NewTradeIngestionService()
 
 		input := domain.Trade{
-			Symbol:      "AAPL",
-			Quantity:    decimal.NewFromFloat(10.5),
-			Price:       decimal.NewFromFloat(100.25),
-			Date:        time.Now(),
-			Description: nil,
-			Action:      model.TradeActionType_Buy,
-			Custodian:   model.CustodianType_Tda,
+			Symbol:           "AAPL",
+			Quantity:         decimal.NewFromFloat(10.5),
+			Price:            decimal.NewFromFloat(100.25),
+			Date:             time.Now(),
+			Description:      nil,
+			Action:           model.TradeActionType_Buy,
+			TradingAccountID: uuid.New(),
 		}
 		id := int64(1)
 		_, _, err = tiService.ProcessTdaBuyOrder(ctx, tx, input, &id)
@@ -57,11 +58,11 @@ func Test_tradeIngestionHandler_ProcessSellOrder(t *testing.T) {
 	db.RollbackAfterTest(t, tx)
 
 	tr := domain.Trade{
-		Symbol:    "AAPL",
-		Action:    model.TradeActionType_Buy,
-		Quantity:  dec(1),
-		Price:     dec(100),
-		Custodian: model.CustodianType_Tda,
+		Symbol:           "AAPL",
+		Action:           model.TradeActionType_Buy,
+		Quantity:         dec(1),
+		Price:            dec(100),
+		TradingAccountID: uuid.New(),
 	}
 
 	_, _, err = tiHandler.ProcessBuyOrder(ctx, tx, tr)
