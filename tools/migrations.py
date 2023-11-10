@@ -38,7 +38,7 @@ def update_schema_version(num):
 
 def pad_number(num):
   num = str(num)
-  while len(num) < 4:
+  while len(num) < 6:
     num = "0"+num
   return num
 
