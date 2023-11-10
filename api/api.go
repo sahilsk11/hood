@@ -4,27 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"hood/internal/repository"
 	"hood/internal/resolver"
-	"hood/internal/util"
-	"log"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	api_types "github.com/sahilsk11/ace-common/types/hood"
 )
 
 func StartApi(port int, r resolver.Resolver) error {
-	secrets, err := util.LoadSecrets()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	plaidRepository := repository.NewPlaidRepository(
-		secrets.Plaid.ClientID,
-		secrets.Plaid.Secret,
-	)
-
 	router := gin.Default()
 
 	router.Use(blockBots)
@@ -34,28 +22,39 @@ func StartApi(port int, r resolver.Resolver) error {
 		ctx.JSON(200, map[string]string{"message": "welcome to hood"})
 	})
 
-	router.POST("/plaidLinkToken", func(ctx *gin.Context) {
+	router.POST("/generatePlaidLinkToken", func(c *gin.Context) {
+		ctx := context.Background()
 
-		linkToken, err := plaidRepository.GetLinkToken(context.Background())
-		if err != nil {
-			returnErrorJson(err, ctx)
-			return
-		}
-
-		ctx.JSON(200, map[string]string{
-			"linkToken": linkToken,
-		})
-	})
-
-	router.POST("/generateAccessToken", func(c *gin.Context) {
-		var req map[string]string
+		var req api_types.GeneratePlaidLinkTokenRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
 			return
 		}
 
-		publicToken := req["publicToken"]
-		plaidRepository.GetAccessToken(publicToken)
+		response, err := r.GeneratePlaidLinkToken(ctx, req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
+		c.JSON(200, response)
+	})
+
+	router.POST("/generatePlaidAccessToken", func(c *gin.Context) {
+		ctx := context.Background()
+
+		var req api_types.GeneratePlaidAccessTokenRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		err := r.GeneratePlaidAccessToken(ctx, req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
 		c.JSON(http.StatusOK, gin.H{"public_token_exchange": "complete"})
 	})
 

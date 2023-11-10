@@ -7,13 +7,18 @@ import (
 	"hood/internal/domain"
 	"log"
 
+	"github.com/google/uuid"
 	"github.com/plaid/plaid-go/plaid"
 	"github.com/shopspring/decimal"
 )
 
 type PlaidRepository interface {
-	GetLinkToken(ctx context.Context) (string, error)
-	GetAccessToken(publicToken string) error
+	GetLinkToken(ctx context.Context, userID uuid.UUID, email string) (string, error)
+	GetAccessToken(publicToken string) (
+		accessToken string,
+		itemID string,
+		err error,
+	)
 	GetHoldings(accessToken string)
 }
 
@@ -33,11 +38,10 @@ func NewPlaidRepository(clientID, secret string) PlaidRepository {
 	}
 }
 
-func (h plaidRepositoryHandler) GetLinkToken(ctx context.Context) (string, error) {
-	var emailAddress string = "sk@gmail.com"
+func (h plaidRepositoryHandler) GetLinkToken(ctx context.Context, userID uuid.UUID, email string) (string, error) {
 	user := plaid.LinkTokenCreateRequestUser{
-		ClientUserId: "e1607ec1-b9a1-452c-b966-8fe682e16a8a",
-		EmailAddress: &emailAddress,
+		ClientUserId: userID.String(),
+		EmailAddress: &email,
 	}
 
 	request := plaid.NewLinkTokenCreateRequest(
@@ -58,25 +62,28 @@ func (h plaidRepositoryHandler) GetLinkToken(ctx context.Context) (string, error
 	return linkTokenCreateResp.LinkToken, nil
 }
 
-func (h plaidRepositoryHandler) GetAccessToken(publicToken string) error {
+func (h plaidRepositoryHandler) GetAccessToken(publicToken string) (
+	accessToken string,
+	itemID string,
+	err error,
+) {
 	ctx := context.Background()
 	exchangePublicTokenReq := plaid.NewItemPublicTokenExchangeRequest(publicToken)
 	exchangePublicTokenResp, _, err := h.client.PlaidApi.ItemPublicTokenExchange(ctx).ItemPublicTokenExchangeRequest(
 		*exchangePublicTokenReq,
 	).Execute()
 	if err != nil {
-		return err
+		return "", "", err
 	}
 
 	// These values should be saved to a persistent database and
 	// associated with the currently signed-in user
-	accessToken := exchangePublicTokenResp.GetAccessToken()
-	itemID := exchangePublicTokenResp.GetItemId()
+	accessToken = exchangePublicTokenResp.GetAccessToken()
+	itemID = exchangePublicTokenResp.GetItemId()
 
-	fmt.Println("accessToken", accessToken)
-	fmt.Println("itemID", itemID)
+	// if we fail during this call, we will have ghost item ids
 
-	return nil
+	return accessToken, itemID, nil
 }
 
 func (h plaidRepositoryHandler) GetHoldings(accessToken string) {

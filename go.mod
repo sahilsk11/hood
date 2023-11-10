@@ -7,7 +7,7 @@ require (
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-jet/jet/v2 v2.9.0
 	github.com/google/go-cmp v0.5.9
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.4.0
 	github.com/lib/pq v1.10.5
 	github.com/montanaflynn/stats v0.7.1
 	github.com/plaid/plaid-go v1.10.0
