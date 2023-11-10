@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
@@ -23,11 +24,11 @@ func TestGetOpenLots(t *testing.T) {
 
 		trades := []domain.Trade{
 			{
-				Symbol:    "AAPL",
-				Quantity:  dec(10),
-				Price:     dec(100),
-				Action:    model.TradeActionType_Buy,
-				Custodian: model.CustodianType_Tda,
+				Symbol:           "AAPL",
+				Quantity:         dec(10),
+				Price:            dec(100),
+				Action:           model.TradeActionType_Buy,
+				TradingAccountID: uuid.New(),
 			},
 		}
 		trades, err = AddTrades(ctx, tx, trades)

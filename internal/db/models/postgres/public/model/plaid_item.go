@@ -8,12 +8,14 @@
 package model
 
 import (
+	"github.com/google/uuid"
 	"time"
 )
 
-type DataJockeyAssetMetrics struct {
-	ID        int32 `sql:"primary_key"`
-	Symbol    string
-	JSON      string
-	CreatedAt time.Time
+type PlaidItem struct {
+	ItemID      uuid.UUID `sql:"primary_key"`
+	PlaidItemID string
+	CreatedAt   time.Time
+	AccessToken string
+	UserID      uuid.UUID
 }

@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -49,7 +50,7 @@ func determineColumnOrder(headerRow []string) (map[string]int, error) {
 	return columnIndices, nil
 }
 
-func ParseSchwabTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService) ([]domain.Trade, error) {
+func ParseSchwabTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName string, tiService TradeIngestionService, tradingAccountID uuid.UUID) ([]domain.Trade, error) {
 	f, err := os.Open(csvFileName)
 	if err != nil {
 		return nil, err
@@ -88,12 +89,12 @@ func ParseSchwabTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName str
 			}
 
 			trade := domain.Trade{
-				Symbol:    record[ordering["symbol"]],
-				Quantity:  quantity,
-				Price:     price,
-				Date:      date,
-				Action:    model.TradeActionType_Buy,
-				Custodian: model.CustodianType_Tda,
+				Symbol:           record[ordering["symbol"]],
+				Quantity:         quantity,
+				Price:            price,
+				Date:             date,
+				Action:           model.TradeActionType_Buy,
+				TradingAccountID: tradingAccountID,
 			}
 
 			savepointName, err := db.AddSavepoint(tx)
@@ -132,12 +133,12 @@ func ParseSchwabTransactionFile(ctx context.Context, tx *sql.Tx, csvFileName str
 			}
 
 			trade := domain.Trade{
-				Symbol:    record[ordering["symbol"]],
-				Quantity:  quantity,
-				Price:     price,
-				Date:      date,
-				Action:    model.TradeActionType_Sell,
-				Custodian: model.CustodianType_Tda,
+				Symbol:           record[ordering["symbol"]],
+				Quantity:         quantity,
+				Price:            price,
+				Date:             date,
+				Action:           model.TradeActionType_Sell,
+				TradingAccountID: tradingAccountID,
 			}
 
 			savepointName, err := db.AddSavepoint(tx)
@@ -336,37 +337,37 @@ func parseSplitFromEntry(e entry) (*model.AssetSplit, error) {
 	}, nil
 }
 
-func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h TradeIngestionService) error {
+func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h TradeIngestionService, tradingAccountID uuid.UUID) error {
 	for i.hasNext() {
 		nextTrade, nextSplit := i.next()
 		if nextSplit != nil {
-			_, _, err := h.AddAssetSplit(ctx, tx, *nextSplit)
+			_, _, err := h.AddAssetSplit(ctx, tx, *nextSplit, tradingAccountID)
 			if err != nil {
 				return fmt.Errorf("failed to add asset split: %w", err)
 			}
 		} else if nextTrade != nil {
 			if nextTrade.Action == model.TradeActionType_Buy {
 				_, _, err := h.ProcessBuyOrder(ctx, tx, domain.Trade{
-					Symbol:      nextTrade.Symbol,
-					Quantity:    nextTrade.Quantity,
-					Price:       nextTrade.CostBasis,
-					Date:        nextTrade.Date,
-					Description: nextTrade.Description,
-					Custodian:   model.CustodianType_Robinhood,
-					Action:      model.TradeActionType_Buy,
+					Symbol:           nextTrade.Symbol,
+					Quantity:         nextTrade.Quantity,
+					Price:            nextTrade.CostBasis,
+					Date:             nextTrade.Date,
+					Description:      nextTrade.Description,
+					TradingAccountID: tradingAccountID,
+					Action:           model.TradeActionType_Buy,
 				})
 				if err != nil {
 					return fmt.Errorf("failed to add buy order %v: %w", *nextTrade, err)
 				}
 			} else {
 				_, _, err := h.ProcessSellOrder(ctx, tx, domain.Trade{
-					Symbol:      nextTrade.Symbol,
-					Quantity:    nextTrade.Quantity,
-					Price:       nextTrade.CostBasis,
-					Date:        nextTrade.Date,
-					Description: nextTrade.Description,
-					Custodian:   nextTrade.Custodian,
-					Action:      model.TradeActionType_Buy,
+					Symbol:           nextTrade.Symbol,
+					Quantity:         nextTrade.Quantity,
+					Price:            nextTrade.CostBasis,
+					Date:             nextTrade.Date,
+					Description:      nextTrade.Description,
+					TradingAccountID: tradingAccountID,
+					Action:           model.TradeActionType_Buy,
 				})
 				if err != nil {
 					return fmt.Errorf("failed to add sell order %v: %w", *nextTrade, err)
@@ -378,13 +379,13 @@ func ProcessHistoricTrades(ctx context.Context, tx *sql.Tx, i entryIterator, h T
 	return nil
 }
 
-func ProcessOutfile(ctx context.Context, tx *sql.Tx, tiService TradeIngestionService) error {
+func ProcessOutfile(ctx context.Context, tx *sql.Tx, tiService TradeIngestionService, tradingAccountID uuid.UUID) error {
 	outfileEntries, err := ParseEntriesFromOutfile()
 	if err != nil {
 		return err
 	}
 	entryIterator := newEntryiterator(outfileEntries.Trades, outfileEntries.AssetSplits)
-	err = ProcessHistoricTrades(ctx, tx, entryIterator, tiService)
+	err = ProcessHistoricTrades(ctx, tx, entryIterator, tiService, tradingAccountID)
 	if err != nil {
 		return err
 	}

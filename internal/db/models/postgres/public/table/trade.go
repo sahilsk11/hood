@@ -17,16 +17,16 @@ type tradeTable struct {
 	postgres.Table
 
 	//Columns
-	TradeID     postgres.ColumnInteger
-	Symbol      postgres.ColumnString
-	Action      postgres.ColumnString
-	Quantity    postgres.ColumnFloat
-	CostBasis   postgres.ColumnFloat
-	Date        postgres.ColumnTimestampz
-	Description postgres.ColumnString
-	CreatedAt   postgres.ColumnTimestampz
-	ModifiedAt  postgres.ColumnTimestampz
-	Custodian   postgres.ColumnString
+	TradeID          postgres.ColumnInteger
+	Symbol           postgres.ColumnString
+	Action           postgres.ColumnString
+	Quantity         postgres.ColumnFloat
+	CostBasis        postgres.ColumnFloat
+	Date             postgres.ColumnTimestampz
+	Description      postgres.ColumnString
+	CreatedAt        postgres.ColumnTimestampz
+	ModifiedAt       postgres.ColumnTimestampz
+	TradingAccountID postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -57,34 +57,34 @@ func newTradeTable(schemaName, tableName, alias string) *TradeTable {
 
 func newTradeTableImpl(schemaName, tableName, alias string) tradeTable {
 	var (
-		TradeIDColumn     = postgres.IntegerColumn("trade_id")
-		SymbolColumn      = postgres.StringColumn("symbol")
-		ActionColumn      = postgres.StringColumn("action")
-		QuantityColumn    = postgres.FloatColumn("quantity")
-		CostBasisColumn   = postgres.FloatColumn("cost_basis")
-		DateColumn        = postgres.TimestampzColumn("date")
-		DescriptionColumn = postgres.StringColumn("description")
-		CreatedAtColumn   = postgres.TimestampzColumn("created_at")
-		ModifiedAtColumn  = postgres.TimestampzColumn("modified_at")
-		CustodianColumn   = postgres.StringColumn("custodian")
-		allColumns        = postgres.ColumnList{TradeIDColumn, SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
-		mutableColumns    = postgres.ColumnList{SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, CustodianColumn}
+		TradeIDColumn          = postgres.IntegerColumn("trade_id")
+		SymbolColumn           = postgres.StringColumn("symbol")
+		ActionColumn           = postgres.StringColumn("action")
+		QuantityColumn         = postgres.FloatColumn("quantity")
+		CostBasisColumn        = postgres.FloatColumn("cost_basis")
+		DateColumn             = postgres.TimestampzColumn("date")
+		DescriptionColumn      = postgres.StringColumn("description")
+		CreatedAtColumn        = postgres.TimestampzColumn("created_at")
+		ModifiedAtColumn       = postgres.TimestampzColumn("modified_at")
+		TradingAccountIDColumn = postgres.StringColumn("trading_account_id")
+		allColumns             = postgres.ColumnList{TradeIDColumn, SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, TradingAccountIDColumn}
+		mutableColumns         = postgres.ColumnList{SymbolColumn, ActionColumn, QuantityColumn, CostBasisColumn, DateColumn, DescriptionColumn, CreatedAtColumn, ModifiedAtColumn, TradingAccountIDColumn}
 	)
 
 	return tradeTable{
 		Table: postgres.NewTable(schemaName, tableName, alias, allColumns...),
 
 		//Columns
-		TradeID:     TradeIDColumn,
-		Symbol:      SymbolColumn,
-		Action:      ActionColumn,
-		Quantity:    QuantityColumn,
-		CostBasis:   CostBasisColumn,
-		Date:        DateColumn,
-		Description: DescriptionColumn,
-		CreatedAt:   CreatedAtColumn,
-		ModifiedAt:  ModifiedAtColumn,
-		Custodian:   CustodianColumn,
+		TradeID:          TradeIDColumn,
+		Symbol:           SymbolColumn,
+		Action:           ActionColumn,
+		Quantity:         QuantityColumn,
+		CostBasis:        CostBasisColumn,
+		Date:             DateColumn,
+		Description:      DescriptionColumn,
+		CreatedAt:        CreatedAtColumn,
+		ModifiedAt:       ModifiedAtColumn,
+		TradingAccountID: TradingAccountIDColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

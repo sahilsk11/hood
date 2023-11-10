@@ -10,11 +10,12 @@ import (
 	"hood/internal/domain"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	. "github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 )
 
-func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string, custodian model.CustodianType) ([]domain.OpenLot, error) {
+func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string, tradingAccountID uuid.UUID) ([]domain.OpenLot, error) {
 	result := []struct {
 		model.OpenLot
 		model.Trade
@@ -25,7 +26,7 @@ func GetOpenLots(ctx context.Context, tx *sql.Tx, symbol string, custodian model
 		AND(
 			OpenLot.Quantity.GT(Float(0)),
 			Trade.Symbol.EQ(String(symbol)),
-			Trade.Custodian.EQ(NewEnumValue(custodian.String())),
+			Trade.TradingAccountID.EQ(postgres.String(tradingAccountID.String())),
 		),
 	).ORDER_BY(OpenLot.Date.ASC())
 	err := query.Query(tx, &result)
@@ -49,20 +50,6 @@ func openLotFromDb(o model.OpenLot, t model.Trade) domain.OpenLot {
 		CostBasis: o.CostBasis,
 		Date:      o.Date,
 	}
-}
-
-func GetVwOpenLotPosition(ctx context.Context, tx *sql.Tx) ([]model.LatestPrice, error) {
-
-	v := LatestPrice
-	query := v.SELECT(v.AllColumns)
-
-	var results []model.LatestPrice
-	err := query.Query(tx, &results)
-	if err != nil {
-		return nil, err
-	}
-
-	return results, nil
 }
 
 func AddOpenLots(ctx context.Context, tx *sql.Tx, openLots []domain.OpenLot) ([]domain.OpenLot, error) {
@@ -196,7 +183,7 @@ func openLotsToIDb(lots []domain.OpenLot) []model.ImmutableOpenLot {
 	return out
 }
 
-func GetCurrentOpenLots(tx *sql.Tx, custodian model.CustodianType) ([]domain.OpenLot, error) {
+func GetCurrentOpenLots(tx *sql.Tx, tradingAccountID uuid.UUID) ([]domain.OpenLot, error) {
 	result := []struct {
 		model.CurrentOpenLot
 		model.Trade
@@ -208,7 +195,7 @@ func GetCurrentOpenLots(tx *sql.Tx, custodian model.CustodianType) ([]domain.Ope
 				Trade, CurrentOpenLot.TradeID.EQ(Trade.TradeID),
 			),
 		).
-		WHERE(Trade.Custodian.EQ(NewEnumValue(custodian.String())))
+		WHERE(Trade.TradingAccountID.EQ(postgres.String(tradingAccountID.String())))
 
 	err := query.Query(tx, &result)
 	if err != nil {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
 
@@ -20,7 +21,7 @@ func AddTrades(ctx context.Context, tx *sql.Tx, dTrades []domain.Trade) ([]domai
 	// for existing ones. This is how we loosely
 	// enforce a unique constraint for only RH trades
 	trades := tradesToDb(dTrades)
-	err := findDuplicateRhTrades(tx, trades)
+	err := findDuplicateTrades(tx, trades)
 	if err != nil {
 		return nil, err
 	}
@@ -46,9 +47,9 @@ func tradesFromDb(trades []model.Trade) []domain.Trade {
 	return out
 }
 
-func GetHistoricTrades(tx *sql.Tx, custodian model.CustodianType) ([]domain.Trade, error) {
+func GetHistoricTrades(tx *sql.Tx, tradingAccountID uuid.UUID) ([]domain.Trade, error) {
 	query := Trade.SELECT(Trade.AllColumns).
-		WHERE(Trade.Custodian.EQ(postgres.NewEnumValue(custodian.String()))).
+		WHERE(Trade.TradingAccountID.EQ(postgres.String(tradingAccountID.String()))).
 		ORDER_BY(Trade.Date.ASC())
 	out := []model.Trade{}
 	err := query.Query(tx, &out)
@@ -59,20 +60,14 @@ func GetHistoricTrades(tx *sql.Tx, custodian model.CustodianType) ([]domain.Trad
 	return tradesFromDb(out), nil
 }
 
-func findDuplicateRhTrades(tx *sql.Tx, trades []model.Trade) error {
-	rhTrades := []model.Trade{}
-	for _, t := range trades {
-		if t.Custodian == model.CustodianType_Robinhood {
-			rhTrades = append(rhTrades, t)
-		}
-	}
+func findDuplicateTrades(tx *sql.Tx, trades []model.Trade) error {
 
-	if len(rhTrades) == 0 {
+	if len(trades) == 0 {
 		return nil
 	}
 
 	exp := []postgres.BoolExpression{}
-	for _, t := range rhTrades {
+	for _, t := range trades {
 		exp = append(
 			exp,
 			postgres.AND(
@@ -87,20 +82,19 @@ func findDuplicateRhTrades(tx *sql.Tx, trades []model.Trade) error {
 
 	query := Trade.SELECT(Trade.AllColumns).
 		WHERE(postgres.AND(
-			Trade.Custodian.EQ(postgres.NewEnumValue(model.CustodianType_Robinhood.String())),
 			postgres.OR(exp...),
 		))
 
 	result := []model.Trade{}
 	err := query.Query(tx, &result)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return fmt.Errorf("failed to check for existing RH trades: %w", err)
+		return fmt.Errorf("failed to check for existing trades: %w", err)
 	}
 
 	if len(result) > 0 {
 		return hood_errors.ErrDuplicateTrade{
-			Custodian: model.CustodianType_Robinhood,
-			Message:   fmt.Sprintf("%v", result[0]),
+			// Custodian: mod, //idk man
+			Message: fmt.Sprintf("%v", result[0]),
 		}
 	}
 
@@ -119,28 +113,28 @@ func AddTdaTrade(tx *sql.Tx, tdaTrade model.TdaTrade) error {
 
 func tradeToDb(t domain.Trade) model.Trade {
 	return model.Trade{
-		Symbol:      t.Symbol,
-		Quantity:    t.Quantity,
-		CostBasis:   t.Price,
-		Date:        t.Date,
-		Description: t.Description,
-		Custodian:   t.Custodian,
-		CreatedAt:   time.Now().UTC(),
-		ModifiedAt:  time.Now().UTC(),
-		Action:      t.Action,
+		Symbol:           t.Symbol,
+		Quantity:         t.Quantity,
+		CostBasis:        t.Price,
+		Date:             t.Date,
+		Description:      t.Description,
+		TradingAccountID: t.TradingAccountID,
+		CreatedAt:        time.Now().UTC(),
+		ModifiedAt:       time.Now().UTC(),
+		Action:           t.Action,
 	}
 }
 
 func tradeFromDb(t model.Trade) domain.Trade {
 	return domain.Trade{
-		TradeID:     &t.TradeID,
-		Symbol:      t.Symbol,
-		Quantity:    t.Quantity,
-		Price:       t.CostBasis,
-		Date:        t.Date,
-		Description: t.Description,
-		Custodian:   t.Custodian,
-		Action:      t.Action,
+		TradeID:          &t.TradeID,
+		Symbol:           t.Symbol,
+		Quantity:         t.Quantity,
+		Price:            t.CostBasis,
+		Date:             t.Date,
+		Description:      t.Description,
+		TradingAccountID: t.TradingAccountID,
+		Action:           t.Action,
 	}
 }
 

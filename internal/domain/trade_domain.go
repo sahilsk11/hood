@@ -4,6 +4,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
 
@@ -12,26 +13,26 @@ type TradeEvent interface {
 }
 
 type Trade struct {
-	TradeID     *int32
-	Symbol      string
-	Quantity    decimal.Decimal
-	Price       decimal.Decimal
-	Date        time.Time
-	Description *string
-	Custodian   model.CustodianType
-	Action      model.TradeActionType
+	TradeID          *int32
+	Symbol           string
+	Quantity         decimal.Decimal
+	Price            decimal.Decimal
+	Date             time.Time
+	Description      *string
+	TradingAccountID uuid.UUID
+	Action           model.TradeActionType
 }
 
 func (t Trade) DeepCopy() *Trade {
 	return &Trade{
-		TradeID:     t.TradeID,
-		Symbol:      t.Symbol,
-		Quantity:    t.Quantity,
-		Price:       t.Price,
-		Date:        t.Date,
-		Description: t.Description,
-		Custodian:   t.Custodian,
-		Action:      t.Action,
+		TradeID:          t.TradeID,
+		Symbol:           t.Symbol,
+		Quantity:         t.Quantity,
+		Price:            t.Price,
+		Date:             t.Date,
+		Description:      t.Description,
+		TradingAccountID: t.TradingAccountID,
+		Action:           t.Action,
 	}
 }
 
