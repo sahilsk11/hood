@@ -2,8 +2,12 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"hood/internal/repository"
 	"hood/internal/resolver"
+	"hood/internal/util"
+	"log"
 	"net/http"
 
 	api "github.com/sahilsk11/ace-common/types/hood"
@@ -13,6 +17,16 @@ import (
 )
 
 func StartApi(port int, r resolver.Resolver) error {
+	secrets, err := util.LoadSecrets()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	plaidRepository := repository.NewPlaidRepository(
+		secrets.Plaid.ClientID,
+		secrets.Plaid.Secret,
+	)
+
 	router := gin.Default()
 
 	router.Use(blockBots)
@@ -52,6 +66,31 @@ func StartApi(port int, r resolver.Resolver) error {
 		}
 
 		ctx.JSON(200, resp)
+	})
+
+	router.POST("/plaidLinkToken", func(ctx *gin.Context) {
+
+		linkToken, err := plaidRepository.GetLinkToken(context.Background())
+		if err != nil {
+			returnErrorJson(err, ctx)
+			return
+		}
+
+		ctx.JSON(200, map[string]string{
+			"linkToken": linkToken,
+		})
+	})
+
+	router.POST("/generateAccessToken", func(c *gin.Context) {
+		var req map[string]string
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		publicToken := req["publicToken"]
+		plaidRepository.GetAccessToken(publicToken)
+		c.JSON(http.StatusOK, gin.H{"public_token_exchange": "complete"})
 	})
 
 	return router.Run(fmt.Sprintf(":%d", port))

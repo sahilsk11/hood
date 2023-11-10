@@ -22,6 +22,10 @@ type Secrets struct {
 	AlphaVantageKey   string `json:"alphaVantage"`
 	RdsPassword       string `json:"db"`
 	DataJockeryApiKey string `json:"dataJockey"`
+	Plaid             struct {
+		ClientID string `json:"clientID"`
+		Secret   string `json:"secret"`
+	} `json:"plaid"`
 }
 
 func LoadSecrets() (*Secrets, error) {

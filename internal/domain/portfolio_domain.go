@@ -167,6 +167,7 @@ func (hp HistoricPortfolio) Latest() *Portfolio {
 type Position struct {
 	Symbol   string
 	Quantity decimal.Decimal
+	OpenLots []OpenLot // used for plaid reading, should redefine these domains
 }
 
 func (p Position) DeepCopy() *Position {

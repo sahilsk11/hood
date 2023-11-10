@@ -8,7 +8,7 @@ import (
 )
 
 type OpenLot struct {
-	OpenLotID *int32
+	OpenLotID *int32 // i dont lik ethis
 	Quantity  decimal.Decimal
 	CostBasis decimal.Decimal
 	Trade     *Trade
