@@ -6,8 +6,9 @@ import (
 )
 
 type Resolver struct {
-	Db                  *sql.DB
-	PlaidRepository     repository.PlaidRepository
-	UserRepository      repository.UserRepository
-	PlaidItemRepository repository.PlaidItemRepository
+	Db                       *sql.DB
+	PlaidRepository          repository.PlaidRepository
+	UserRepository           repository.UserRepository
+	PlaidItemRepository      repository.PlaidItemRepository
+	TradingAccountRepository repository.TradingAccountRepository
 }

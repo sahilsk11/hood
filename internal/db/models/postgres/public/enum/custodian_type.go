@@ -10,11 +10,23 @@ package enum
 import "github.com/go-jet/jet/v2/postgres"
 
 var CustodianType = &struct {
-	Robinhood postgres.StringExpression
-	Tda       postgres.StringExpression
-	Schwab    postgres.StringExpression
+	Robinhood     postgres.StringExpression
+	Tda           postgres.StringExpression
+	Schwab        postgres.StringExpression
+	Vanguard      postgres.StringExpression
+	Wealthfront   postgres.StringExpression
+	Betterment    postgres.StringExpression
+	MorganStanley postgres.StringExpression
+	ETrade        postgres.StringExpression
+	Unknown       postgres.StringExpression
 }{
-	Robinhood: postgres.NewEnumValue("ROBINHOOD"),
-	Tda:       postgres.NewEnumValue("TDA"),
-	Schwab:    postgres.NewEnumValue("SCHWAB"),
+	Robinhood:     postgres.NewEnumValue("ROBINHOOD"),
+	Tda:           postgres.NewEnumValue("TDA"),
+	Schwab:        postgres.NewEnumValue("SCHWAB"),
+	Vanguard:      postgres.NewEnumValue("VANGUARD"),
+	Wealthfront:   postgres.NewEnumValue("WEALTHFRONT"),
+	Betterment:    postgres.NewEnumValue("BETTERMENT"),
+	MorganStanley: postgres.NewEnumValue("MORGAN_STANLEY"),
+	ETrade:        postgres.NewEnumValue("E-TRADE"),
+	Unknown:       postgres.NewEnumValue("UNKNOWN"),
 }

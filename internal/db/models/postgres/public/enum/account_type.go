@@ -10,11 +10,15 @@ package enum
 import "github.com/go-jet/jet/v2/postgres"
 
 var AccountType = &struct {
-	Individual postgres.StringExpression
-	Ira        postgres.StringExpression
-	RothIra    postgres.StringExpression
+	Individual      postgres.StringExpression
+	Ira             postgres.StringExpression
+	RothIra         postgres.StringExpression
+	AccountType401k postgres.StringExpression
+	Unknown         postgres.StringExpression
 }{
-	Individual: postgres.NewEnumValue("INDIVIDUAL"),
-	Ira:        postgres.NewEnumValue("IRA"),
-	RothIra:    postgres.NewEnumValue("ROTH_IRA"),
+	Individual:      postgres.NewEnumValue("INDIVIDUAL"),
+	Ira:             postgres.NewEnumValue("IRA"),
+	RothIra:         postgres.NewEnumValue("ROTH_IRA"),
+	AccountType401k: postgres.NewEnumValue("401k"),
+	Unknown:         postgres.NewEnumValue("UNKNOWN"),
 }

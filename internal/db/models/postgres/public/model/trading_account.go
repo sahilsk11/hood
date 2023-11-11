@@ -18,4 +18,5 @@ type TradingAccount struct {
 	Custodian        CustodianType
 	AccountType      AccountType
 	CreatedAt        time.Time
+	Name             *string
 }

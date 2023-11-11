@@ -195,7 +195,7 @@ func GetCurrentOpenLots(tx *sql.Tx, tradingAccountID uuid.UUID) ([]domain.OpenLo
 				Trade, CurrentOpenLot.TradeID.EQ(Trade.TradeID),
 			),
 		).
-		WHERE(Trade.TradingAccountID.EQ(postgres.String(tradingAccountID.String())))
+		WHERE(Trade.TradingAccountID.EQ(postgres.UUID(tradingAccountID)))
 
 	err := query.Query(tx, &result)
 	if err != nil {

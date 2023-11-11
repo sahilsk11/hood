@@ -15,6 +15,8 @@ const (
 	AccountType_Individual AccountType = "INDIVIDUAL"
 	AccountType_Ira        AccountType = "IRA"
 	AccountType_RothIra    AccountType = "ROTH_IRA"
+	AccountType_401k       AccountType = "401k"
+	AccountType_Unknown    AccountType = "UNKNOWN"
 )
 
 func (e *AccountType) Scan(value interface{}) error {
@@ -35,6 +37,10 @@ func (e *AccountType) Scan(value interface{}) error {
 		*e = AccountType_Ira
 	case "ROTH_IRA":
 		*e = AccountType_RothIra
+	case "401k":
+		*e = AccountType_401k
+	case "UNKNOWN":
+		*e = AccountType_Unknown
 	default:
 		return errors.New("jet: Invalid scan value '" + enumValue + "' for AccountType enum")
 	}

@@ -40,16 +40,16 @@ func StartApi(port int, r resolver.Resolver) error {
 		c.JSON(200, response)
 	})
 
-	router.POST("/generatePlaidAccessToken", func(c *gin.Context) {
+	router.POST("/addPlaidBankItem", func(c *gin.Context) {
 		ctx := context.Background()
 
-		var req api_types.GeneratePlaidAccessTokenRequest
+		var req api_types.AddPlaidBankItemRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
 			return
 		}
 
-		err := r.GeneratePlaidAccessToken(ctx, req)
+		err := r.AddPlaidBankItem(ctx, req)
 		if err != nil {
 			returnErrorJson(err, c)
 			return

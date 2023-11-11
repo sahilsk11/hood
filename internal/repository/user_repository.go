@@ -8,6 +8,8 @@ import (
 
 	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
+
+	_ "github.com/lib/pq"
 )
 
 type UserRepository interface {
@@ -27,12 +29,13 @@ func NewUserRepository(db *sql.DB) UserRepository {
 func (h userRepositoryHandler) Get(userID uuid.UUID) (*model.User, error) {
 	query := User.SELECT(User.AllColumns).
 		WHERE(
-			User.UserID.EQ(postgres.String(userID.String())),
+			User.UserID.EQ(postgres.UUID(userID)),
 		)
 
 	user := &model.User{}
 	err := query.Query(h.DB, user)
 	if err != nil {
+		fmt.Println(query.DebugSql())
 		return nil, fmt.Errorf("failed to query user id %s: %w", userID.String(), err)
 	}
 
