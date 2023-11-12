@@ -32,13 +32,13 @@ func (h plaidItemRepositoryHandler) Get(tx *sql.Tx, itemID uuid.UUID) (*model.Pl
 			PlaidItem.ItemID.EQ(postgres.UUID(itemID)),
 		)
 
-	var item *model.PlaidItem
-	err := query.Query(tx, item)
+	var item model.PlaidItem
+	err := query.Query(tx, &item)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get plaid item %s: %w", itemID.String(), err)
 	}
 
-	return item, nil
+	return &item, nil
 }
 
 func (h plaidItemRepositoryHandler) Add(tx *sql.Tx, userID uuid.UUID, plaidItemID, accessToken string) (*model.PlaidItem, error) {

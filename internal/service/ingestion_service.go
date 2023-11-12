@@ -12,17 +12,34 @@ import (
 )
 
 type IngestionService interface {
-	AddPlaidTrades()
+	AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error
+}
+
+func NewIngestionService(
+	plaidRepository repository.PlaidRepository,
+	tradeRepository repository.TradeRepository,
+	plaidItemRepository repository.PlaidItemRepository,
+	tradingAccountRepository repository.TradingAccountRepository,
+	plaidInvestmentsAccountRepository repository.PlaidInvestmentsHoldingsRepository,
+) IngestionService {
+	return ingestionServiceHandler{
+		PlaidRepository:                    plaidRepository,
+		TradeRepository:                    tradeRepository,
+		PlaidItemRepository:                plaidItemRepository,
+		TradingAccountRepository:           tradingAccountRepository,
+		PlaidInvestmentsHoldingsRepository: plaidInvestmentsAccountRepository,
+	}
 }
 
 type ingestionServiceHandler struct {
-	PlaidRepository          repository.PlaidRepository
-	TradeRepository          repository.TradeRepository
-	PlaidItemRepository      repository.PlaidItemRepository
-	TradingAccountRepository repository.TradingAccountRepository
+	PlaidRepository                    repository.PlaidRepository
+	TradeRepository                    repository.TradeRepository
+	PlaidItemRepository                repository.PlaidItemRepository
+	TradingAccountRepository           repository.TradingAccountRepository
+	PlaidInvestmentsHoldingsRepository repository.PlaidInvestmentsHoldingsRepository
 }
 
-func (h ingestionServiceHandler) AddPlaidData(tx *sql.Tx, itemID uuid.UUID) error {
+func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error {
 	item, err := h.PlaidItemRepository.Get(tx, itemID)
 	if err != nil {
 		return err
@@ -52,6 +69,21 @@ func (h ingestionServiceHandler) AddPlaidData(tx *sql.Tx, itemID uuid.UUID) erro
 	if err != nil {
 		return fmt.Errorf("failed to add plaid trades: %w", err)
 	}
+
+	holdings, err := h.PlaidRepository.GetHoldings(
+		item.AccessToken,
+		plaidAccountIdToAccountID,
+	)
+	if err != nil {
+		return err
+	}
+
+	err = h.PlaidInvestmentsHoldingsRepository.Add(tx, holdings)
+	if err != nil {
+		return err
+	}
+
+	// TODO - reconcile differences between the two and add additional trades
 
 	return nil
 }

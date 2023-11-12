@@ -126,6 +126,7 @@ func (h plaidRepositoryHandler) GetHoldings(
 				TradingAccountID: mappedTradingAccountIDs[holding.GetAccountId()],
 				TotalCostBasis:   decimal.NewFromFloat32(*holding.CostBasis.Get()),
 				Quantity:         decimal.NewFromFloat32(holding.Quantity),
+				CreatedAt:        time.Now().UTC(),
 			})
 		}
 	}
@@ -170,8 +171,12 @@ func (h plaidRepositoryHandler) GetTransactions(
 			return nil, nil, err
 		}
 		security, ok := mappedSecurities[*t.SecurityId.Get()]
-		if ok {
-			// todo - handle dividends
+		action, err := plaidTradeSubtypeToAction(t.Subtype)
+		if err != nil {
+			fmt.Println(err)
+		}
+		if ok && action != nil {
+			// todo - handle dividends and other actions
 
 			trades = append(trades, domain.Trade{
 				Symbol:           *security.TickerSymbol.Get(),
@@ -180,7 +185,7 @@ func (h plaidRepositoryHandler) GetTransactions(
 				Date:             date,
 				Description:      &t.Name,
 				TradingAccountID: mappedTradingAccountIDs[t.AccountId],
-				Action:           model.TradeActionType(t.Subtype),
+				Action:           *action,
 				Source:           model.TradeSourceType_Plaid,
 			})
 
@@ -216,4 +221,15 @@ func wrapPlaidError(err error) error {
 		return fmt.Errorf("plaid_repository_error: %v. could not convert to Plaid error: %w", err, conversionErr)
 	}
 	return fmt.Errorf("plaid_repository_error %s: %s: %s", plaidErr.ErrorType, plaidErr.ErrorCode, plaidErr.ErrorMessage)
+}
+
+func plaidTradeSubtypeToAction(s string) (*model.TradeActionType, error) {
+	buy := model.TradeActionType_Buy
+	sell := model.TradeActionType_Sell
+	if strings.EqualFold(s, "buy") {
+		return &buy, nil
+	} else if strings.EqualFold(s, "sell") {
+		return &sell, nil
+	}
+	return nil, fmt.Errorf("cannot convert trade subtype %s to trade action", s)
 }

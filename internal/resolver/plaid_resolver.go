@@ -8,7 +8,7 @@ import (
 	api_types "github.com/sahilsk11/ace-common/types/hood"
 )
 
-func (r Resolver) GeneratePlaidLinkToken(ctx context.Context, req api_types.GeneratePlaidLinkTokenRequest) (*api_types.GeneratePlaidLinkTokenResponse, error) {
+func (r resolverHandler) GeneratePlaidLinkToken(ctx context.Context, req api_types.GeneratePlaidLinkTokenRequest) (*api_types.GeneratePlaidLinkTokenResponse, error) {
 	user, err := r.UserRepository.Get(req.UserID)
 	if err != nil {
 		return nil, err
@@ -24,13 +24,14 @@ func (r Resolver) GeneratePlaidLinkToken(ctx context.Context, req api_types.Gene
 	}, nil
 }
 
-func (r Resolver) AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBankItemRequest) error {
+func (r resolverHandler) AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBankItemRequest) error {
 	tx, err := r.Db.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
+	// add initial data in
 	accessToken, itemID, err := r.PlaidRepository.GetAccessToken(req.PublicToken)
 	if err != nil {
 		return err
@@ -73,6 +74,12 @@ func (r Resolver) AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBa
 				return fmt.Errorf("failed to add plaid account metadata: %w", err)
 			}
 		}
+	}
+
+	// TODO - think about this being a new endpoint
+	err = r.IngestionService.AddPlaidTradeData(tx, item.ItemID)
+	if err != nil {
+		return fmt.Errorf("failed to sync plaid trade data: %w", err)
 	}
 
 	err = tx.Commit()

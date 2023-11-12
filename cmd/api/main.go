@@ -5,6 +5,7 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/repository"
 	"hood/internal/resolver"
+	"hood/internal/service"
 	"hood/internal/util"
 	"log"
 
@@ -30,14 +31,23 @@ func main() {
 	userRepository := repository.NewUserRepository(dbConn)
 	plaidItemRepository := repository.NewPlaidItemRepository(dbConn)
 	tradingAccountRepository := repository.NewTradingAccountRepository(dbConn)
+	tradeRepository := repository.NewTradeRepository()
+	plaidInvestmentsAccountRepository := repository.NewPlaidInvestmentsHoldingsRepository(dbConn)
 
-	r := resolver.Resolver{
-		Db:                       dbConn,
-		PlaidRepository:          plaidRepository,
-		UserRepository:           userRepository,
-		PlaidItemRepository:      plaidItemRepository,
-		TradingAccountRepository: tradingAccountRepository,
-	}
+	r := resolver.NewResolver(
+		dbConn,
+		plaidRepository,
+		userRepository,
+		plaidItemRepository,
+		tradingAccountRepository,
+		service.NewIngestionService(
+			plaidRepository,
+			tradeRepository,
+			plaidItemRepository,
+			tradingAccountRepository,
+			plaidInvestmentsAccountRepository,
+		),
+	)
 
 	err = api.StartApi(5001, r)
 	if err != nil {
