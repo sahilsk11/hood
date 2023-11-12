@@ -2,11 +2,9 @@ package repository
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
-	"log"
 	"strings"
 	"time"
 
@@ -22,7 +20,10 @@ type PlaidRepository interface {
 		itemID string,
 		err error,
 	)
-	GetHoldings(accessToken string)
+	GetHoldings(
+		accessToken string,
+		mappedTradingAccountIDs map[string]uuid.UUID,
+	) ([]model.PlaidInvestmentHoldings, error)
 	GetTransactions(
 		ctx context.Context,
 		mappedTradingAccountIDs map[string]uuid.UUID,
@@ -94,54 +95,42 @@ func (h plaidRepositoryHandler) GetAccessToken(publicToken string) (
 	return accessToken, itemID, nil
 }
 
-func (h plaidRepositoryHandler) GetHoldings(accessToken string) {
+func (h plaidRepositoryHandler) GetHoldings(
+	accessToken string,
+	mappedTradingAccountIDs map[string]uuid.UUID,
+) ([]model.PlaidInvestmentHoldings, error) {
 	ctx := context.Background()
 
-	holdingsGetReq := plaid.NewInvestmentsHoldingsGetRequest(accessToken)
+	plaidAccountIDs := []string{}
+	for k := range mappedTradingAccountIDs {
+		plaidAccountIDs = append(plaidAccountIDs, k)
+	}
 
-	// holdingsGetReqOptions := plaid.NewInvestmentHoldingsGetRequestOptions()
-	// holdingsGetReqOptions.SetAccountIds([]string{"ACCOUNT_ID"})
-	// holdingsGetReq.SetOptions(*holdingsGetReqOptions)
+	holdingsGetReq := plaid.NewInvestmentsHoldingsGetRequest(accessToken)
+	holdingsGetReq.Options = &plaid.InvestmentHoldingsGetRequestOptions{
+		AccountIds: &plaidAccountIDs,
+	}
 
 	resp, _, err := h.client.PlaidApi.InvestmentsHoldingsGet(ctx).InvestmentsHoldingsGetRequest(*holdingsGetReq).Execute()
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to get investment holdings from Plaid: %w", wrapPlaidError(err))
 	}
 
-	mappedSecurities := map[string]plaid.Security{}
-
-	for _, s := range resp.Securities {
-		mappedSecurities[s.SecurityId] = s
-	}
-
-	positionsByAccount := map[string][]domain.Position{}
+	mappedSecurities := filterSecurities(resp.Securities)
+	out := []model.PlaidInvestmentHoldings{}
 	for _, holding := range resp.Holdings {
-		if _, ok := positionsByAccount[holding.AccountId]; !ok {
-			positionsByAccount[holding.AccountId] = []domain.Position{}
+		if security, ok := mappedSecurities[holding.SecurityId]; ok {
+			out = append(out, model.PlaidInvestmentHoldings{
+				// PlaidInvestmentsHoldingsID: ,
+				Ticker:           *security.TickerSymbol.Get(),
+				TradingAccountID: mappedTradingAccountIDs[holding.GetAccountId()],
+				TotalCostBasis:   decimal.NewFromFloat32(*holding.CostBasis.Get()),
+				Quantity:         decimal.NewFromFloat32(holding.Quantity),
+			})
 		}
-		positionsByAccount[holding.AccountId] = append(positionsByAccount[holding.AccountId], domain.Position{
-			Symbol:   *mappedSecurities[holding.SecurityId].TickerSymbol.Get(),
-			Quantity: decimal.NewFromFloat32(holding.Quantity),
-			// idk if this is true but it seems "holdings" compiles everything
-			// into single position. if this isn't true, add another layer of mapps ig
-			OpenLots: []domain.OpenLot{
-				{
-					Quantity: decimal.NewFromFloat32(holding.Quantity),
-					// This field is calculated by Plaid as the sum of the purchase price of all of the shares in the holding.
-					CostBasis: decimal.NewFromFloat32(*holding.CostBasis.Get()),
-					Trade:     nil,        // aw hell nah man, wtf
-					Date:      time.Now(), // bruh plaid doesnt have this field
-				},
-			},
-		})
 	}
 
-	bytes, err := json.Marshal(resp)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(string(bytes))
+	return out, nil
 }
 
 func (h plaidRepositoryHandler) GetTransactions(
@@ -159,8 +148,6 @@ func (h plaidRepositoryHandler) GetTransactions(
 		plaidAccountIDs = append(plaidAccountIDs, k)
 	}
 
-	fmt.Println(plaidAccountIDs)
-
 	opts := plaid.NewInvestmentsTransactionsGetRequestOptions()
 	opts.SetAccountIds(plaidAccountIDs)
 	txGetRequest.SetOptions(
@@ -172,18 +159,7 @@ func (h plaidRepositoryHandler) GetTransactions(
 		return nil, nil, fmt.Errorf("failed to get investment transactions from Plaid: %w", wrapPlaidError(err))
 	}
 
-	mappedSecurities := map[string]plaid.Security{}
-
-	for _, s := range resp.Securities {
-		securityType := *s.Type.Get()
-		// seeing etf's with ticker symbol "NHX105509"
-		if (strings.EqualFold(securityType, "etf") ||
-			strings.EqualFold(securityType, "equity") ||
-			strings.EqualFold(securityType, "mutual fund")) &&
-			s.TickerSymbol.IsSet() && len(*s.TickerSymbol.Get()) < 6 {
-			mappedSecurities[s.SecurityId] = s
-		}
-	}
+	mappedSecurities := filterSecurities(resp.Securities)
 
 	trades := []domain.Trade{}
 	plaidTrades := []model.PlaidTradeMetadata{}
@@ -216,6 +192,21 @@ func (h plaidRepositoryHandler) GetTransactions(
 		}
 	}
 	return trades, plaidTrades, nil
+}
+
+func filterSecurities(securities []plaid.Security) map[string]plaid.Security {
+	out := map[string]plaid.Security{}
+	for _, s := range securities {
+		securityType := *s.Type.Get()
+		// seeing etf's with ticker symbol "NHX105509"
+		if (strings.EqualFold(securityType, "etf") ||
+			strings.EqualFold(securityType, "equity") ||
+			strings.EqualFold(securityType, "mutual fund")) &&
+			s.TickerSymbol.IsSet() && s.TickerSymbol.Get() != nil && len(*s.TickerSymbol.Get()) < 6 {
+			out[s.SecurityId] = s
+		}
+	}
+	return out
 }
 
 func wrapPlaidError(err error) error {

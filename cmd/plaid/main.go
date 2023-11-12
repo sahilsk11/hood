@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"hood/internal/repository"
 	"hood/internal/util"
@@ -21,18 +20,15 @@ func main() {
 		secrets.Plaid.Secret,
 	)
 
-	trades, _, err := plaidRepository.GetTransactions(
-		context.Background(),
-		map[string]uuid.UUID{
-			"qrWRbqW3GpHkMmgXgJ7BtEPXbMn6myF6MmdZD": uuid.MustParse("1ea1069c-f711-4a39-9f3d-d95e476b28c5"),
-		},
+	holdings, err := plaidRepository.GetHoldings(
 		"access-sandbox-6f16e8da-74a1-4cf4-b5b3-ada58cbf9ade",
+		map[string]uuid.UUID{
+			"KqGn4yGoK9cJRKrvrzoXH6p4ozQk1vuENZVLP": uuid.MustParse("a836246d-8a8a-41a2-8f81-40d39a38059d"),
+		},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	for _, t := range trades {
-		fmt.Println(t)
-	}
+	fmt.Println(holdings)
 }
