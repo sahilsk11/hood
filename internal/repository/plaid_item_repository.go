@@ -7,11 +7,13 @@ import (
 	. "hood/internal/db/models/postgres/public/table"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 )
 
 type PlaidItemRepository interface {
 	Add(tx *sql.Tx, userID uuid.UUID, plaidItemID, accessToken string) (*model.PlaidItem, error)
+	Get(tx *sql.Tx, itemID uuid.UUID) (*model.PlaidItem, error)
 }
 
 type plaidItemRepositoryHandler struct {
@@ -22,6 +24,21 @@ func NewPlaidItemRepository(db *sql.DB) PlaidItemRepository {
 	return plaidItemRepositoryHandler{
 		DB: db,
 	}
+}
+
+func (h plaidItemRepositoryHandler) Get(tx *sql.Tx, itemID uuid.UUID) (*model.PlaidItem, error) {
+	query := PlaidItem.SELECT(PlaidItem.AllColumns).
+		WHERE(
+			PlaidItem.ItemID.EQ(postgres.UUID(itemID)),
+		)
+
+	var item *model.PlaidItem
+	err := query.Query(tx, item)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plaid item %s: %w", itemID.String(), err)
+	}
+
+	return item, nil
 }
 
 func (h plaidItemRepositoryHandler) Add(tx *sql.Tx, userID uuid.UUID, plaidItemID, accessToken string) (*model.PlaidItem, error) {

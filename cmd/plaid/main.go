@@ -21,7 +21,7 @@ func main() {
 		secrets.Plaid.Secret,
 	)
 
-	trades, err := plaidRepository.GetTransactions(
+	trades, _, err := plaidRepository.GetTransactions(
 		context.Background(),
 		map[string]uuid.UUID{
 			"qrWRbqW3GpHkMmgXgJ7BtEPXbMn6myF6MmdZD": uuid.MustParse("1ea1069c-f711-4a39-9f3d-d95e476b28c5"),

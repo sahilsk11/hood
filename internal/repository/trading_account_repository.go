@@ -7,12 +7,14 @@ import (
 	. "hood/internal/db/models/postgres/public/table"
 	"time"
 
+	"github.com/go-jet/jet/v2/postgres"
 	"github.com/google/uuid"
 )
 
 type TradingAccountRepository interface {
 	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, plaidItemID, accessToken string, name *string) (*model.TradingAccount, error)
 	AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, plaidAccountID string, mask *string) error
+	GetPlaidMetadata(tx *sql.Tx, itemID uuid.UUID) ([]model.PlaidTradingAccountMetadata, error)
 }
 
 type tradingAccountRepositoryHandler struct {
@@ -77,4 +79,20 @@ func (h tradingAccountRepositoryHandler) AddPlaidMetadata(tx *sql.Tx, tradingAcc
 	}
 
 	return nil
+}
+
+func (h tradingAccountRepositoryHandler) GetPlaidMetadata(tx *sql.Tx, itemID uuid.UUID) ([]model.PlaidTradingAccountMetadata, error) {
+	query := PlaidTradingAccountMetadata.SELECT(
+		PlaidTradingAccountMetadata.AllColumns,
+	).WHERE(
+		PlaidTradingAccountMetadata.ItemID.EQ(postgres.UUID(itemID)),
+	)
+
+	models := []model.PlaidTradingAccountMetadata{}
+	err := query.Query(tx, &models)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plaid trading account metadata: %w", err)
+	}
+
+	return models, nil
 }

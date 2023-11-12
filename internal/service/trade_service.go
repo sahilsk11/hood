@@ -17,7 +17,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-// consider changing these names from "Add" to something better
+// updates open/closed lots in db
 
 type TradeIngestionService interface {
 	ProcessBuyOrder(ctx context.Context, tx *sql.Tx, in domain.Trade) (*domain.Trade, *domain.OpenLot, error)
