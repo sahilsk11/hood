@@ -9,6 +9,7 @@ import (
 	"hood/internal/repository"
 
 	"github.com/google/uuid"
+	"github.com/shopspring/decimal"
 )
 
 type IngestionService interface {
@@ -83,9 +84,66 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 		return err
 	}
 
-	// TODO - reconcile differences between the two and add additional trades
+	startPortfolios := map[uuid.UUID]domain.Holdings{}
+
+	for _, tradingAccount := range plaidTradingAccounts {
+		relevantTrades := []domain.Trade{}
+		for _, t := range trades {
+			if t.TradingAccountID == tradingAccount.TradingAccountID {
+				relevantTrades = append(relevantTrades, t)
+			}
+		}
+		startPortfolios[tradingAccount.TradingAccountID] = inverseTrades(relevantTrades, holdings[tradingAccount.TradingAccountID])
+	}
 
 	return nil
+}
+
+// inverseTrades takes a final portfolio holdings and a list of all trades
+// we know the account did, then inverses each trade. the returned holdings
+// is what the portfolio looks liked before all the given trades were made
+//
+// note - ensure the trades passed in actually belong to this holding
+func inverseTrades(trades []domain.Trade, holdingsEnd domain.Holdings) domain.Holdings {
+	// pretty sure order of trades doesn't matter
+
+	out := &holdingsEnd
+	for _, t := range trades {
+		inv := decimal.NewFromInt(1)
+		if t.Action == model.TradeActionType_Buy {
+			inv = inv.Neg()
+		}
+
+		// when a trade sells to close, the position would disappear
+		// from holdings. add it back if it's missing
+		if _, ok := out.Positions[t.Symbol]; !ok {
+			out.Positions[t.Symbol] = &domain.Position{
+				Symbol: t.Symbol,
+				// cost basis and quantity automatically set to 0
+			}
+		}
+
+		fmt.Println("reducing", out.Positions[t.Symbol].Quantity, "to", inv.Mul(out.Positions[t.Symbol].Quantity.Sub(t.Quantity)))
+
+		// if action buy, inv = -1 and reduce stuff
+		out.Positions[t.Symbol].Quantity = out.Positions[t.Symbol].Quantity.
+			Add(inv.Mul(t.Quantity))
+		tradeValue := t.Quantity.Mul(t.Price)
+		out.Positions[t.Symbol].TotalCostBasis = out.Positions[t.Symbol].TotalCostBasis.
+			Add(inv.Mul(tradeValue))
+
+	}
+
+	symbols := out.Symbols()
+
+	for _, s := range symbols {
+		if out.Positions[s].Quantity.IsZero() {
+			fmt.Println("del appl")
+			delete(out.Positions, s)
+		}
+	}
+
+	return *out
 }
 
 // AddPlaidTrades adds trades that were retrieved from Plaid

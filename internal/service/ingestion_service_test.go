@@ -3,9 +3,12 @@ package service
 import (
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
+	"hood/internal/domain"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -156,5 +159,46 @@ func Test_entryIterator(t *testing.T) {
 		require.Nil(t, nextTrade)
 
 		require.False(t, i.hasNext())
+	})
+}
+
+func Test_inverseTrades(t *testing.T) {
+	t.Run("simple two trades", func(t *testing.T) {
+		trades := []domain.Trade{
+			{
+				Symbol:   "AAPL",
+				Quantity: decimal.NewFromInt(100),
+				Price:    decimal.NewFromInt(1),
+				Action:   model.TradeActionType_Buy,
+			},
+			{
+				Symbol:   "AAPL",
+				Quantity: decimal.NewFromInt(100),
+				Price:    decimal.NewFromInt(1),
+				Action:   model.TradeActionType_Buy,
+			},
+		}
+		endPortfolio := domain.Holdings{
+			Positions: map[string]*domain.Position{
+				"AAPL": { // bro fuck u why do we do this
+					Symbol:         "AAPL",
+					Quantity:       decimal.NewFromInt(200),
+					TotalCostBasis: decimal.NewFromInt(200),
+				},
+			},
+		}
+
+		startPortfolio := inverseTrades(trades, endPortfolio)
+
+		require.Equal(
+			t,
+			"",
+			cmp.Diff(
+				domain.Holdings{
+					Positions: make(map[string]*domain.Position),
+				},
+				startPortfolio,
+			),
+		)
 	})
 }
