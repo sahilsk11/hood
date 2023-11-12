@@ -177,13 +177,13 @@ func (h plaidRepositoryHandler) GetTransactions(
 		}
 		if ok && action != nil {
 			// todo - handle dividends and other actions
-
+			name := t.Name
 			trades = append(trades, domain.Trade{
 				Symbol:           *security.TickerSymbol.Get(),
 				Quantity:         decimal.NewFromFloat32(t.Quantity).Abs(),
 				Price:            decimal.NewFromFloat32(t.Price),
 				Date:             date,
-				Description:      &t.Name,
+				Description:      &name,
 				TradingAccountID: mappedTradingAccountIDs[t.AccountId],
 				Action:           *action,
 				Source:           model.TradeSourceType_Plaid,
