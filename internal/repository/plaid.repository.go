@@ -23,7 +23,7 @@ type PlaidRepository interface {
 	GetHoldings(
 		accessToken string,
 		mappedTradingAccountIDs map[string]uuid.UUID,
-	) ([]model.PlaidInvestmentHoldings, error)
+	) (map[uuid.UUID]domain.Holdings, error)
 	GetTransactions(
 		ctx context.Context,
 		mappedTradingAccountIDs map[string]uuid.UUID,
@@ -82,7 +82,7 @@ func (h plaidRepositoryHandler) GetAccessToken(publicToken string) (
 		*exchangePublicTokenReq,
 	).Execute()
 	if err != nil {
-		return "", "", err
+		return "", "", wrapPlaidError(err)
 	}
 
 	// These values should be saved to a persistent database and
@@ -98,7 +98,7 @@ func (h plaidRepositoryHandler) GetAccessToken(publicToken string) (
 func (h plaidRepositoryHandler) GetHoldings(
 	accessToken string,
 	mappedTradingAccountIDs map[string]uuid.UUID,
-) ([]model.PlaidInvestmentHoldings, error) {
+) (map[uuid.UUID]domain.Holdings, error) {
 	ctx := context.Background()
 
 	plaidAccountIDs := []string{}
@@ -117,17 +117,24 @@ func (h plaidRepositoryHandler) GetHoldings(
 	}
 
 	mappedSecurities := filterSecurities(resp.Securities)
-	out := []model.PlaidInvestmentHoldings{}
+	out := map[uuid.UUID]domain.Holdings{}
 	for _, holding := range resp.Holdings {
 		if security, ok := mappedSecurities[holding.SecurityId]; ok {
-			out = append(out, model.PlaidInvestmentHoldings{
-				// PlaidInvestmentsHoldingsID: ,
-				Ticker:           *security.TickerSymbol.Get(),
-				TradingAccountID: mappedTradingAccountIDs[holding.GetAccountId()],
-				TotalCostBasis:   decimal.NewFromFloat32(*holding.CostBasis.Get()),
-				Quantity:         decimal.NewFromFloat32(holding.Quantity),
-				CreatedAt:        time.Now().UTC(),
-			})
+			tradingAccountID := mappedTradingAccountIDs[holding.GetAccountId()]
+			if _, ok := out[tradingAccountID]; !ok {
+				out[tradingAccountID] = domain.Holdings{
+					Positions: make(map[string]*domain.Position),
+					Cash:      decimal.Zero, // todo - handle cash
+				}
+			}
+			symbol := *security.TickerSymbol.Get()
+			holdings := out[tradingAccountID]
+
+			holdings.Positions[symbol] = &domain.Position{
+				Symbol:         symbol,
+				TotalCostBasis: decimal.NewFromFloat32(*holding.CostBasis.Get()),
+				Quantity:       decimal.NewFromFloat32(holding.Quantity),
+			}
 		}
 	}
 

@@ -34,7 +34,7 @@ func (r resolverHandler) AddPlaidBankItem(ctx context.Context, req api_types.Add
 	// add initial data in
 	accessToken, itemID, err := r.PlaidRepository.GetAccessToken(req.PublicToken)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get access token: %w", err)
 	}
 
 	item, err := r.PlaidItemRepository.Add(tx, req.UserID, itemID, accessToken)

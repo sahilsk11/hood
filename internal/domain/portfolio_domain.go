@@ -25,8 +25,8 @@ func NewEmptyPortfolio() *Portfolio {
 	}
 }
 
-func (pt Portfolio) ToMetricsPortfolio() *MetricsPortfolio {
-	out := &MetricsPortfolio{
+func (pt Portfolio) ToHoldings() *Holdings {
+	out := &Holdings{
 		Positions: map[string]*Position{},
 		Cash:      pt.Cash,
 	}
@@ -165,9 +165,9 @@ func (hp HistoricPortfolio) Latest() *Portfolio {
 }
 
 type Position struct {
-	Symbol   string
-	Quantity decimal.Decimal
-	OpenLots []OpenLot // used for plaid reading, should redefine these domains
+	Symbol         string
+	Quantity       decimal.Decimal
+	TotalCostBasis decimal.Decimal
 }
 
 func (p Position) DeepCopy() *Position {
@@ -177,13 +177,13 @@ func (p Position) DeepCopy() *Position {
 	}
 }
 
-type MetricsPortfolio struct {
+type Holdings struct {
 	Positions map[string]*Position
 	Cash      decimal.Decimal
 }
 
-func (mp MetricsPortfolio) DeepCopy() *MetricsPortfolio {
-	out := &MetricsPortfolio{
+func (mp Holdings) DeepCopy() *Holdings {
+	out := &Holdings{
 		Positions: map[string]*Position{},
 		Cash:      mp.Cash,
 	}
@@ -193,7 +193,7 @@ func (mp MetricsPortfolio) DeepCopy() *MetricsPortfolio {
 	return out
 }
 
-func (mp MetricsPortfolio) Symbols() []string {
+func (mp Holdings) Symbols() []string {
 	out := []string{}
 	for symbol := range mp.Positions {
 		out = append(out, symbol)
@@ -201,7 +201,7 @@ func (mp MetricsPortfolio) Symbols() []string {
 	return out
 }
 
-func (mp MetricsPortfolio) NewPortfolio(costBasis map[string]decimal.Decimal, date time.Time) *Portfolio {
+func (mp Holdings) NewPortfolio(costBasis map[string]decimal.Decimal, date time.Time) *Portfolio {
 	out := &Portfolio{
 		Cash:       mp.Cash,
 		OpenLots:   map[string][]*OpenLot{},
@@ -234,7 +234,7 @@ func (mp MetricsPortfolio) NewPortfolio(costBasis map[string]decimal.Decimal, da
 	return out
 }
 
-func (mp *MetricsPortfolio) ProcessTrades(trades []ProposedTrade) error {
+func (mp *Holdings) ProcessTrades(trades []ProposedTrade) error {
 	for _, t := range trades {
 		symbol := t.Symbol
 		mp.Positions[symbol].Quantity = mp.Positions[symbol].Quantity.Add(t.Quantity)
