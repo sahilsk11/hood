@@ -7,10 +7,15 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
 	"hood/internal/repository"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shopspring/decimal"
 )
+
+// this might cause issues with MDS
+// if asset is not available
+const defaultTradeDate = "2010-01-01"
 
 type IngestionService interface {
 	AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error
@@ -84,16 +89,38 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 		return err
 	}
 
-	startPortfolios := map[uuid.UUID]domain.Holdings{}
+	defaultTradeDate, err := time.Parse(time.DateOnly, defaultTradeDate)
+	if err != nil {
+		return err
+	}
 
+	inferredTrades := []domain.Trade{}
 	for _, tradingAccount := range plaidTradingAccounts {
+		tradingAccountID := tradingAccount.TradingAccountID
 		relevantTrades := []domain.Trade{}
 		for _, t := range trades {
 			if t.TradingAccountID == tradingAccount.TradingAccountID {
 				relevantTrades = append(relevantTrades, t)
 			}
 		}
-		startPortfolios[tradingAccount.TradingAccountID] = inverseTrades(relevantTrades, holdings[tradingAccount.TradingAccountID])
+		startPortfolio := inverseTrades(relevantTrades, holdings[tradingAccountID])
+		for _, p := range startPortfolio.Positions {
+			inferredTrades = append(inferredTrades, domain.Trade{
+				Symbol:           p.Symbol,
+				Quantity:         p.Quantity,
+				Price:            p.TotalCostBasis.Div(p.Quantity),
+				Date:             defaultTradeDate, // day before their last trade, or beginning of time ?
+				Description:      nil,
+				TradingAccountID: tradingAccountID,
+				Action:           model.TradeActionType_Buy,
+				Source:           model.TradeSourceType_PlaidInferred,
+			})
+		}
+	}
+
+	_, err = h.TradeRepository.Add(tx, inferredTrades)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -106,6 +133,7 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 // note - ensure the trades passed in actually belong to this holding
 func inverseTrades(trades []domain.Trade, holdingsEnd domain.Holdings) domain.Holdings {
 	// pretty sure order of trades doesn't matter
+	// todo - handle cash
 
 	out := &holdingsEnd
 	for _, t := range trades {
@@ -123,8 +151,6 @@ func inverseTrades(trades []domain.Trade, holdingsEnd domain.Holdings) domain.Ho
 			}
 		}
 
-		fmt.Println("reducing", out.Positions[t.Symbol].Quantity, "to", inv.Mul(out.Positions[t.Symbol].Quantity.Sub(t.Quantity)))
-
 		// if action buy, inv = -1 and reduce stuff
 		out.Positions[t.Symbol].Quantity = out.Positions[t.Symbol].Quantity.
 			Add(inv.Mul(t.Quantity))
@@ -138,7 +164,6 @@ func inverseTrades(trades []domain.Trade, holdingsEnd domain.Holdings) domain.Ho
 
 	for _, s := range symbols {
 		if out.Positions[s].Quantity.IsZero() {
-			fmt.Println("del appl")
 			delete(out.Positions, s)
 		}
 	}
