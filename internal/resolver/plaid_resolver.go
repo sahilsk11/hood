@@ -66,6 +66,7 @@ func (r Resolver) AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBa
 				tx,
 				tradingAccount.TradingAccountID,
 				item.ItemID,
+				acc.AccountID,
 				mask,
 			)
 			if err != nil {
@@ -86,6 +87,10 @@ func institutionFromPlaid(s string) model.CustodianType {
 	switch s {
 	case "Vanguard":
 		return model.CustodianType_Vanguard
+	case "Robinhood":
+		return model.CustodianType_Robinhood
+	case "Schwab":
+		return model.CustodianType_Schwab
 	}
 
 	return model.CustodianType_Unknown

@@ -12,7 +12,7 @@ import (
 
 type TradingAccountRepository interface {
 	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, plaidItemID, accessToken string, name *string) (*model.TradingAccount, error)
-	AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, mask *string) error
+	AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, plaidAccountID string, mask *string) error
 }
 
 type tradingAccountRepositoryHandler struct {
@@ -59,14 +59,15 @@ func (h tradingAccountRepositoryHandler) Add(
 	return tradingAccount, nil
 }
 
-func (h tradingAccountRepositoryHandler) AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, mask *string) error {
-	query := PlaidAccountMetadata.INSERT(
-		PlaidAccountMetadata.MutableColumns,
+func (h tradingAccountRepositoryHandler) AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, plaidAccountID string, mask *string) error {
+	query := PlaidTradingAccountMetadata.INSERT(
+		PlaidTradingAccountMetadata.MutableColumns,
 	).MODEL(
-		model.PlaidAccountMetadata{
+		model.PlaidTradingAccountMetadata{
 			TradingAccountID: tradingAccountID,
 			ItemID:           itemID,
 			Mask:             mask,
+			PlaidAccountID:   plaidAccountID,
 		},
 	)
 

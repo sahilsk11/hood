@@ -25,4 +25,5 @@ type Trade struct {
 	CreatedAt        time.Time
 	ModifiedAt       time.Time
 	TradingAccountID uuid.UUID
+	Source           TradeSourceType
 }

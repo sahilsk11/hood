@@ -11,9 +11,10 @@ import (
 	"github.com/google/uuid"
 )
 
-type PlaidAccountMetadata struct {
+type PlaidTradingAccountMetadata struct {
 	PlaidAccountMetadataID uuid.UUID `sql:"primary_key"`
 	TradingAccountID       uuid.UUID
 	Mask                   *string
 	ItemID                 uuid.UUID
+	PlaidAccountID         string
 }

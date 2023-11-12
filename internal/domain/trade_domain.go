@@ -21,6 +21,7 @@ type Trade struct {
 	Description      *string
 	TradingAccountID uuid.UUID
 	Action           model.TradeActionType
+	IdempotencyKey   string
 }
 
 func (t Trade) DeepCopy() *Trade {
