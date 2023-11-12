@@ -205,6 +205,7 @@ func (h plaidRepositoryHandler) GetTransactions(
 				Description:      &t.Name,
 				TradingAccountID: mappedTradingAccountIDs[t.AccountId],
 				Action:           model.TradeActionType(t.Subtype),
+				Source:           model.TradeSourceType_Plaid,
 			})
 
 			plaidTrades = append(plaidTrades, model.PlaidTradeMetadata{

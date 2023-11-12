@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"hood/internal/db/models/postgres/public/model"
-	db "hood/internal/db/query"
 	"hood/internal/domain"
 	"hood/internal/repository"
 
@@ -48,6 +47,7 @@ func (h ingestionServiceHandler) AddPlaidData(tx *sql.Tx, itemID uuid.UUID) erro
 		return fmt.Errorf("failed to get plaid transactions: %w", err)
 	}
 
+	// adding everything to DB ensures we remove duplicates
 	err = h.AddPlaidTrades(tx, trades, plaidTrades)
 	if err != nil {
 		return fmt.Errorf("failed to add plaid trades: %w", err)
@@ -56,13 +56,17 @@ func (h ingestionServiceHandler) AddPlaidData(tx *sql.Tx, itemID uuid.UUID) erro
 	return nil
 }
 
+// AddPlaidTrades adds trades that were retrieved from Plaid
+// into the database. It's assumed that plaidTrades does not have
+// tradeID populated since the og trades need to be added to the database
+// first.
+// TODO - consider how to reconcile with existing trades
 func (h ingestionServiceHandler) AddPlaidTrades(
 	tx *sql.Tx,
 	trades []domain.Trade,
 	plaidTrades []model.PlaidTradeMetadata,
 ) error {
-	insertedTrades, err := db.AddTrades(
-		context.Background(),
+	insertedTrades, err := h.TradeRepository.Add(
 		tx,
 		trades,
 	)

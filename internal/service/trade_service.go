@@ -9,6 +9,7 @@ import (
 	"hood/internal/db/models/postgres/public/table"
 	db "hood/internal/db/query"
 	"hood/internal/domain"
+	"hood/internal/repository"
 	"sort"
 	"time"
 
@@ -29,6 +30,7 @@ type TradeIngestionService interface {
 }
 
 type tradeIngestionHandler struct {
+	TradeRepository repository.TradeRepository
 }
 
 func NewTradeIngestionService() TradeIngestionService {
@@ -78,7 +80,7 @@ func (h tradeIngestionHandler) ProcessBuyOrder(ctx context.Context, tx *sql.Tx, 
 		return nil, nil, fmt.Errorf("failed to process buy order with action %s", t.Action.String())
 	}
 
-	insertedTrades, err := db.AddTrades(ctx, tx, []domain.Trade{t})
+	insertedTrades, err := h.TradeRepository.Add(tx, []domain.Trade{t})
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to add trades for buy order: %w", err)
 	}
@@ -113,7 +115,7 @@ func (h tradeIngestionHandler) ProcessSellOrder(ctx context.Context, tx *sql.Tx,
 		return nil, nil, err
 	}
 
-	insertedTrades, err := db.AddTrades(ctx, tx, []domain.Trade{t})
+	insertedTrades, err := h.TradeRepository.Add(tx, []domain.Trade{t})
 	if err != nil {
 		return nil, nil, err
 	}
