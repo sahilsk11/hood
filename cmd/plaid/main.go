@@ -10,7 +10,8 @@ import (
 )
 
 func main() {
-	secrets, err := util.LoadSecrets()
+	env := util.Development
+	secrets, err := util.LoadSecrets(env)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -18,6 +19,7 @@ func main() {
 	plaidRepository := repository.NewPlaidRepository(
 		secrets.Plaid.ClientID,
 		secrets.Plaid.Secret,
+		env.ToPlaidEnv(),
 	)
 
 	holdings, err := plaidRepository.GetHoldings(

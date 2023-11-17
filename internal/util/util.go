@@ -6,6 +6,8 @@ import (
 	"os"
 	"sort"
 	"time"
+
+	"github.com/plaid/plaid-go/plaid"
 )
 
 var EnableDebug = true
@@ -28,18 +30,30 @@ type Secrets struct {
 	} `json:"plaid"`
 }
 
-func LoadSecrets() (*Secrets, error) {
+type Environment string
+
+const Production Environment = "prod"
+const Development Environment = "dev"
+
+func (e Environment) ToPlaidEnv() plaid.Environment {
+	return map[Environment]plaid.Environment{
+		Production:  plaid.Production,
+		Development: plaid.Sandbox,
+	}[e]
+}
+
+func LoadSecrets(env Environment) (*Secrets, error) {
 	f, err := os.ReadFile("secrets.json")
 	if err != nil {
 		return nil, fmt.Errorf("could not open secrets.json: %w", err)
 	}
-	secrets := Secrets{}
+	secrets := map[Environment]*Secrets{}
 	err = json.Unmarshal(f, &secrets)
 	if err != nil {
 		return nil, err
 	}
 
-	return &secrets, nil
+	return secrets[env], nil
 }
 
 func Pprint(i interface{}) {

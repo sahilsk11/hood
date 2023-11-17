@@ -35,11 +35,11 @@ type plaidRepositoryHandler struct {
 	client *plaid.APIClient
 }
 
-func NewPlaidRepository(clientID, secret string) PlaidRepository {
+func NewPlaidRepository(clientID, secret string, env plaid.Environment) PlaidRepository {
 	configuration := plaid.NewConfiguration()
 	configuration.AddDefaultHeader("PLAID-CLIENT-ID", clientID)
 	configuration.AddDefaultHeader("PLAID-SECRET", secret)
-	configuration.UseEnvironment(plaid.Sandbox)
+	configuration.UseEnvironment(env)
 	client := plaid.NewAPIClient(configuration)
 
 	return plaidRepositoryHandler{
