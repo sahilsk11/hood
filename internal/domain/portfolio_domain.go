@@ -11,7 +11,7 @@ import (
 type Portfolio struct {
 	OpenLots   map[string][]*OpenLot
 	ClosedLots map[string][]ClosedLot
-	// Cash       decimal.Decimal // deprecating until i figure it out
+	Cash       decimal.Decimal // deprecating until i figure it out
 }
 
 // Holdings is a simplified version of a the portfolio. We
@@ -20,7 +20,7 @@ type Portfolio struct {
 // IMO "AggregatePortfolio" was not a great name
 type Holdings struct {
 	Positions map[string]*Position
-	// Cash      decimal.Decimal
+	Cash      decimal.Decimal
 }
 
 // Position represents a set of open lots under
@@ -39,6 +39,13 @@ type HistoricPortfolio []PortfolioOnDate
 type PortfolioOnDate struct {
 	Portfolio Portfolio
 	Date      time.Time
+}
+
+func (hp HistoricPortfolio) Latest() *Portfolio {
+	if len(hp) == 0 {
+		return nil
+	}
+	return &hp[len(hp)-1].Portfolio
 }
 
 func (pt Portfolio) ToHoldings() *Holdings {
@@ -66,3 +73,5 @@ func (mp Holdings) Symbols() []string {
 	}
 	return out
 }
+
+func (p Portfolio) DeepCopy()
