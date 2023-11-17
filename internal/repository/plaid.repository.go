@@ -124,7 +124,7 @@ func (h plaidRepositoryHandler) GetHoldings(
 			if _, ok := out[tradingAccountID]; !ok {
 				out[tradingAccountID] = domain.Holdings{
 					Positions: make(map[string]*domain.Position),
-					Cash:      decimal.Zero, // todo - handle cash
+					// Cash:      decimal.Zero, // todo - handle cash
 				}
 			}
 			symbol := *security.TickerSymbol.Get()
