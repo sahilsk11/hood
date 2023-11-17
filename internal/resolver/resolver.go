@@ -10,6 +10,7 @@ import (
 )
 
 type Resolver interface {
+	// plaid endpoints
 	GeneratePlaidLinkToken(ctx context.Context, req api_types.GeneratePlaidLinkTokenRequest) (*api_types.GeneratePlaidLinkTokenResponse, error)
 	AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBankItemRequest) error
 }
