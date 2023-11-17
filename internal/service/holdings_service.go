@@ -7,6 +7,8 @@ import (
 	db "hood/internal/db/query"
 	"hood/internal/domain"
 	. "hood/internal/domain"
+	"hood/internal/repository"
+	"hood/internal/util"
 	"sort"
 	"time"
 
@@ -15,42 +17,65 @@ import (
 )
 
 type HoldingsService interface {
-	Get(tx *sql.Tx, tradingAccountID uuid.UUID) (*Holdings, error)
+	GetHistoricPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error)
 }
 
-type holdingsServiceHandler struct{}
+type holdingsServiceHandler struct {
+	TradeRepository repository.TradeRepository
+	MdsRepository   repository.MdsRepository
+}
 
 func NewHoldingsService() HoldingsService {
 	return holdingsServiceHandler{}
 }
 
-func (h holdingsServiceHandler) Get(tx *sql.Tx, tradingAccountID uuid.UUID) (*Holdings, error) {
-	// fuckkkkk the open lot logic is broken
-	// so i dont think this works. iirc the new
-	// plaid ingestion code doesn't even try
-	// to add open lots
-	// .. maybe just nuke the tables and retry
-	// this db structure is a huge pain. i think
-	// we should tear it all away and re-run
-	// all trades every time we want something
-	openLots, err := db.GetCurrentOpenLots(tx, tradingAccountID)
+func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error) {
+	tradeSymbols := util.NewSet()
+
+	trades, err := h.TradeRepository.List(tx, tradingAccountID)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range trades {
+		tradeSymbols.Add(t.Symbol)
+	}
+
+	assetSplits, err := h.MdsRepository.GetAssetSplits(tradeSymbols.List())
 	if err != nil {
 		return nil, err
 	}
 
-	mappedOpenLots := map[string][]*OpenLot{}
-	for _, lot := range openLots {
-		symbol := lot.GetSymbol()
-		if _, ok := mappedOpenLots[symbol]; !ok {
-			mappedOpenLots[symbol] = []*OpenLot{}
-		}
-		mappedOpenLots[symbol] = append(mappedOpenLots[symbol], &lot)
+	// TODO - get this populated for other flows
+
+	tranfers, err := db.GetHistoricTransfers(tx, model.CustodianType_Robinhood)
+	if err != nil {
+		return nil, err
 	}
 
-	return Portfolio{
-		OpenLots: mappedOpenLots,
-		// Cash:     decimal.Zero,
-	}.ToHoldings(), nil
+	// todo - migrate these queries to repo pattern
+
+	dividends, err := db.GetHistoricDividends(tx, model.CustodianType_Robinhood)
+	if err != nil {
+		return nil, err
+	}
+
+	// dividends can be retrieved from plaid... i mean we just treat like
+	// a transfer. ultimately matters for more accurate cash calculation
+	// i think, which should be important for performance only
+
+	events := Events{
+		Trades:      trades,
+		AssetSplits: assetSplits,
+		Transfers:   tranfers,
+		Dividends:   dividends,
+	}
+
+	historicPortfolio, err := Playback(events)
+	if err != nil {
+		return nil, err
+	}
+
+	return historicPortfolio, nil
 }
 
 // replay historic events
@@ -79,8 +104,8 @@ func mergeEvents(in Events) []TradeEvent {
 type Events struct {
 	Trades      []Trade
 	AssetSplits []AssetSplit
-	Transfers   []Transfer
-	Dividends   []Dividend
+	Transfers   []Transfer // make sure plaid is tracking this
+	Dividends   []Dividend // hmm..
 }
 
 // given historical events, calculate all portfolios

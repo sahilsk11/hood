@@ -74,4 +74,26 @@ func (mp Holdings) Symbols() []string {
 	return out
 }
 
-func (p Portfolio) DeepCopy()
+func (p Portfolio) DeepCopy() *Portfolio {
+	out := &Portfolio{
+		OpenLots:   map[string][]*OpenLot{},
+		ClosedLots: map[string][]ClosedLot{},
+		Cash:       p.Cash,
+	}
+	for k, v := range p.OpenLots {
+		t := []*OpenLot{}
+		for _, x := range v {
+			t = append(t, x.DeepCopy())
+		}
+		out.OpenLots[k] = t
+	}
+	for k, v := range p.ClosedLots {
+		t := []ClosedLot{}
+		for _, x := range v {
+			t = append(t, x.DeepCopy())
+		}
+		out.ClosedLots[k] = t
+	}
+
+	return out
+}

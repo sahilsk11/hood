@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-jet/jet/v2/postgres"
+	"github.com/google/uuid"
 
 	hood_errors "hood/internal"
 )
@@ -17,6 +18,7 @@ import (
 type TradeRepository interface {
 	Add(tx *sql.Tx, dTrades []domain.Trade) ([]domain.Trade, error)
 	AddPlaidMetadata(tx *sql.Tx, models []model.PlaidTradeMetadata) error
+	List(tx *sql.Tx, tradingAccountID uuid.UUID) ([]domain.Trade, error)
 }
 
 type tradeRepositoryHandler struct {
@@ -147,4 +149,20 @@ func findDuplicateTrades(tx *sql.Tx, trades []model.Trade) error {
 	}
 
 	return nil
+}
+
+func (h tradeRepositoryHandler) List(tx *sql.Tx, tradingAccountID uuid.UUID) ([]domain.Trade, error) {
+	query := Trade.SELECT(
+		Trade.AllColumns,
+	).WHERE(
+		Trade.TradingAccountID.EQ(postgres.UUID(tradingAccountID)),
+	)
+
+	trades := []model.Trade{}
+	err := query.Query(tx, &trades)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query trades for trading account id %s: %w", tradingAccountID.String(), err)
+	}
+
+	return tradesFromDb(trades), nil
 }
