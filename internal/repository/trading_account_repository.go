@@ -12,7 +12,8 @@ import (
 )
 
 type TradingAccountRepository interface {
-	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, plaidItemID, accessToken string, name *string) (*model.TradingAccount, error)
+	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, name *string) (*model.TradingAccount, error)
+	Get(tx *sql.Tx, tradingAccountID uuid.UUID) (*model.TradingAccount, error)
 	AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, plaidAccountID string, mask *string) error
 	GetPlaidMetadata(tx *sql.Tx, itemID uuid.UUID) ([]model.PlaidTradingAccountMetadata, error)
 }
@@ -27,13 +28,24 @@ func NewTradingAccountRepository(db *sql.DB) TradingAccountRepository {
 	}
 }
 
+func (h tradingAccountRepositoryHandler) Get(tx *sql.Tx, tradingAccountID uuid.UUID) (*model.TradingAccount, error) {
+	query := TradingAccount.SELECT(TradingAccount.AllColumns).
+		WHERE(TradingAccount.TradingAccountID.EQ(postgres.UUID(tradingAccountID)))
+
+	var out model.TradingAccount
+	err := query.Query(tx, &out)
+	if err != nil {
+		return nil, err
+	}
+
+	return &out, nil
+}
+
 func (h tradingAccountRepositoryHandler) Add(
 	tx *sql.Tx,
 	userID uuid.UUID,
 	custodian model.CustodianType,
 	accountType model.AccountType,
-	plaidItemID,
-	accessToken string,
 	name *string,
 ) (*model.TradingAccount, error) {
 	// TODO - update migration so we use generated uuid

@@ -13,6 +13,11 @@ type Resolver interface {
 	// plaid endpoints
 	GeneratePlaidLinkToken(ctx context.Context, req api_types.GeneratePlaidLinkTokenRequest) (*api_types.GeneratePlaidLinkTokenResponse, error)
 	AddPlaidBankItem(ctx context.Context, req api_types.AddPlaidBankItemRequest) error
+
+	// holdings endpoints
+	NewManualTradingAccount(api_types.NewManualTradingAccountRequest) (*api_types.NewManualTradingAccountResponse, error)
+	UpdatePosition(api_types.UpdatePositionRequest) (*api_types.UpdatePositionResponse, error)
+	GetTradingAccountHoldings(req api_types.GetTradingAccountHoldingsRequest) (*api_types.GetTradingAccountHoldingsResponse, error)
 }
 
 type resolverHandler struct {
@@ -23,6 +28,7 @@ type resolverHandler struct {
 	TradingAccountRepository repository.TradingAccountRepository
 
 	IngestionService service.IngestionService
+	HoldingsService  service.HoldingsService
 }
 
 func NewResolver(
@@ -32,6 +38,7 @@ func NewResolver(
 	plaidItemRepository repository.PlaidItemRepository,
 	tradingAccountRepository repository.TradingAccountRepository,
 	ingestionService service.IngestionService,
+	holdingsService service.HoldingsService,
 ) Resolver {
 	return resolverHandler{
 		Db:                       db,
@@ -40,5 +47,6 @@ func NewResolver(
 		PlaidItemRepository:      plaidItemRepository,
 		TradingAccountRepository: tradingAccountRepository,
 		IngestionService:         ingestionService,
+		HoldingsService:          holdingsService,
 	}
 }

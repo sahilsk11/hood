@@ -58,6 +58,54 @@ func StartApi(port int, r resolver.Resolver) error {
 		c.JSON(http.StatusOK, gin.H{"public_token_exchange": "complete"})
 	})
 
+	router.POST("/getHoldings", func(c *gin.Context) {
+		var req api_types.GetTradingAccountHoldingsRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		resp, err := r.GetTradingAccountHoldings(req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
+		c.JSON(http.StatusOK, resp)
+	})
+
+	router.POST("/newManualTradingAccount", func(c *gin.Context) {
+		var req api_types.NewManualTradingAccountRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		resp, err := r.NewManualTradingAccount(req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
+		c.JSON(http.StatusOK, resp)
+	})
+
+	router.POST("/updatePosition", func(c *gin.Context) {
+		var req api_types.UpdatePositionRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		resp, err := r.UpdatePosition(req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
+		c.JSON(http.StatusOK, resp)
+	})
+
 	return router.Run(fmt.Sprintf(":%d", port))
 }
 

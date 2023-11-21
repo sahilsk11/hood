@@ -18,15 +18,75 @@ import (
 
 type HoldingsService interface {
 	GetHistoricPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error)
+	// use sparingly - ideally we'd like to update accounts by only adding new trades
+	UpdatePosition(tx *sql.Tx, tradingAccountID uuid.UUID, newPosition domain.Position) error
 }
 
 type holdingsServiceHandler struct {
 	TradeRepository repository.TradeRepository
-	MdsRepository   repository.MdsRepository
+	// MdsRepository   repository.MdsRepository
+	TradingAccountRepository repository.TradingAccountRepository
 }
 
-func NewHoldingsService() HoldingsService {
-	return holdingsServiceHandler{}
+func NewHoldingsService(
+	tradeRepository repository.TradeRepository,
+	tradingAccountRepository repository.TradingAccountRepository,
+	// mdsRepository repository.MdsRepository,
+) HoldingsService {
+	return holdingsServiceHandler{
+		TradeRepository: tradeRepository,
+		// MdsRepository:   mdsRepository,
+		TradingAccountRepository: tradingAccountRepository,
+	}
+}
+
+func (h holdingsServiceHandler) UpdatePosition(tx *sql.Tx, tradingAccountID uuid.UUID, newPosition domain.Position) error {
+	// should move to service layer
+	historic, err := h.GetHistoricPortfolio(tx, tradingAccountID)
+	if err != nil {
+		return err
+	}
+
+	currentQuantity := decimal.Zero
+	current, ok := historic.Latest().ToHoldings().Positions[newPosition.Symbol]
+	if ok {
+		currentQuantity = current.Quantity
+	}
+
+	var newTrade *domain.Trade
+	diff := newPosition.Quantity.Sub(currentQuantity)
+	if !diff.IsZero() {
+		action := model.TradeActionType_Buy
+		if newPosition.Quantity.IsNegative() {
+			action = model.TradeActionType_Sell
+		}
+		newTrade = &domain.Trade{
+			Symbol:           newPosition.Symbol,
+			Quantity:         newPosition.Quantity.Abs(),
+			Price:            decimal.Zero, // maybe get price from mds?
+			Date:             time.Now().UTC(),
+			TradingAccountID: tradingAccountID,
+			Action:           action,
+			Source:           model.TradeSourceType_Manual, // should be manual inferred
+		}
+	}
+
+	tradingAccount, err := h.TradingAccountRepository.Get(tx, tradingAccountID)
+	if err != nil {
+		return err
+	}
+	if tradingAccount.Custodian != model.CustodianType_Unknown {
+		return fmt.Errorf("cannot manually override positions on actual trading account")
+	}
+
+	if newTrade != nil {
+		_, err = h.TradeRepository.Add(tx, []domain.Trade{*newTrade})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error) {
@@ -40,21 +100,21 @@ func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountI
 		tradeSymbols.Add(t.Symbol)
 	}
 
-	assetSplits, err := h.MdsRepository.GetAssetSplits(tradeSymbols.List())
+	assetSplits, err := db.GetHistoricAssetSplits(tx)
 	if err != nil {
 		return nil, err
 	}
 
 	// TODO - get this populated for other flows
 
-	tranfers, err := db.GetHistoricTransfers(tx, model.CustodianType_Robinhood)
+	tranfers, err := db.GetHistoricTransfers(tx, model.CustodianType_Tda)
 	if err != nil {
 		return nil, err
 	}
 
 	// todo - migrate these queries to repo pattern
 
-	dividends, err := db.GetHistoricDividends(tx, model.CustodianType_Robinhood)
+	dividends, err := db.GetHistoricDividends(tx, model.CustodianType_Tda)
 	if err != nil {
 		return nil, err
 	}

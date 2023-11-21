@@ -51,7 +51,7 @@ func (hp HistoricPortfolio) Latest() *Portfolio {
 func (pt Portfolio) ToHoldings() *Holdings {
 	out := &Holdings{
 		Positions: map[string]*Position{},
-		// Cash:      pt.Cash,
+		Cash:      pt.Cash,
 	}
 	for symbol, lots := range pt.OpenLots {
 		totalQuantity := decimal.Zero

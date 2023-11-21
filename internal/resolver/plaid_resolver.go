@@ -51,8 +51,6 @@ func (r resolverHandler) AddPlaidBankItem(ctx context.Context, req api_types.Add
 				req.UserID,
 				institution,
 				accountType,
-				item.PlaidItemID,
-				item.AccessToken,
 				&acc.Name,
 			)
 			if err != nil {

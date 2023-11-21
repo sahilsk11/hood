@@ -36,19 +36,26 @@ func main() {
 	tradeRepository := repository.NewTradeRepository()
 	plaidInvestmentsAccountRepository := repository.NewPlaidInvestmentsHoldingsRepository(dbConn)
 
+	ingestionService := service.NewIngestionService(
+		plaidRepository,
+		tradeRepository,
+		plaidItemRepository,
+		tradingAccountRepository,
+		plaidInvestmentsAccountRepository,
+	)
+	holdingsService := service.NewHoldingsService(
+		tradeRepository,
+		tradingAccountRepository,
+	)
+
 	r := resolver.NewResolver(
 		dbConn,
 		plaidRepository,
 		userRepository,
 		plaidItemRepository,
 		tradingAccountRepository,
-		service.NewIngestionService(
-			plaidRepository,
-			tradeRepository,
-			plaidItemRepository,
-			tradingAccountRepository,
-			plaidInvestmentsAccountRepository,
-		),
+		ingestionService,
+		holdingsService,
 	)
 
 	err = api.StartApi(5001, r)
