@@ -69,7 +69,7 @@ func (h positionsRepositoryHandler) List(tx *sql.Tx, tradingAccountID uuid.UUID)
 	query := Position.SELECT(Position.AllColumns).WHERE(
 		postgres.AND(
 			Position.TradingAccountID.EQ(postgres.UUID(tradingAccountID)),
-			Position.DeletedAt.IS_NOT_NULL(),
+			Position.DeletedAt.IS_NULL(),
 		),
 	)
 	var results []model.Position
@@ -81,6 +81,7 @@ func (h positionsRepositoryHandler) List(tx *sql.Tx, tradingAccountID uuid.UUID)
 	for i, p := range results {
 		out[i] = dbPositionToDomain(p)
 	}
+
 	return out, nil
 }
 
@@ -93,9 +94,10 @@ func (h positionsRepositoryHandler) Delete(tx *sql.Tx, tradingAccountID uuid.UUI
 		postgres.AND(
 			Position.TradingAccountID.EQ(postgres.UUID(tradingAccountID)),
 			Position.Ticker.EQ(postgres.String(symbol)),
-			Position.DeletedAt.IS_NOT_NULL(),
+			Position.DeletedAt.IS_NULL(),
 		),
 	)
+	fmt.Println(query.DebugSql())
 	_, err := query.Exec(tx)
 	if err != nil {
 		return err

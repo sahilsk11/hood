@@ -65,7 +65,7 @@ func (r resolverHandler) NewManualTradingAccount(req api_types.NewManualTradingA
 	}
 	defer tx.Rollback()
 
-	acc, err := r.TradingAccountRepository.Add(tx, req.UserID, model.CustodianType_Unknown, model.AccountType_Unknown, nil)
+	acc, err := r.TradingAccountRepository.Add(tx, req.UserID, model.CustodianType_Unknown, model.AccountType_Unknown, nil, model.TradingAccountDataSourceType_Positions)
 	if err != nil {
 		return nil, err
 	}

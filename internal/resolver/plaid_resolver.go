@@ -52,6 +52,7 @@ func (r resolverHandler) AddPlaidBankItem(ctx context.Context, req api_types.Add
 				institution,
 				accountType,
 				&acc.Name,
+				model.TradingAccountDataSourceType_Trades,
 			)
 			if err != nil {
 				return fmt.Errorf("failed to add plaid account: %w", err)

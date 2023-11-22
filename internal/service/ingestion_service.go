@@ -236,18 +236,15 @@ func (h ingestionServiceHandler) UpdatePosition(tx *sql.Tx, tradingAccountID uui
 		return err
 	}
 
-	diff := newPosition.Quantity
 	for _, p := range positions {
-		if p.Symbol == newPosition.Symbol {
-			diff = newPosition.Quantity.Sub(p.Quantity)
+		if p.Symbol == newPosition.Symbol && !newPosition.Quantity.Sub(p.Quantity).IsZero() {
+			err = h.PositionsRepository.Delete(tx, tradingAccountID, newPosition.Symbol)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	if !diff.IsZero() {
-		err = h.PositionsRepository.Delete(tx, tradingAccountID, newPosition.Symbol)
-		if err != nil {
-			return err
-		}
-	}
+
 	// you actually gotta kys for this bs
 	// TODO - fix
 	err = h.PositionsRepository.Add(tx, map[uuid.UUID]domain.Holdings{

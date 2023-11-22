@@ -13,7 +13,7 @@ import (
 )
 
 type TradingAccountRepository interface {
-	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, name *string) (*model.TradingAccount, error)
+	Add(tx *sql.Tx, userID uuid.UUID, custodian model.CustodianType, accountType model.AccountType, name *string, dataSource model.TradingAccountDataSourceType) (*model.TradingAccount, error)
 	Get(tx *sql.Tx, tradingAccountID uuid.UUID) (*model.TradingAccount, error)
 	AddPlaidMetadata(tx *sql.Tx, tradingAccountID, itemID uuid.UUID, plaidAccountID string, mask *string) error
 	GetPlaidMetadata(tx *sql.Tx, tradingAccountID uuid.UUID) (*model.PlaidTradingAccountMetadata, error)
@@ -69,6 +69,7 @@ func (h tradingAccountRepositoryHandler) Add(
 	custodian model.CustodianType,
 	accountType model.AccountType,
 	name *string,
+	dataSource model.TradingAccountDataSourceType,
 ) (*model.TradingAccount, error) {
 	// TODO - update migration so we use generated uuid
 	query := TradingAccount.INSERT(
@@ -81,6 +82,7 @@ func (h tradingAccountRepositoryHandler) Add(
 			AccountType:      accountType,
 			Name:             name,
 			CreatedAt:        time.Now().UTC(),
+			DataSource:       dataSource,
 		},
 	).RETURNING(
 		TradingAccount.AllColumns,

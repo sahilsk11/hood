@@ -109,7 +109,8 @@ func (h holdingsServiceHandler) GetCurrentPortfolio(tx *sql.Tx, tradingAccountID
 	}
 	kys := map[string]*Position{}
 	for _, p := range positions {
-		kys[p.Symbol] = &p
+		t := p // kys
+		kys[p.Symbol] = &t
 	}
 
 	// todo - handle cash
