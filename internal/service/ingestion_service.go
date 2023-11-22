@@ -17,8 +17,12 @@ import (
 // if asset is not available
 const defaultTradeDate = "2010-01-01"
 
+// IngestionService is concerned with the addition and mutation of new portfolio data
 type IngestionService interface {
-	AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error
+	// finds all available trades for the account, adds them to db,
+	// and guesses any missing trade data to match latest Plaid holdings
+	AddPlaidTradeData(tx *sql.Tx, tradingAccountID uuid.UUID) error
+	UpdatePosition(tx *sql.Tx, tradingAccountID uuid.UUID, newPosition domain.Position) error
 }
 
 func NewIngestionService(
@@ -45,25 +49,38 @@ type ingestionServiceHandler struct {
 	PositionsRepository      repository.PositionsRepository
 }
 
-func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error {
-	item, err := h.PlaidItemRepository.Get(tx, itemID)
+func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, tradingAccountID uuid.UUID) error {
+	tradingAccount, err := h.TradingAccountRepository.Get(tx, tradingAccountID)
 	if err != nil {
 		return err
 	}
+	if tradingAccount.DataSource != model.TradingAccountDataSourceType_Trades {
+		return fmt.Errorf("cannot add trades to account %s - data source is not trades", tradingAccountID.String())
+	}
 
-	plaidTradingAccounts, err := h.TradingAccountRepository.GetPlaidMetadata(tx, itemID)
+	// todo - we need some way to check if an account is actively connected via Plaid
+	// knowing there's a Plaid metadata link is insufficient, because the link can
+	// exist but not be active
+
+	plaidTradingAccountMetadata, err := h.TradingAccountRepository.GetPlaidMetadata(tx, tradingAccountID)
 	if err != nil {
 		return err
 	}
+	if plaidTradingAccountMetadata == nil {
+		return fmt.Errorf("could not find plaid metadata for trading account %s", tradingAccountID.String())
+	}
 
-	plaidAccountIdToAccountID := map[string]uuid.UUID{}
-	for _, acc := range plaidTradingAccounts {
-		plaidAccountIdToAccountID[acc.PlaidAccountID] = acc.TradingAccountID
+	item, err := h.PlaidItemRepository.Get(tx, plaidTradingAccountMetadata.ItemID)
+	if err != nil {
+		return err
 	}
 
 	trades, plaidTrades, err := h.PlaidRepository.GetTransactions(
 		context.Background(),
-		plaidAccountIdToAccountID,
+		// todo - make this param plaidTradingAccountMetadata
+		map[string]uuid.UUID{
+			plaidTradingAccountMetadata.PlaidAccountID: plaidTradingAccountMetadata.TradingAccountID,
+		},
 		item.AccessToken,
 	)
 	if err != nil {
@@ -78,7 +95,10 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 
 	holdings, err := h.PlaidRepository.GetHoldings(
 		item.AccessToken,
-		plaidAccountIdToAccountID,
+		// todo - make this param plaidTradingAccountMetadata
+		map[string]uuid.UUID{
+			plaidTradingAccountMetadata.PlaidAccountID: plaidTradingAccountMetadata.TradingAccountID,
+		},
 	)
 	if err != nil {
 		return err
@@ -96,29 +116,27 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 
 	// this is wrong - we should pull trades we have for this account,
 	// not just the ones we got from Plaid
+	// TODO - i just don't know how to reconcile existing trades
 
 	inferredTrades := []domain.Trade{}
-	for _, tradingAccount := range plaidTradingAccounts {
-		tradingAccountID := tradingAccount.TradingAccountID
-		relevantTrades := []domain.Trade{}
-		for _, t := range trades {
-			if t.TradingAccountID == tradingAccount.TradingAccountID {
-				relevantTrades = append(relevantTrades, t)
-			}
+	relevantTrades := []domain.Trade{}
+	for _, t := range trades {
+		if t.TradingAccountID == tradingAccount.TradingAccountID {
+			relevantTrades = append(relevantTrades, t)
 		}
-		startPortfolio := inverseTrades(relevantTrades, holdings[tradingAccountID])
-		for _, p := range startPortfolio.Positions {
-			inferredTrades = append(inferredTrades, domain.Trade{
-				Symbol:           p.Symbol,
-				Quantity:         p.Quantity,
-				Price:            p.TotalCostBasis.Div(p.Quantity),
-				Date:             defaultTradeDate, // day before their last trade, or beginning of time ?
-				Description:      nil,
-				TradingAccountID: tradingAccountID,
-				Action:           model.TradeActionType_Buy,
-				Source:           model.TradeSourceType_PlaidInferred,
-			})
-		}
+	}
+	startPortfolio := inverseTrades(relevantTrades, holdings[tradingAccountID])
+	for _, p := range startPortfolio.Positions {
+		inferredTrades = append(inferredTrades, domain.Trade{
+			Symbol:           p.Symbol,
+			Quantity:         p.Quantity,
+			Price:            p.TotalCostBasis.Div(p.Quantity),
+			Date:             defaultTradeDate, // day before their last trade, or beginning of time ?
+			Description:      nil,
+			TradingAccountID: tradingAccountID,
+			Action:           model.TradeActionType_Buy,
+			Source:           model.TradeSourceType_PlaidInferred,
+		})
 	}
 
 	_, err = h.TradeRepository.Add(tx, inferredTrades)
@@ -197,6 +215,50 @@ func (h ingestionServiceHandler) AddPlaidTrades(
 	}
 
 	err = h.TradeRepository.AddPlaidMetadata(tx, plaidTrades)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (h ingestionServiceHandler) UpdatePosition(tx *sql.Tx, tradingAccountID uuid.UUID, newPosition domain.Position) error {
+	tradingAccount, err := h.TradingAccountRepository.Get(tx, tradingAccountID)
+	if err != nil {
+		return err
+	}
+	if tradingAccount.DataSource != model.TradingAccountDataSourceType_Positions {
+		return fmt.Errorf("cannot update positions of %s - account data source is not positions", tradingAccountID.String())
+	}
+
+	positions, err := h.PositionsRepository.List(tx, tradingAccountID)
+	if err != nil {
+		return err
+	}
+
+	diff := newPosition.Quantity
+	for _, p := range positions {
+		if p.Symbol == newPosition.Symbol {
+			diff = newPosition.Quantity.Sub(p.Quantity)
+		}
+	}
+	if !diff.IsZero() {
+		err = h.PositionsRepository.Delete(tx, tradingAccountID, newPosition.Symbol)
+		if err != nil {
+			return err
+		}
+	}
+	// you actually gotta kys for this bs
+	// TODO - fix
+	err = h.PositionsRepository.Add(tx, map[uuid.UUID]domain.Holdings{
+		tradingAccountID: {
+			Positions: map[string]*domain.Position{
+				newPosition.Symbol: &newPosition,
+			},
+		},
+	},
+		model.PositionSourceType_Manual,
+	)
 	if err != nil {
 		return err
 	}

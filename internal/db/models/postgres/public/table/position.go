@@ -24,6 +24,7 @@ type positionTable struct {
 	Quantity         postgres.ColumnFloat
 	CreatedAt        postgres.ColumnTimestampz
 	Source           postgres.ColumnString
+	DeletedAt        postgres.ColumnTimestampz
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -61,8 +62,9 @@ func newPositionTableImpl(schemaName, tableName, alias string) positionTable {
 		QuantityColumn         = postgres.FloatColumn("quantity")
 		CreatedAtColumn        = postgres.TimestampzColumn("created_at")
 		SourceColumn           = postgres.StringColumn("source")
-		allColumns             = postgres.ColumnList{PositionIDColumn, TickerColumn, TradingAccountIDColumn, TotalCostBasisColumn, QuantityColumn, CreatedAtColumn, SourceColumn}
-		mutableColumns         = postgres.ColumnList{TickerColumn, TradingAccountIDColumn, TotalCostBasisColumn, QuantityColumn, CreatedAtColumn, SourceColumn}
+		DeletedAtColumn        = postgres.TimestampzColumn("deleted_at")
+		allColumns             = postgres.ColumnList{PositionIDColumn, TickerColumn, TradingAccountIDColumn, TotalCostBasisColumn, QuantityColumn, CreatedAtColumn, SourceColumn, DeletedAtColumn}
+		mutableColumns         = postgres.ColumnList{TickerColumn, TradingAccountIDColumn, TotalCostBasisColumn, QuantityColumn, CreatedAtColumn, SourceColumn, DeletedAtColumn}
 	)
 
 	return positionTable{
@@ -76,6 +78,7 @@ func newPositionTableImpl(schemaName, tableName, alias string) positionTable {
 		Quantity:         QuantityColumn,
 		CreatedAt:        CreatedAtColumn,
 		Source:           SourceColumn,
+		DeletedAt:        DeletedAtColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

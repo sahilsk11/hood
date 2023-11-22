@@ -22,4 +22,5 @@ type Position struct {
 	Quantity         decimal.Decimal
 	CreatedAt        time.Time
 	Source           PositionSourceType
+	DeletedAt        *time.Time
 }

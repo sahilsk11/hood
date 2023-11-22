@@ -46,6 +46,7 @@ func main() {
 	holdingsService := service.NewHoldingsService(
 		tradeRepository,
 		tradingAccountRepository,
+		positionsRepository,
 	)
 
 	r := resolver.NewResolver(

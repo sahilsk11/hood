@@ -15,11 +15,10 @@ func (r resolverHandler) GetTradingAccountHoldings(req api_types.GetTradingAccou
 	}
 	defer tx.Rollback()
 
-	historicPortfolio, err := r.HoldingsService.GetHistoricPortfolio(tx, req.TradingAccountID)
+	holdings, err := r.HoldingsService.GetCurrentPortfolio(tx, req.TradingAccountID)
 	if err != nil {
 		return nil, err
 	}
-	holdings := historicPortfolio.Latest().ToHoldings()
 
 	out := []api_types.Position{}
 	for _, p := range holdings.Positions {
@@ -42,7 +41,7 @@ func (r resolverHandler) UpdatePosition(req api_types.UpdatePositionRequest) (*a
 	}
 	defer tx.Rollback()
 
-	err = r.HoldingsService.UpdatePosition(tx, req.TradingAccountID, domain.Position{
+	err = r.IngestionService.UpdatePosition(tx, req.TradingAccountID, domain.Position{
 		Symbol:         req.Position.Symbol,
 		Quantity:       decimal.NewFromFloat(req.Position.Quantity),
 		TotalCostBasis: decimal.Zero, // should make explicit
