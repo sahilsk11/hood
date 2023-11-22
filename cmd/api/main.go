@@ -34,14 +34,14 @@ func main() {
 	plaidItemRepository := repository.NewPlaidItemRepository(dbConn)
 	tradingAccountRepository := repository.NewTradingAccountRepository(dbConn)
 	tradeRepository := repository.NewTradeRepository()
-	plaidInvestmentsAccountRepository := repository.NewPlaidInvestmentsHoldingsRepository(dbConn)
+	positionsRepository := repository.NewPositionsRepository(dbConn)
 
 	ingestionService := service.NewIngestionService(
 		plaidRepository,
 		tradeRepository,
 		plaidItemRepository,
 		tradingAccountRepository,
-		plaidInvestmentsAccountRepository,
+		positionsRepository,
 	)
 	holdingsService := service.NewHoldingsService(
 		tradeRepository,

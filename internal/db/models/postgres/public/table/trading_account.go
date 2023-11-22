@@ -23,6 +23,7 @@ type tradingAccountTable struct {
 	AccountType      postgres.ColumnString
 	CreatedAt        postgres.ColumnTimestampz
 	Name             postgres.ColumnString
+	DataSource       postgres.ColumnString
 
 	AllColumns     postgres.ColumnList
 	MutableColumns postgres.ColumnList
@@ -59,8 +60,9 @@ func newTradingAccountTableImpl(schemaName, tableName, alias string) tradingAcco
 		AccountTypeColumn      = postgres.StringColumn("account_type")
 		CreatedAtColumn        = postgres.TimestampzColumn("created_at")
 		NameColumn             = postgres.StringColumn("name")
-		allColumns             = postgres.ColumnList{TradingAccountIDColumn, UserIDColumn, CustodianColumn, AccountTypeColumn, CreatedAtColumn, NameColumn}
-		mutableColumns         = postgres.ColumnList{UserIDColumn, CustodianColumn, AccountTypeColumn, CreatedAtColumn, NameColumn}
+		DataSourceColumn       = postgres.StringColumn("data_source")
+		allColumns             = postgres.ColumnList{TradingAccountIDColumn, UserIDColumn, CustodianColumn, AccountTypeColumn, CreatedAtColumn, NameColumn, DataSourceColumn}
+		mutableColumns         = postgres.ColumnList{UserIDColumn, CustodianColumn, AccountTypeColumn, CreatedAtColumn, NameColumn, DataSourceColumn}
 	)
 
 	return tradingAccountTable{
@@ -73,6 +75,7 @@ func newTradingAccountTableImpl(schemaName, tableName, alias string) tradingAcco
 		AccountType:      AccountTypeColumn,
 		CreatedAt:        CreatedAtColumn,
 		Name:             NameColumn,
+		DataSource:       DataSourceColumn,
 
 		AllColumns:     allColumns,
 		MutableColumns: mutableColumns,

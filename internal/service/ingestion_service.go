@@ -26,23 +26,23 @@ func NewIngestionService(
 	tradeRepository repository.TradeRepository,
 	plaidItemRepository repository.PlaidItemRepository,
 	tradingAccountRepository repository.TradingAccountRepository,
-	plaidInvestmentsAccountRepository repository.PlaidInvestmentsHoldingsRepository,
+	positionsRepository repository.PositionsRepository,
 ) IngestionService {
 	return ingestionServiceHandler{
-		PlaidRepository:                    plaidRepository,
-		TradeRepository:                    tradeRepository,
-		PlaidItemRepository:                plaidItemRepository,
-		TradingAccountRepository:           tradingAccountRepository,
-		PlaidInvestmentsHoldingsRepository: plaidInvestmentsAccountRepository,
+		PlaidRepository:          plaidRepository,
+		TradeRepository:          tradeRepository,
+		PlaidItemRepository:      plaidItemRepository,
+		TradingAccountRepository: tradingAccountRepository,
+		PositionsRepository:      positionsRepository,
 	}
 }
 
 type ingestionServiceHandler struct {
-	PlaidRepository                    repository.PlaidRepository
-	TradeRepository                    repository.TradeRepository
-	PlaidItemRepository                repository.PlaidItemRepository
-	TradingAccountRepository           repository.TradingAccountRepository
-	PlaidInvestmentsHoldingsRepository repository.PlaidInvestmentsHoldingsRepository
+	PlaidRepository          repository.PlaidRepository
+	TradeRepository          repository.TradeRepository
+	PlaidItemRepository      repository.PlaidItemRepository
+	TradingAccountRepository repository.TradingAccountRepository
+	PositionsRepository      repository.PositionsRepository
 }
 
 func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID) error {
@@ -84,7 +84,7 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 		return err
 	}
 
-	err = h.PlaidInvestmentsHoldingsRepository.Add(tx, holdings)
+	err = h.PositionsRepository.Add(tx, holdings, model.PositionSourceType_Plaid)
 	if err != nil {
 		return err
 	}
@@ -93,6 +93,9 @@ func (h ingestionServiceHandler) AddPlaidTradeData(tx *sql.Tx, itemID uuid.UUID)
 	if err != nil {
 		return err
 	}
+
+	// this is wrong - we should pull trades we have for this account,
+	// not just the ones we got from Plaid
 
 	inferredTrades := []domain.Trade{}
 	for _, tradingAccount := range plaidTradingAccounts {

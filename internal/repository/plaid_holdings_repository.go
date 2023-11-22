@@ -11,38 +11,39 @@ import (
 	"github.com/google/uuid"
 )
 
-type PlaidInvestmentsHoldingsRepository interface {
-	Add(tx *sql.Tx, holdingsByAccountID map[uuid.UUID]domain.Holdings) error
+type PositionsRepository interface {
+	Add(tx *sql.Tx, holdingsByAccountID map[uuid.UUID]domain.Holdings, source model.PositionSourceType) error
 }
 
-type plaidInvestmentsHoldingsRepositoryHandler struct {
+type positionsRepositoryHandler struct {
 }
 
-func NewPlaidInvestmentsHoldingsRepository(db *sql.DB) PlaidInvestmentsHoldingsRepository {
-	return plaidInvestmentsHoldingsRepositoryHandler{}
+func NewPositionsRepository(db *sql.DB) PositionsRepository {
+	return positionsRepositoryHandler{}
 }
 
-func holdingsByAccountIDToModels(in map[uuid.UUID]domain.Holdings) []model.PlaidInvestmentHoldings {
-	out := []model.PlaidInvestmentHoldings{}
+func holdingsByAccountIDToModels(in map[uuid.UUID]domain.Holdings, source model.PositionSourceType) []model.Position {
+	out := []model.Position{}
 	for accountID, holdings := range in {
 		for _, position := range holdings.Positions {
-			out = append(out, model.PlaidInvestmentHoldings{
+			out = append(out, model.Position{
 				Ticker:           position.Symbol,
 				TradingAccountID: accountID,
 				TotalCostBasis:   position.TotalCostBasis,
 				Quantity:         position.Quantity,
 				CreatedAt:        time.Now().UTC(),
+				Source:           source,
 			})
 		}
 	}
 	return out
 }
 
-func (h plaidInvestmentsHoldingsRepositoryHandler) Add(tx *sql.Tx, holdingsByAccountID map[uuid.UUID]domain.Holdings) error {
-	query := PlaidInvestmentHoldings.INSERT(
-		PlaidInvestmentHoldings.MutableColumns,
+func (h positionsRepositoryHandler) Add(tx *sql.Tx, holdingsByAccountID map[uuid.UUID]domain.Holdings, source model.PositionSourceType) error {
+	query := Position.INSERT(
+		Position.MutableColumns,
 	).MODELS(
-		holdingsByAccountIDToModels(holdingsByAccountID),
+		holdingsByAccountIDToModels(holdingsByAccountID, source),
 	)
 
 	_, err := query.Exec(tx)

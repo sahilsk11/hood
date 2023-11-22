@@ -19,4 +19,5 @@ type TradingAccount struct {
 	AccountType      AccountType
 	CreatedAt        time.Time
 	Name             *string
+	DataSource       TradingAccountDataSourceType
 }
