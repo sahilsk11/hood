@@ -93,12 +93,12 @@ func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountI
 func (h holdingsServiceHandler) GetCurrentPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*Holdings, error) {
 	tradingAccount, err := h.TradingAccountRepository.Get(tx, tradingAccountID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get trading account with id %s: %w", tradingAccountID.String(), err)
 	}
 	if tradingAccount.DataSource == model.TradingAccountDataSourceType_Trades {
 		historic, err := h.GetHistoricPortfolio(tx, tradingAccountID)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get historic portfolio: %w", err)
 		}
 		return historic.Latest().ToHoldings(), nil
 	}

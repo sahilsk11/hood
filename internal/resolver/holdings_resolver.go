@@ -1,6 +1,7 @@
 package resolver
 
 import (
+	"fmt"
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
 
@@ -17,7 +18,7 @@ func (r resolverHandler) GetTradingAccountHoldings(req api_types.GetTradingAccou
 
 	holdings, err := r.HoldingsService.GetCurrentPortfolio(tx, req.TradingAccountID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get current portfolio for %s: %w", req.TradingAccountID.String(), err)
 	}
 
 	out := []api_types.Position{}
@@ -41,13 +42,15 @@ func (r resolverHandler) UpdatePosition(req api_types.UpdatePositionRequest) (*a
 	}
 	defer tx.Rollback()
 
-	err = r.IngestionService.UpdatePosition(tx, req.TradingAccountID, domain.Position{
-		Symbol:         req.Position.Symbol,
-		Quantity:       decimal.NewFromFloat(req.Position.Quantity),
-		TotalCostBasis: decimal.Zero, // should make explicit
-	})
-	if err != nil {
-		return nil, err
+	for _, p := range req.Positions {
+		err = r.IngestionService.UpdatePosition(tx, req.TradingAccountID, domain.Position{
+			Symbol:         p.Symbol,
+			Quantity:       decimal.NewFromFloat(p.Quantity),
+			TotalCostBasis: decimal.Zero, // should make explicit
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	err = tx.Commit()
