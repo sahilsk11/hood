@@ -18,6 +18,7 @@ type Resolver interface {
 	NewManualTradingAccount(api_types.NewManualTradingAccountRequest) (*api_types.NewManualTradingAccountResponse, error)
 	UpdatePosition(api_types.UpdatePositionRequest) (*api_types.UpdatePositionResponse, error)
 	GetTradingAccountHoldings(req api_types.GetTradingAccountHoldingsRequest) (*api_types.GetTradingAccountHoldingsResponse, error)
+	GetHistoricHoldings(req api_types.GetHistoricHoldingsRequest) (*api_types.GetHistoricHoldingsResponse, error)
 }
 
 type resolverHandler struct {

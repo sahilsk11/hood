@@ -25,12 +25,14 @@ type holdingsServiceHandler struct {
 	TradeRepository          repository.TradeRepository
 	TradingAccountRepository repository.TradingAccountRepository
 	PositionsRepository      repository.PositionsRepository
+	// MdsRepository repository.MdsRepository
 }
 
 func NewHoldingsService(
 	tradeRepository repository.TradeRepository,
 	tradingAccountRepository repository.TradingAccountRepository,
 	positionsRepository repository.PositionsRepository,
+	// mdsRepository repository.MdsRepository,
 ) HoldingsService {
 	return holdingsServiceHandler{
 		TradeRepository: tradeRepository,
@@ -42,6 +44,15 @@ func NewHoldingsService(
 
 // should we make this so it only works on trade accounts?
 func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error) {
+	tradingAccount, err := h.TradingAccountRepository.Get(tx, tradingAccountID)
+	if err != nil {
+		return nil, err
+	}
+
+	if tradingAccount.DataSource == model.TradingAccountDataSourceType_Positions {
+		return h.getHistoricPortfolioFromPositions(tx, tradingAccountID)
+	}
+
 	tradeSymbols := util.NewSet()
 
 	trades, err := h.TradeRepository.List(tx, tradingAccountID)
@@ -88,6 +99,45 @@ func (h holdingsServiceHandler) GetHistoricPortfolio(tx *sql.Tx, tradingAccountI
 	}
 
 	return historicPortfolio, nil
+}
+
+func (h holdingsServiceHandler) getHistoricPortfolioFromPositions(tx *sql.Tx, tradingAccountID uuid.UUID) (*HistoricPortfolio, error) {
+	// argh
+	latest, err := h.GetCurrentPortfolio(tx, tradingAccountID)
+	if err != nil {
+		return nil, err
+	}
+	start := time.Now().AddDate(-5, 0, 0)
+	current := start
+	portfolios := []PortfolioOnDate{}
+
+	for current.Before(time.Now().UTC()) {
+		openLots := map[string][]*OpenLot{}
+		for _, p := range latest.Positions {
+			openLots[p.Symbol] = []*OpenLot{
+				{
+					Quantity:  p.Quantity,
+					CostBasis: decimal.Zero,
+					Trade:     nil,
+					Date:      start,
+				},
+			}
+		}
+		portfolios = append(portfolios, PortfolioOnDate{
+			Portfolio: Portfolio{
+				OpenLots:   openLots,
+				ClosedLots: map[string][]ClosedLot{},
+				// todo - fix. maybe doesn't matter
+				Cash: decimal.Zero,
+			},
+			Date: current,
+		})
+		current.AddDate(0, 0, 1)
+	}
+
+	out := HistoricPortfolio(portfolios)
+
+	return &out, nil
 }
 
 func (h holdingsServiceHandler) GetCurrentPortfolio(tx *sql.Tx, tradingAccountID uuid.UUID) (*Holdings, error) {

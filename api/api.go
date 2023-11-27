@@ -106,6 +106,22 @@ func StartApi(port int, r resolver.Resolver) error {
 		c.JSON(http.StatusOK, resp)
 	})
 
+	router.POST("/historicHoldings", func(c *gin.Context) {
+		var req api_types.GetHistoricHoldingsRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			returnErrorJson(fmt.Errorf("failed to read request body: %w", err), c)
+			return
+		}
+
+		resp, err := r.GetHistoricHoldings(req)
+		if err != nil {
+			returnErrorJson(err, c)
+			return
+		}
+
+		c.JSON(http.StatusOK, resp)
+	})
+
 	return router.Run(fmt.Sprintf(":%d", port))
 }
 

@@ -5,6 +5,7 @@ import (
 	"hood/internal/db/models/postgres/public/model"
 	"hood/internal/domain"
 
+	"github.com/sahilsk11/ace-common/types/date"
 	api_types "github.com/sahilsk11/ace-common/types/hood"
 	"github.com/shopspring/decimal"
 )
@@ -81,4 +82,47 @@ func (r resolverHandler) NewManualTradingAccount(req api_types.NewManualTradingA
 	return &api_types.NewManualTradingAccountResponse{
 		TradingAccountID: acc.TradingAccountID,
 	}, nil
+}
+
+func (r resolverHandler) GetHistoricHoldings(req api_types.GetHistoricHoldingsRequest) (*api_types.GetHistoricHoldingsResponse, error) {
+	tx, err := r.Db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	results, err := r.HoldingsService.GetHistoricPortfolio(tx, req.TradingAccountID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get historic portfolio: %w", err)
+	}
+	out := api_types.GetHistoricHoldingsResponse{
+		Activity: make([]api_types.HoldingsActivity, len(*results)),
+	}
+	for i, r := range *results {
+		positionsMap := r.Portfolio.ToHoldings().Positions
+		positions := []domain.Position{}
+		for _, p := range positionsMap {
+			positions = append(positions, *p)
+		}
+		out.Activity[i] = api_types.HoldingsActivity{
+			Positions:   positionsToApiPositions(positions),
+			Date:        date.ProtoDateFromT(r.Date),
+			Cash:        r.Portfolio.Cash.InexactFloat64(),
+			Withdrawals: 0,
+			Deposits:    0,
+		}
+	}
+
+	return &out, nil
+}
+
+func positionsToApiPositions(in []domain.Position) []api_types.Position {
+	out := make([]api_types.Position, len(in))
+	for i, p := range in {
+		out[i] = api_types.Position{
+			Symbol:   p.Symbol,
+			Quantity: p.Quantity.InexactFloat64(),
+		}
+	}
+	return out
 }
